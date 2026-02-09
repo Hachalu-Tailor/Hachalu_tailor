@@ -23,3 +23,16 @@ class User(AbstractUser):
 
     def __str__(self):
         return f"{self.username} ({self.role})"
+
+"""
+The customer model to tie a customer to order, measurent,
+payments
+"""    
+
+
+class Customer(models.Model):
+    full_name = models.CharField(max_length=255)
+    phone_number = models.CharField(max_length=20)
+
+    def __str__(self):
+        return self.full_name

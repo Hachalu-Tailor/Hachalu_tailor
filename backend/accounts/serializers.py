@@ -2,13 +2,11 @@ from rest_framework import serializers
 from .models import User, Customer
 
 
-"""
-    Serializer for the internal staff (Admin and Receptionist).
-    Includes logic for secure password handling.
-"""
-
-
 class UserSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the internal staff (Admin and Receptionist).
+    Includes logic for secure password handling.    
+    """
     class Meta:
         model = User
         fields = ['id', 'username', 'password', 'role']
@@ -20,13 +18,11 @@ class UserSerializer(serializers.ModelSerializer):
         return User.objects.create_user(**validated_data)
 
 
-"""
-    Serializer for capturing customer information during 
-    the order initiation process.
-"""
-
-
-class CustomerSerializer(serializers.ModelSerializer):
+class CustomerSerializer(serializers.ModelSerializer):    
+    """
+        Serializer for capturing customer information during 
+        the order initiation process.
+    """
     class Meta:
         model = Customer
         fields = ['id', 'full_name', 'phone_number']

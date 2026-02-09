@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+@theme {
+
+  --color-brand-red: #dc2626;
+  --color-brand-dark: #0a0a0a;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));

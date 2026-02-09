@@ -8,7 +8,18 @@ from django.db.models import Q
 @transaction.atomic
 def create_user(email, full_name, phone_number, role, requester):
     """
-    Creates a user.
+    Create a new user and emit an audit log.
+
+    Args:
+        email (str): Email address for the new user.
+        full_name (str): Full name of the new user.
+        phone_number (str): Phone number for the new user.
+        role (str): Role identifier to assign to the user.
+        requester (User): Acting user creating the account (audit actor).
+
+    Returns:
+        tuple[User, str]: The created user instance and the generated temporary
+        password.
     """
 
     # Generate temporary password
@@ -45,7 +56,21 @@ def update_user(
     user_id, requester, email=None, full_name=None, phone_number=None, role=None
 ):
     """
-    Updates a user.
+    Update a user's details and emit an audit log.
+
+    Args:
+        user_id (int | str): Primary key of the user to update.
+        requester (User): Acting user performing the update (audit actor).
+        email (str | None): New email address if provided.
+        full_name (str | None): New full name if provided.
+        phone_number (str | None): New phone number if provided.
+        role (str | None): New role identifier if provided.
+
+    Returns:
+        User: The updated user instance.
+
+    Raises:
+        ValueError: If the user does not exist.
     """
     try:
         user = User.objects.get(id=user_id)
@@ -83,7 +108,17 @@ def update_user(
 @transaction.atomic
 def delete_user(user_id, requester):
     """
-    Deletes a user.
+    Delete a user and emit an audit log.
+
+    Args:
+        user_id (int | str): Primary key of the user to delete.
+        requester (User): Acting user performing the deletion (audit actor).
+
+    Returns:
+        None
+
+    Raises:
+        ValueError: If the user does not exist.
     """
     try:
         user = User.objects.get(id=user_id)
@@ -111,7 +146,17 @@ def delete_user(user_id, requester):
 @transaction.atomic
 def reset_password(user_id, requester):
     """
-    Resets a user's password.
+    Reset a user's password to a new temporary value and emit an audit log.
+
+    Args:
+        user_id (int | str): Primary key of the user whose password is reset.
+        requester (User): Acting user performing the reset (audit actor).
+
+    Returns:
+        str: The generated temporary password.
+
+    Raises:
+        ValueError: If the user does not exist.
     """
     try:
         user = User.objects.get(id=user_id)
@@ -145,7 +190,20 @@ def reset_password(user_id, requester):
 @transaction.atomic
 def change_password(user_id, requester, old_password, new_password):
     """
-    Changes a user's password.
+    Change a user's password after validating the old password and emit an
+    audit log.
+
+    Args:
+        user_id (int | str): Primary key of the user changing password.
+        requester (User): Acting user performing the change (audit actor).
+        old_password (str): Current password to validate.
+        new_password (str): New password to set.
+
+    Returns:
+        None
+
+    Raises:
+        ValueError: If the user does not exist or the old password is invalid.
     """
     try:
         user = User.objects.get(id=user_id)
@@ -177,7 +235,16 @@ def change_password(user_id, requester, old_password, new_password):
 @transaction.atomic
 def get_user(user_id):
     """
-    Retrieves a user by ID.
+    Retrieve a user by primary key.
+
+    Args:
+        user_id (int | str): Primary key of the user to fetch.
+
+    Returns:
+        User: The requested user instance.
+
+    Raises:
+        ValueError: If the user does not exist.
     """
     try:
         user = User.objects.get(id=user_id)
@@ -189,7 +256,16 @@ def get_user(user_id):
 @transaction.atomic
 def list_users(active_only=True, search_query=None):
     """
-    Lists all users.
+    List users with optional activity and search filtering.
+
+    Args:
+        active_only (bool): When True, only include active users.
+        search_query (str | None): Optional search term matched against email,
+            full name, or phone number (case-insensitive).
+
+    Returns:
+        django.db.models.QuerySet[User]: QuerySet of users that match the
+        filters.
     """
 
     filtered_users = (

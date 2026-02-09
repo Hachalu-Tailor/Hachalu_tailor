@@ -9,9 +9,9 @@ class UserSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = User
-        fields = ['id', 'username', 'password', 'role']
+        fields = ["id", "username", "password", "role"]
         # password is write-only for security
-        extra_kwargs = {'password': {'write_only': True}}
+        extra_kwargs = {"password": {"write_only": True}}
 
     def create(self, validated_data):
         # Using create_user ensures the password is properly hashed
@@ -25,4 +25,4 @@ class CustomerSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = Customer
-        fields = ['id', 'full_name', 'phone_number']
+        fields = ["id", "full_name", "phone_number"]

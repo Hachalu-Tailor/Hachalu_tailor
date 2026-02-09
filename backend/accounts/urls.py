@@ -7,5 +7,5 @@ urlpatterns = [
     
     # Admin Staff Management
     path('admin/staff/', StaffManagementView.as_view(), name='staff-list'),
-    path('admin/staff/<int:id>/', StaffDetailView.as_view(), name='staff-detail'),
+    path('admin/staff/<uuid:id>/', StaffDetailView.as_view(), name='staff-detail'),
 ]

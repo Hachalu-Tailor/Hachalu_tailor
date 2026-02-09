@@ -93,7 +93,7 @@ def update_user(
         actor=requester,
         action="USER_UPDATED",
         target_id=user.id,
-        identifier_used=email,
+        identifier_used=email or user.email,
         payload={
             "user_id": str(user.id),
             "full_name": full_name,

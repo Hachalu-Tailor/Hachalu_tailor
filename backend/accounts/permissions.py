@@ -10,8 +10,9 @@ class IsAdmin(BasePermission):
         """Return True when `request.user` has HR or MANAGER role."""
         return request.user.role == "ADMIN"
 
+
 class IsReseptionist(BasePermission):
-    """Allow access to users who are RESEPTIONISTS."""
+    """Allow access to users who are RECEPTIONISTS."""
 
     def has_permission(self, request, view):
-        return request.user.role == "RESEPTIONIST"
+        return request.user.role == "RECEPTIONIST"

@@ -27,7 +27,7 @@ class StaffManagementView(views.APIView):
 
     def get(self, request):
         """
-        GET /api/admin/staff (Derived from Admin Role needs)
+        GET /admin/staff (Derived from Admin Role needs)
         Lists all staff
         """
         users = list_users(requester=request.user)
@@ -36,7 +36,7 @@ class StaffManagementView(views.APIView):
 
     def post(self, request):
         """
-        POST /api/admin/staff: Register a new Receptionist
+        POST /admin/staff: Register a new Receptionist
         """
         try:
             user, temp_pw = create_user(
@@ -62,7 +62,7 @@ class StaffDetailView(views.APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def delete(self, request, id):
-        """DELETE /api/admin/staff/{id}: Remove a Receptionist"""
+        """DELETE admin/staff/{id}: Remove a Receptionist"""
         try:
             delete_user(user_id=id, requester=request.user)
             return Response(status=status.HTTP_204_NO_CONTENT)

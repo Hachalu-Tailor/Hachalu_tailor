@@ -1,6 +1,8 @@
 from django.urls import path
-# from . import views  # Import your views here later
+from .views import MaterialListCreateView, MaterialDetailView, StockAdjustmentView
 
 urlpatterns = [
-    # path('materials/', views.MaterialList.as_view()),
+    path('materials/', MaterialListCreateView.as_view(), name='material-list-create'),
+    path('materials/<int:pk>/', MaterialDetailView.as_view(), name='material-update'),
+    path('materials/<int:pk>/stock/', StockAdjustmentView.as_view(), name='stock-adjust'),
 ]

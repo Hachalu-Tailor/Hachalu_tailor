@@ -30,7 +30,7 @@ class StaffManagementView(views.APIView):
         GET /api/admin/staff (Derived from Admin Role needs)
         Lists all staff
         """
-        users = list_users()
+        users = list_users(requester=request.user)
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
 

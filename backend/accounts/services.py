@@ -254,7 +254,7 @@ def get_user(user_id):
 
 
 @transaction.atomic
-def list_users(active_only=True, search_query=None):
+def list_users( requester, active_only=True, search_query=None):
     """
     List users with optional activity and search filtering.
 
@@ -269,7 +269,7 @@ def list_users(active_only=True, search_query=None):
     """
 
     filtered_users = (
-        User.objects.filter(is_active=True) if active_only else User.objects.all()
+        User.objects.filter(is_active=True).exclude(id=requester.id) if active_only else User.objects.all()
     )
     if search_query:
         filtered_users = filtered_users.filter(

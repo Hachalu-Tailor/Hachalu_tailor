@@ -62,7 +62,7 @@ class StaffDetailView(views.APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def delete(self, request, id):
-        """DELETE /api/admin/staff/{id}: Remove a Receptionist[cite: 32, 33]."""
+        """DELETE /api/admin/staff/{id}: Remove a Receptionist"""
         try:
             delete_user(user_id=id, requester=request.user)
             return Response(status=status.HTTP_204_NO_CONTENT)

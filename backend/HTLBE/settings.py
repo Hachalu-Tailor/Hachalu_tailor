@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     ## custom
 
     "accounts",
+    "inventory",
 ]
 
 MIDDLEWARE = [

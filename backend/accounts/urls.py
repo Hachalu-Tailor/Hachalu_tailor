@@ -29,3 +29,4 @@ urlpatterns = [
         name="audit-log-detail",
     ),
 
+]

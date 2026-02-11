@@ -7,19 +7,18 @@ from rest_framework.exceptions import NotFound
 
 from rest_framework.decorators import action
 from .permissions import IsAdmin
-<<<<<<< HEAD
-from .serializers import UserSerializer, ChangePasswordSerializer, UpdateUserSerializer
-from .services import create_user, delete_user, list_users, update_user, reset_password, change_password
-=======
-from .serializers import UserSerializer, AuditLogSerializer
+
+from .serializers import UserSerializer, AuditLogSerializer,ChangePasswordSerializer, UpdateUserSerializer
 from .services import (
+    update_user,
+    reset_password, 
+    change_password,
     create_user,
     delete_user,
     list_users,
     list_audit_logs,
     get_audit_log,
 )
->>>>>>> 7576cfa7ac94c3c07cfaf415d8f77e7973dce688
 
 # Login Endpoint
 
@@ -128,7 +127,8 @@ class UserUpdateProfileView(views.APIView):
             except ValueError as e:
                 return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-=======
+    
+
 class AuditLogListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated, IsAdmin]
     serializer_class = AuditLogSerializer
@@ -163,6 +163,7 @@ class AuditLogDetailView(generics.RetrieveAPIView):
             return get_audit_log(log_id=self.kwargs[self.lookup_field])
         except ValueError as exc:
             raise NotFound(str(exc))
+    
     
 class UserResetPasswordView(views.APIView):
     permission_classes = [IsAdmin]

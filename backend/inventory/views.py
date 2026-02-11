@@ -22,12 +22,8 @@ class MaterialListCreateView(APIView):
     """
     Handles listing all materials and adding a new material with initial stock.
     """
-<<<<<<< HEAD
-    permission_classes = [IsReseptionist | IsAdmin]
-=======
 
-    permission_classes = [IsReseptionist, IsAdmin]
->>>>>>> d07f3e3 (refactor: streamline query and formatting in audit log listing and material views)
+    permission_classes = [IsReseptionist | IsAdmin]
 
     def get(self, request):
         materials = list_materials()
@@ -35,16 +31,10 @@ class MaterialListCreateView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-<<<<<<< HEAD
         material_data = request.data.get('material')
         quantity = request.data.get('quantity_meters')
         
-=======
-        # Data expected: { "material": {...}, "quantity_meters": 10.5 }
-        material_data = request.data.get("material")
-        quantity = request.data.get("quantity_meters")
 
->>>>>>> d07f3e3 (refactor: streamline query and formatting in audit log listing and material views)
         material = create_material_with_stock(
             material_data=material_data,
             quantity_meters=quantity,
@@ -59,12 +49,8 @@ class MaterialDetailView(APIView):
     """
     Handles updating material metadata (name, color, etc.)
     """
-<<<<<<< HEAD
-    permission_classes = [IsReseptionist | IsAdmin]
-=======
 
-    permission_classes = [IsReseptionist, IsAdmin]
->>>>>>> d07f3e3 (refactor: streamline query and formatting in audit log listing and material views)
+    permission_classes = [IsReseptionist | IsAdmin]
 
     def patch(self, request, pk):
         material = get_object_or_404(Material, pk=pk)
@@ -79,12 +65,8 @@ class StockAdjustmentView(APIView):
     """
     Handles updating stock counts (adding to or setting exact values).
     """
-<<<<<<< HEAD
-    permission_classes = [IsReseptionist | IsAdmin]
-=======
 
-    permission_classes = [IsReseptionist, IsAdmin]
->>>>>>> d07f3e3 (refactor: streamline query and formatting in audit log listing and material views)
+    permission_classes = [IsReseptionist | IsAdmin]
 
     def post(self, request, pk):
         material = get_object_or_404(Material, pk=pk)

@@ -93,6 +93,176 @@ Body: None
     }
 ]
 ```
+#### 5. Change Password
+##### Endpoint: POST /api/accounts/user/change-password/
+Body:
+```
+{
+  "old_password": "12345678",
+  "new_password": "123456789"
+}
 
+```
 
+##### Response: 200
+```
+{
+    "message": "Password updated successfully"
+}
+```
+#### 6. Update Profile (Only for admin)
+##### Endpoint: PATCH /admin/users/{UUid}/update-profile/
+Body:
+```
+{
+  "email": "newemail@example.com",
+  "full_name": "John Doe",
+}
+```
+
+##### Response: 200
+```
+{
+    "message": "User updated successfully"
+}
+```
+#### 7. Reset Password
+##### Endpoint: POST /admin/users/{id}/reset-password/
+Body: None (password generated automatically)
+
+##### Response: 200
+```
+{
+  "temporary_password": "A9xP2kQm",
+  "message": "Password reset successful"
+}
+```
+# ============================================================
+### Inventory manangment 
+#### 1. Create object
+#### Note Here that both admin and receptionist can login
+##### Endpoint: POST /api/invetory/materials/
+Body
+```
+{
+  "material": {
+    "name": "Silk",
+    "color": "Blue",
+    "texture": "Soft",
+  },
+  "quantity_meters": 12.5
+}
+```
+
+##### Response: 201
+```
+{
+    "id": 1,
+    "name": "Cotton",
+    "color": "White",
+    "texture": "Soft",
+    "image_url": null,
+    "inventory": {
+        "id": 1,
+        "quantity_meters": "10.50",
+        "is_available": true
+    }
+}
+```
+#### 2. List objects
+#### Note Here that both admin and receptionist can login
+##### Endpoint: GET /api/invetory/materials/
+Body: NONE
+
+##### Response: 200
+```
+[
+    {
+        "id": 1,
+        "name": "Cotton",
+        "color": "White",
+        "texture": "Soft",
+        "image_url": null,
+        "inventory": {
+            "id": 1,
+            "quantity_meters": "10.50",
+            "is_available": true
+        }
+    },
+    {
+        "id": 2,
+        "name": "Wool",
+        "color": "Black",
+        "texture": "Soft",
+        "image_url": null,
+        "inventory": {
+            "id": 2,
+            "quantity_meters": "10.50",
+            "is_available": true
+        }
+    }
+]
+```
+#### 3. Update Object Data (only on material)
+#### Note Here that both admin and receptionist can login
+##### Endpoint: PATCH /api/invetory/materials/{id}/
+Body: 
+```
+{
+  "color": "Dark Blue"
+}
+```
+
+##### Response: 200
+```
+{
+    "id": 1,
+    "name": "Cotton",
+    "color": "Dark Blue",
+    "texture": "Soft",
+    "image_url": null,
+    "inventory": {
+        "id": 1,
+        "quantity_meters": "10.50",
+        "is_available": true
+    }
+}
+```
+#### 2. Update Object Data (only on Stock)
+#### Note Here that both admin and receptionist can login
+##### Endpoint: POST /api/invetory/materials/{id}/stock/
+Body: 
+```
+{
+  "action_type": "add",
+  "quantity_meters": 50,
+}
+
+```
+
+##### Response: 200
+```
+{
+    "message": "Stock updated successfully",
+    "current_quantity": 60.5
+}
+```
+#### Incase You perform a wrong action
+```
+{
+  "action_type": "remove",
+  "quantity_meters": 5
+}
+```
+
+#### Response: 400
+
+```
+{
+  "error": "Invalid action_type. Use 'add' or 'set'."
+}
+```
+#### On this one the options are add, Set are the only ones
+
+# =============================================================
 

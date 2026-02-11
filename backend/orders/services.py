@@ -22,6 +22,10 @@ ACTIVE_STATUSES = {"INITIATED", "AWAITING_PAYMENT", "PENDING_APPROVAL", "IN_PROG
 PROCESSED_STATUSES = {"IN_PROGRESS", "COMPLETED", "CLOSED"}
 
 
+def _normalize_actor(actor):
+    return actor if isinstance(actor, User) else None
+
+
 def _normalize_quantity(quantity) -> int:
     if quantity is None:
         raise ValidationError("quantity is required.")
@@ -119,7 +123,7 @@ def _notify_receptionists(order: Order, requester=None) -> None:
         User.objects.filter(role=User.RECEPTIONIST).values_list("id", flat=True)
     )
     AuditLog.objects.create(
-        actor=requester,
+        actor=_normalize_actor(requester),
         action="RECEPTIONIST_NOTIFIED",
         target_id=str(order.id),
         identifier_used=str(order.id),
@@ -235,7 +239,7 @@ def create_order(
     measurement = Measurement.objects.create(order=order, **normalized_measurements)
 
     AuditLog.objects.create(
-        actor=requester,
+        actor=_normalize_actor(requester),
         action="ORDER_CREATED",
         target_id=str(order.id),
         identifier_used=customer.phone_number,
@@ -254,7 +258,7 @@ def create_order(
     except ValidationError as exc:
         logger.exception("Order processing dispatch failed for %s", order.id)
         AuditLog.objects.create(
-            actor=requester,
+            actor=_normalize_actor(requester),
             action="ORDER_PROCESSING_FAILED",
             target_id=str(order.id),
             identifier_used=str(order.id),
@@ -262,7 +266,7 @@ def create_order(
         )
     else:
         AuditLog.objects.create(
-            actor=requester,
+            actor=_normalize_actor(requester),
             action="ORDER_SENT_TO_PROCESSING" if sent else "ORDER_PROCESSING_SKIPPED",
             target_id=str(order.id),
             identifier_used=str(order.id),
@@ -286,7 +290,7 @@ def receive_order_for_processing(
     order.save(update_fields=["total_price", "due_date", "status", "updated_at"])
 
     AuditLog.objects.create(
-        actor=requester,
+        actor=_normalize_actor(requester),
         action="ORDER_RECEIVED_FOR_PROCESSING",
         target_id=str(order.id),
         identifier_used=str(order.id),
@@ -337,7 +341,7 @@ def record_payment_info(
     )
 
     AuditLog.objects.create(
-        actor=requester,
+        actor=_normalize_actor(requester),
         action="ORDER_PAYMENT_RECORDED",
         target_id=str(order.id),
         identifier_used=order.payment_reference,
@@ -362,7 +366,7 @@ def approve_order(*, order_id, requester=None) -> Order:
     order.save(update_fields=["status", "updated_at"])
 
     AuditLog.objects.create(
-        actor=requester,
+        actor=_normalize_actor(requester),
         action="ORDER_APPROVED",
         target_id=str(order.id),
         identifier_used=str(order.id),
@@ -382,7 +386,7 @@ def reject_order(*, order_id, reason=None, requester=None) -> Order:
     order.save(update_fields=["status", "updated_at"])
 
     AuditLog.objects.create(
-        actor=requester,
+        actor=_normalize_actor(requester),
         action="ORDER_REJECTED",
         target_id=str(order.id),
         identifier_used=str(order.id),
@@ -420,7 +424,7 @@ def list_orders(
     queryset = queryset.order_by("created_at")
 
     AuditLog.objects.create(
-        actor=requester,
+        actor=_normalize_actor(requester),
         action="ORDER_LISTED",
         target_id=None,
         identifier_used=str(requester.id) if requester else "system",
@@ -484,7 +488,7 @@ def update_order(*, order_id, updates: dict, requester=None) -> Order:
     order.save()
 
     AuditLog.objects.create(
-        actor=requester,
+        actor=_normalize_actor(requester),
         action="ORDER_UPDATED",
         target_id=str(order.id),
         identifier_used=str(order.id),
@@ -507,7 +511,7 @@ def expire_orders(*, requester=None):
         order.status = "EXPIRED"
         order.save(update_fields=["status", "updated_at"])
         AuditLog.objects.create(
-            actor=requester,
+            actor=_normalize_actor(requester),
             action="ORDER_EXPIRED",
             target_id=str(order.id),
             identifier_used=str(order.id),

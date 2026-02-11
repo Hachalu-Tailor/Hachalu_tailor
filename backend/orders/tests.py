@@ -1,4 +1,5 @@
 from datetime import timedelta
+from uuid import uuid4
 
 from django.test import TestCase
 from django.utils import timezone
@@ -26,9 +27,10 @@ class OrderApiTests(APITestCase):
         )
 
     def _create_order(self, **kwargs):
+        default_phone = f"{uuid4().hex[:12]}"
         customer = Customer.objects.create(
             full_name=kwargs.get("customer_name", "John Doe"),
-            phone_number=kwargs.get("customer_phone", "1234567890"),
+            phone_number=kwargs.get("customer_phone", default_phone),
         )
         order = Order.objects.create(
             customer=customer,
@@ -97,7 +99,8 @@ class OrderApiTests(APITestCase):
         response = self.client.get("/api/orders/list/?processed_only=true")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        ids = {item["id"] for item in response.data["results"]}
+        results = response.data["results"] if isinstance(response.data, dict) else response.data
+        ids = {item["id"] for item in results}
         self.assertIn(str(processed_order.id), ids)
         self.assertNotIn(str(active_order.id), ids)
 

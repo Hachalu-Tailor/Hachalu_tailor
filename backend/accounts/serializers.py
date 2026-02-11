@@ -52,6 +52,6 @@ class AuditLogSerializer(serializers.ModelSerializer):
             "action",
             "target_id",
             "identifier_used",
-            "timestamp",
+            "created_at",
             "payload",
         ]

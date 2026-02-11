@@ -283,10 +283,10 @@ def list_users(requester, active_only=True, search_query=None):
 
 
 def list_audit_logs(
-    saearch_query=None,
+    search_query=None,
     filter_by_actor=None,
     filter_by_action=None,
-    filetr_by_date_range=None,
+    filter_by_date_range=None,
 ):
     """
     Retrieve all audit logs ordered by most recent.
@@ -296,21 +296,23 @@ def list_audit_logs(
         ordered by timestamp descending.
     """
     filters = Q()
-    if saearch_query:
-        filters &= Q(identifier_used__icontains=saearch_query) | Q(
-            payload__icontains=saearch_query
+    if search_query:
+        filters &= Q(identifier_used__icontains=search_query) | Q(
+            payload__icontains=search_query
         )
     if filter_by_actor:
         filters &= Q(actor__id=filter_by_actor)
     if filter_by_action:
         filters &= Q(action=filter_by_action)
-    if filetr_by_date_range and len(filetr_by_date_range) == 2:
-        filters &= Q(timestamp__gte=filetr_by_date_range[0]) & Q(
-            timestamp__lte=filetr_by_date_range[1]
+    if filter_by_date_range and len(filter_by_date_range) == 2:
+        filters &= Q(created_at__gte=filter_by_date_range[0]) & Q(
+            created_at__lte=filter_by_date_range[1]
         )
 
     return (
-        AuditLog.objects.filter(filters).select_related("actor").order_by("-timestamp")
+        AuditLog.objects.filter(filters)
+        .select_related("actor")
+        .order_by("-created_at")
     )
 
 

@@ -220,11 +220,13 @@ class ServiceTests(TestCase):
             is_active=False,
         )
 
-        active_only = list_users()
+        active_only = list_users(requester=self.admin)
         self.assertIn(active, list(active_only))
         self.assertNotIn(inactive, list(active_only))
 
-        search_results = list_users(active_only=False, search_query="inactive")
+        search_results = list_users(
+            requester=self.admin, active_only=False, search_query="inactive"
+        )
         self.assertIn(inactive, list(search_results))
 
 
@@ -318,7 +320,7 @@ class StaffApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         returned_ids = {user["id"] for user in response.data}
-        self.assertIn(str(self.admin.id), returned_ids)
+        self.assertNotIn(str(self.admin.id), returned_ids)
         self.assertIn(str(self.receptionist.id), returned_ids)
         self.assertNotIn(str(inactive.id), returned_ids)
 
@@ -376,4 +378,87 @@ class StaffApiTests(APITestCase):
             "/api/accounts/admin/staff/00000000-0000-0000-0000-000000000000/"
         )
 
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class AuditLogApiTests(APITestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = User.objects.create_user(
+            email="admin@example.com",
+            password="secret123",
+            full_name="Admin User",
+            phone_number="555",
+            role=User.ADMIN,
+        )
+        self.receptionist = User.objects.create_user(
+            email="receptionist@example.com",
+            password="secret123",
+            full_name="Receptionist User",
+            phone_number="444",
+            role=User.RECEPTIONIST,
+        )
+        self.log_admin_create = AuditLog.objects.create(
+            actor=self.admin,
+            action="USER_CREATED",
+            target_id="123",
+            identifier_used="admin@example.com",
+            payload={"note": "created user"},
+        )
+        self.log_receptionist = AuditLog.objects.create(
+            actor=self.receptionist,
+            action="USER_UPDATED",
+            target_id="456",
+            identifier_used="receptionist@example.com",
+            payload={"note": "updated user"},
+        )
+
+    def test_audit_log_list_requires_auth_and_admin(self):
+        response = self.client.get("/api/accounts/admin/audit-logs/")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        self.client.force_authenticate(user=self.receptionist)
+        response = self.client.get("/api/accounts/admin/audit-logs/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_audit_log_list_filters(self):
+        self.client.force_authenticate(user=self.admin)
+
+        response = self.client.get(
+            "/api/accounts/admin/audit-logs/?search=created"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        returned_ids = {entry["id"] for entry in response.data}
+        self.assertIn(self.log_admin_create.id, returned_ids)
+        self.assertNotIn(self.log_receptionist.id, returned_ids)
+
+        response = self.client.get(
+            f"/api/accounts/admin/audit-logs/?actor={self.receptionist.id}"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        returned_ids = {entry["id"] for entry in response.data}
+        self.assertIn(self.log_receptionist.id, returned_ids)
+        self.assertNotIn(self.log_admin_create.id, returned_ids)
+
+        response = self.client.get(
+            "/api/accounts/admin/audit-logs/?action=USER_CREATED"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        returned_ids = {entry["id"] for entry in response.data}
+        self.assertIn(self.log_admin_create.id, returned_ids)
+        self.assertNotIn(self.log_receptionist.id, returned_ids)
+
+    def test_audit_log_detail_returns_log(self):
+        self.client.force_authenticate(user=self.admin)
+
+        response = self.client.get(
+            f"/api/accounts/admin/audit-logs/{self.log_admin_create.id}/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["id"], self.log_admin_create.id)
+
+    def test_audit_log_detail_missing_returns_404(self):
+        self.client.force_authenticate(user=self.admin)
+
+        response = self.client.get("/api/accounts/admin/audit-logs/999999/")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)

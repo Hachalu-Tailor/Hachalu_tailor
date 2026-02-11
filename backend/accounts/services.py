@@ -254,7 +254,7 @@ def get_user(user_id):
 
 
 @transaction.atomic
-def list_users( requester, active_only=True, search_query=None):
+def list_users(requester, active_only=True, search_query=None):
     """
     List users with optional activity and search filtering.
 
@@ -269,7 +269,9 @@ def list_users( requester, active_only=True, search_query=None):
     """
 
     filtered_users = (
-        User.objects.filter(is_active=True).exclude(id=requester.id) if active_only else User.objects.all()
+        User.objects.filter(is_active=True).exclude(id=requester.id)
+        if active_only
+        else User.objects.all()
     )
     if search_query:
         filtered_users = filtered_users.filter(
@@ -278,3 +280,55 @@ def list_users( requester, active_only=True, search_query=None):
             | Q(phone_number__icontains=search_query)
         )
     return filtered_users
+
+
+def list_audit_logs(
+    saearch_query=None,
+    filter_by_actor=None,
+    filter_by_action=None,
+    filetr_by_date_range=None,
+):
+    """
+    Retrieve all audit logs ordered by most recent.
+
+    Returns:
+        django.db.models.QuerySet[AuditLog]: QuerySet of all audit logs
+        ordered by timestamp descending.
+    """
+    filters = Q()
+    if saearch_query:
+        filters &= Q(identifier_used__icontains=saearch_query) | Q(
+            payload__icontains=saearch_query
+        )
+    if filter_by_actor:
+        filters &= Q(actor__id=filter_by_actor)
+    if filter_by_action:
+        filters &= Q(action=filter_by_action)
+    if filetr_by_date_range and len(filetr_by_date_range) == 2:
+        filters &= Q(timestamp__gte=filetr_by_date_range[0]) & Q(
+            timestamp__lte=filetr_by_date_range[1]
+        )
+
+    return (
+        AuditLog.objects.filter(filters).select_related("actor").order_by("-timestamp")
+    )
+
+
+def get_audit_log(log_id):
+    """
+    Retrieve a single audit log by primary key.
+
+    Args:
+        log_id (int | str): Primary key of the audit log to fetch.
+
+    Returns:
+        AuditLog: The requested audit log instance.
+
+    Raises:
+        ValueError: If the audit log does not exist.
+    """
+    try:
+        log = AuditLog.objects.select_related("actor").get(id=log_id)
+        return log
+    except AuditLog.DoesNotExist:
+        raise ValueError("Audit log not found")

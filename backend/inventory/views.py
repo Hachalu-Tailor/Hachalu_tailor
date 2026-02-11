@@ -15,13 +15,13 @@ from .serializers import MaterialSerializer
 from .models import Material
 
 # custom permissions
-from ..accounts.permissions import IsAdmin, IsReseptionist
+from accounts.permissions import IsAdmin, IsReseptionist
 
 class MaterialListCreateView(APIView):
     """
     Handles listing all materials and adding a new material with initial stock.
     """
-    permission_classes = [IsReseptionist, IsAdmin]
+    permission_classes = [IsReseptionist | IsAdmin]
 
     def get(self, request):
         materials = list_materials()
@@ -29,7 +29,6 @@ class MaterialListCreateView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-        # Data expected: { "material": {...}, "quantity_meters": 10.5 }
         material_data = request.data.get('material')
         quantity = request.data.get('quantity_meters')
         
@@ -47,7 +46,7 @@ class MaterialDetailView(APIView):
     """
     Handles updating material metadata (name, color, etc.)
     """
-    permission_classes = [IsReseptionist, IsAdmin]
+    permission_classes = [IsReseptionist | IsAdmin]
 
     def patch(self, request, pk):
         material = get_object_or_404(Material, pk=pk)
@@ -64,7 +63,7 @@ class StockAdjustmentView(APIView):
     """
     Handles updating stock counts (adding to or setting exact values).
     """
-    permission_classes = [IsReseptionist, IsAdmin]
+    permission_classes = [IsReseptionist | IsAdmin]
 
     def post(self, request, pk):
         material = get_object_or_404(Material, pk=pk)

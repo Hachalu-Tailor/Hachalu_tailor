@@ -310,9 +310,7 @@ def list_audit_logs(
         )
 
     return (
-        AuditLog.objects.filter(filters)
-        .select_related("actor")
-        .order_by("-created_at")
+        AuditLog.objects.filter(filters).select_related("actor").order_by("-created_at")
     )
 
 

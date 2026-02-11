@@ -424,9 +424,7 @@ class AuditLogApiTests(APITestCase):
     def test_audit_log_list_filters(self):
         self.client.force_authenticate(user=self.admin)
 
-        response = self.client.get(
-            "/api/accounts/admin/audit-logs/?search=created"
-        )
+        response = self.client.get("/api/accounts/admin/audit-logs/?search=created")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         returned_ids = {entry["id"] for entry in response.data}
         self.assertIn(self.log_admin_create.id, returned_ids)

@@ -1,4 +1,5 @@
 from django.db import models
+import uuid
 from inventory.models import Material
 
 
@@ -44,7 +45,10 @@ class Order(models.Model):
         ('CLOSED', 'Closed'),
         ('REJECTED', 'Rejected'),
     ]
-
+    id = models.UUIDField(
+        primary_key=True, default=uuid.uuid4, editable=False,
+        help_text="Unique identifier for the order"
+    )
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='orders')
     suit_type = models.ForeignKey(SuitType, on_delete=models.CASCADE, related_name='orders')
     material = models.ForeignKey(Material, on_delete=models.CASCADE, related_name='orders')

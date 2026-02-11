@@ -1,11 +1,12 @@
-from rest_framework import status, views
+from rest_framework import status, views, viewsets
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 
+from rest_framework.decorators import action
 from .permissions import IsAdmin
-from .serializers import UserSerializer
-from .services import create_user, delete_user, list_users
+from .serializers import UserSerializer, ChangePasswordSerializer, UpdateUserSerializer
+from .services import create_user, delete_user, list_users, update_user, reset_password, change_password
 
 # Login Endpoint
 
@@ -68,3 +69,49 @@ class StaffDetailView(views.APIView):
             return Response(status=status.HTTP_204_NO_CONTENT)
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
+
+
+class UserChangePasswordView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """
+        POST /user/change-password
+        Allows the currently authenticated user to change their own password
+        by providing the old password for verification.
+        """
+        serializer = ChangePasswordSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                change_password(
+                    user_id=request.user.id,
+                    requester=request.user,
+                    old_password=serializer.validated_data['old_password'],
+                    new_password=serializer.validated_data['new_password']
+                )
+                return Response({"message": "Password updated successfully"}, status=status.HTTP_200_OK)
+            except ValueError as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserUpdateProfileView(views.APIView):
+    permission_classes = [IsAuthenticated | IsAdmin]
+
+    def patch(self, request, id):
+        """
+        PATCH /admin/users/{id}/update-profile
+        Updates specific fields of a user's profile (email, name, phone, or role).
+        """
+        serializer = UpdateUserSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                update_user(
+                    user_id=id,
+                    requester=request.user,
+                    **serializer.validated_data
+                )
+                return Response({"message": "User updated successfully"}, status=status.HTTP_200_OK)
+            except ValueError as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

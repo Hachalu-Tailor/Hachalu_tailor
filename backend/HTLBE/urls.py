@@ -29,6 +29,7 @@ urlpatterns = [
 
     # Include URLs from accounts app
     path("api/accounts/", include("accounts.urls")),
+    path("api/invetory/", include("inventory.urls")),
 
         # <--- Documentation Endpoints --->
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),

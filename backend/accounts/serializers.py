@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Customer
+from .models import AuditLog, User, Customer
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -54,3 +54,22 @@ class UpdateUserSerializer(serializers.Serializer):
     full_name = serializers.CharField(required=False)
     phone_number = serializers.CharField(required=False)
     role = serializers.CharField(required=False)
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    """
+    Serializer for audit log entries, used in admin views to
+    display action history.
+    """
+
+    class Meta:
+        model = AuditLog
+        fields = [
+            "id",
+            "actor",
+            "action",
+            "target_id",
+            "identifier_used",
+            "created_at",
+            "payload",
+        ]
+

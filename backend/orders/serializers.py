@@ -48,6 +48,11 @@ class OrderSerializer(serializers.ModelSerializer):
         ]
 
 
+class CreateOrderResponseSerializer(serializers.Serializer):
+    order_id = serializers.UUIDField()
+    status = serializers.CharField()
+
+
 class CreateOrderSerializer(serializers.ModelSerializer):
     # Nested fields for the data the user "inserts"
     customer_name = serializers.CharField(source="customer.full_name", write_only=True)
@@ -112,6 +117,10 @@ class OrderProcessingSerializer(serializers.Serializer):
     payment_received_at = serializers.DateTimeField(required=False)
     payment_notes = serializers.CharField(required=False, allow_blank=True)
     reason = serializers.CharField(required=False, allow_blank=True)
+
+
+class OrderExpirationResponseSerializer(serializers.Serializer):
+    expired_count = serializers.IntegerField()
 
 
 class OrderUpdateSerializer(serializers.Serializer):

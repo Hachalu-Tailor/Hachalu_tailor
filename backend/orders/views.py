@@ -4,10 +4,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import ValidationError
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 from accounts.permissions import IsAdmin
 from .serializers import (
+    CreateOrderResponseSerializer,
     CreateOrderSerializer,
+    OrderExpirationResponseSerializer,
     OrderProcessingSerializer,
     OrderSerializer,
     OrderUpdateSerializer,
@@ -26,6 +29,12 @@ from .services import (
 class OrderCreateView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        tags=["Orders"],
+        request=CreateOrderSerializer,
+        responses={201: CreateOrderResponseSerializer},
+        description="Create a new order with customer details and measurements.",
+    )
     def post(self, request):
         serializer = CreateOrderSerializer(
             data=request.data, context={"request": request}
@@ -44,6 +53,31 @@ class OrderCreateView(APIView):
 class OrderListView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
+    @extend_schema(
+        tags=["Orders"],
+        parameters=[
+            OpenApiParameter(
+                name="active_only",
+                required=False,
+                description="Filter active orders (true/false).",
+                type=bool,
+            ),
+            OpenApiParameter(
+                name="processed_only",
+                required=False,
+                description="Filter processed orders (true/false).",
+                type=bool,
+            ),
+            OpenApiParameter(
+                name="customer",
+                required=False,
+                description="Filter by customer id, name, or phone.",
+                type=str,
+            ),
+        ],
+        responses={200: OrderSerializer},
+        description="List orders with optional filters. Results are paginated.",
+    )
     def get(self, request):
         active_only = request.query_params.get("active_only")
         processed_only = request.query_params.get("processed_only")
@@ -70,6 +104,12 @@ class OrderListView(APIView):
 class OrderProcessingView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
+    @extend_schema(
+        tags=["Orders"],
+        request=OrderProcessingSerializer,
+        responses={200: OrderSerializer},
+        description=("Process an order: receive, record payment, approve, or reject."),
+    )
     def post(self, request, id):
         serializer = OrderProcessingSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -115,6 +155,12 @@ class OrderProcessingView(APIView):
 class OrderUpdateView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
+    @extend_schema(
+        tags=["Orders"],
+        request=OrderUpdateSerializer,
+        responses={200: OrderSerializer},
+        description="Update order fields and notify receptionists.",
+    )
     def patch(self, request, id):
         serializer = OrderUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -127,6 +173,11 @@ class OrderUpdateView(APIView):
 class OrderExpirationView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
+    @extend_schema(
+        tags=["Orders"],
+        responses={200: OrderExpirationResponseSerializer},
+        description="Expire overdue orders and notify receptionists.",
+    )
     def post(self, request):
         expired = expire_orders(requester=request.user)
         return Response(

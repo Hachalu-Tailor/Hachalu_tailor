@@ -99,7 +99,11 @@ class OrderApiTests(APITestCase):
         response = self.client.get("/api/orders/list/?processed_only=true")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        results = response.data["results"] if isinstance(response.data, dict) else response.data
+        results = (
+            response.data["results"]
+            if isinstance(response.data, dict)
+            else response.data
+        )
         ids = {item["id"] for item in results}
         self.assertIn(str(processed_order.id), ids)
         self.assertNotIn(str(active_order.id), ids)

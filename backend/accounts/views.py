@@ -163,3 +163,20 @@ class AuditLogDetailView(generics.RetrieveAPIView):
             return get_audit_log(log_id=self.kwargs[self.lookup_field])
         except ValueError as exc:
             raise NotFound(str(exc))
+    
+class UserResetPasswordView(views.APIView):
+    permission_classes = [IsAdmin]
+
+    def post(self, request, id):
+        """
+        POST /admin/users/{id}/reset-password
+        Admin-initiated reset of a user's password to a random temporary string.
+        """
+        try:
+            temp_pwd = reset_password(user_id=id, requester=request.user)
+            return Response(
+                {"temporary_password": temp_pwd, "message": "Password reset successful"}, 
+                status=status.HTTP_200_OK
+            )
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

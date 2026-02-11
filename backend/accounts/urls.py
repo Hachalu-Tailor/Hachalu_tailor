@@ -6,6 +6,7 @@ from .views import(LoginView,
     UserUpdateProfileView,
     AuditLogListView,
     AuditLogDetailView,
+    UserResetPasswordView,
 )
 
 
@@ -18,6 +19,7 @@ urlpatterns = [
 
     path('admin/users/<uuid:id>/update-profile/', UserUpdateProfileView.as_view(), name='admin-update-profile'),
     path('user/change-password/', UserChangePasswordView.as_view(), name='user-change-password'),
+    path('admin/users/<int:id>/reset-password/', UserResetPasswordView.as_view(), name='admin-reset-password'),
 
     # Admin Audit Logs
     path("admin/audit-logs/", AuditLogListView.as_view(), name="audit-log-list"),

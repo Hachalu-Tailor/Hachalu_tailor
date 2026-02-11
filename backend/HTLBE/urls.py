@@ -26,12 +26,11 @@ from drf_spectacular.views import (
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-
     # Include URLs from accounts app
     path("api/accounts/", include("accounts.urls")),
     path("api/invetory/", include("inventory.urls")),
-
-        # <--- Documentation Endpoints --->
+    path("api/", include("orders.urls")),
+    # <--- Documentation Endpoints --->
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/docs/",

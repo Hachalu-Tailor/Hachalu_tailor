@@ -7,6 +7,7 @@ class SuitType(models.Model):
     """
     Represents the type of suit available for orders.
     """
+
     name = models.CharField(max_length=100, unique=True)
     lapel_count = models.PositiveSmallIntegerField()
 
@@ -18,6 +19,7 @@ class Customer(models.Model):
     """
     Represents a customer who places suit orders.
     """
+
     full_name = models.CharField(max_length=255)
     phone_number = models.CharField(max_length=20, unique=True)
 
@@ -36,26 +38,45 @@ class Order(models.Model):
         ('CLOSED', 'Customer has collected the suit'),
         ('REJECTED', 'Payment was invalid or order cancelled'),
     """
+
     STATUS_CHOICES = [
-        ('INITIATED', 'Initiated'),
-        ('AWAITING_PAYMENT', 'Awaiting_approval'),
-        ('PENDING_APPROVAL', 'pending_approval'),
-        ('IN_PROGRESS', 'In_progress'),
-        ('COMPLETED', 'Completed'),
-        ('CLOSED', 'Closed'),
-        ('REJECTED', 'Rejected'),
+        ("INITIATED", "Initiated"),
+        ("AWAITING_PAYMENT", "Awaiting_approval"),
+        ("PENDING_APPROVAL", "pending_approval"),
+        ("IN_PROGRESS", "In_progress"),
+        ("COMPLETED", "Completed"),
+        ("CLOSED", "Closed"),
+        ("REJECTED", "Rejected"),
+        ("EXPIRED", "Expired"),
     ]
     id = models.UUIDField(
-        primary_key=True, default=uuid.uuid4, editable=False,
-        help_text="Unique identifier for the order"
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        help_text="Unique identifier for the order",
     )
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='orders')
-    suit_type = models.ForeignKey(SuitType, on_delete=models.CASCADE, related_name='orders')
-    material = models.ForeignKey(Material, on_delete=models.CASCADE, related_name='orders')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    customer = models.ForeignKey(
+        Customer, on_delete=models.CASCADE, related_name="orders"
+    )
+    suit_type = models.ForeignKey(
+        SuitType, on_delete=models.CASCADE, related_name="orders"
+    )
+    material = models.ForeignKey(
+        Material, on_delete=models.CASCADE, related_name="orders"
+    )
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default="INITIATED"
+    )
     quantity = models.PositiveIntegerField()
     total_price = models.DecimalField(max_digits=12, decimal_places=2)
     due_date = models.DateField()
+
+    payment_reference = models.CharField(max_length=120, blank=True)
+    payment_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    payment_received_at = models.DateTimeField(null=True, blank=True)
+    payment_notes = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -68,7 +89,10 @@ class Measurement(models.Model):
     """
     Represents measurements associated with a particular order.
     """
-    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='measurement')
+
+    order = models.OneToOneField(
+        Order, on_delete=models.CASCADE, related_name="measurement"
+    )
     chest = models.FloatField()
     shoulder = models.FloatField()
     waist = models.FloatField()

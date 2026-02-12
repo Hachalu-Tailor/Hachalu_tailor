@@ -1,17 +1,15 @@
 from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import ValidationError
-from django.core.exceptions import ValidationError as DjangoValidationError
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 from accounts.permissions import IsAdminOrReceptionist, IsReseptionist
 from .serializers import (
     CreateOrderResponseSerializer,
     CreateOrderSerializer,
-    CustomerPaymentSerializer,
     OrderExpirationResponseSerializer,
     OrderProcessingSerializer,
     OrderSerializer,
@@ -24,7 +22,6 @@ from .services import (
     list_orders,
     receive_order_for_processing,
     record_payment_info,
-    record_payment_info_by_customer,
     reject_order,
     update_order,
 )
@@ -180,7 +177,7 @@ class OrderProcessingView(APIView):
 
 
 class OrderUpdateView(APIView):
-    permission_classes = [IsAuthenticated, IsReseptionist]
+    permission_classes = [IsAuthenticated, IsAdminOrReceptionist]
 
     @extend_schema(
         tags=["Orders"],
@@ -214,34 +211,3 @@ class OrderExpirationView(APIView):
             {"expired_count": len(expired)},
             status=status.HTTP_200_OK,
         )
-
-
-class OrderCustomerPaymentView(APIView):
-    permission_classes = [AllowAny]
-
-    @extend_schema(
-        tags=["Orders"],
-        request=CustomerPaymentSerializer,
-        responses={200: OrderSerializer, 400: dict},
-        description=(
-            "Customer submits payment info for an order. "
-            "Payment is accepted only after staff enables payment."
-        ),
-    )
-    def post(self, request, id):
-        serializer = CustomerPaymentSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        try:
-            order = record_payment_info_by_customer(
-                order_code=serializer.validated_data["order_code"],
-                customer_phone=serializer.validated_data["customer_phone"],
-                payment_reference=serializer.validated_data["payment_reference"],
-                payment_amount=serializer.validated_data.get("payment_amount"),
-                payment_received_at=serializer.validated_data.get(
-                    "payment_received_at"
-                ),
-                payment_notes=serializer.validated_data.get("payment_notes"),
-            )
-        except DjangoValidationError as exc:
-            raise ValidationError(str(exc))
-        return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)

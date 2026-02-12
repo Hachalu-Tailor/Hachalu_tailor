@@ -117,10 +117,15 @@ def verify_payment(*, transaction_id, reviewer) -> Transaction:
     if transaction_obj.is_verified:
         return transaction_obj
 
+    order = transaction_obj.order_id
+    if not isinstance(reviewer, User):
+        raise ValidationError("Reviewer is required.")
+    if reviewer.role != User.ADMIN and order.reviewed_by_id != reviewer.id:
+        raise ValidationError("Only the reviewer or an admin can verify payment.")
+
     transaction_obj.is_verified = True
     transaction_obj.save(update_fields=["is_verified"])
 
-    order = transaction_obj.order_id
     order.status = "IN_PROGRESS"
     order.payment_allowed = False
     order.save(update_fields=["status", "payment_allowed", "updated_at"])
@@ -132,6 +137,7 @@ def verify_payment(*, transaction_id, reviewer) -> Transaction:
         identifier_used=transaction_obj.bank_ref_number,
         payload={
             "order_id": str(order.id),
+            "order_code": order.order_code,
             "payment_id": str(transaction_obj.id),
         },
     )

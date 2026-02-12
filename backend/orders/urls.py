@@ -2,7 +2,6 @@ from django.urls import path
 
 from .views import (
     OrderCreateView,
-    OrderCustomerPaymentView,
     OrderExpirationView,
     OrderListView,
     OrderProcessingView,
@@ -14,11 +13,6 @@ urlpatterns = [
     path("orders/list/", OrderListView.as_view(), name="order-list"),
     path(
         "orders/<uuid:id>/process/", OrderProcessingView.as_view(), name="order-process"
-    ),
-    path(
-        "orders/<uuid:id>/payment/",
-        OrderCustomerPaymentView.as_view(),
-        name="order-payment",
     ),
     path("orders/<uuid:id>/", OrderUpdateView.as_view(), name="order-update"),
     path("orders/expire/", OrderExpirationView.as_view(), name="order-expire"),

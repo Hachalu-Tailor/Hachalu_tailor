@@ -19,7 +19,7 @@ const ItemCard = ({ item, isActive, onClick }) => (
     </div>
     <div className="flex flex-col justify-center">
       <span className="text-[8px] text-red-600 font-bold uppercase tracking-widest">{item.category}</span>
-      <h5 className={`font-black text-[11px] uppercase tracking-widest leading-tight ${isActive ? 'text-red-600' : 'dark:text-white'}`}>
+      <h5 className={`font-black text-[11px] uppercase tracking-widest leading-tight ${ isActive ? 'text-red-600' : 'dark:text-white'}`}>
         {item.name}
       </h5>
       <p className="text-[10px] text-gray-400 mt-1">{item.price}</p>
@@ -29,6 +29,5 @@ const ItemCard = ({ item, isActive, onClick }) => (
     </div>
   </motion.div>
 );
-
 export default ItemCard;
 

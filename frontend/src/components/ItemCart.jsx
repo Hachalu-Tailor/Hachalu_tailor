@@ -11,12 +11,12 @@ const ItemCart = ({ isOpen, onClose, cart, onRemove }) => {
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[250]"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-250"
           />
           {/* Drawer */}
           <motion.div 
             initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-            className="fixed right-0 top-0 h-full w-full max-w-md bg-white dark:bg-[#0f0f0f] z-[300] shadow-2xl flex flex-col"
+            className="fixed right-0 top-0 h-full w-full max-w-md bg-white dark:bg-[#0f0f0f] z-300 shadow-2xl flex flex-col"
           >
             <div className="p-6 border-b dark:border-white/5 flex justify-between items-center">
               <h2 className="text-sm font-black uppercase tracking-widest dark:text-white">Your Selection ({cart.length})</h2>

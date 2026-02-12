@@ -210,11 +210,11 @@ const Navbar = () => {
       <AnimatePresence>
         {isSidebarOpen && (
           <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200]" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-200" />
             <motion.aside 
               initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed right-0 top-0 h-full w-[85%] bg-white dark:bg-[#0a0a0a] z-[210] p-10 flex flex-col shadow-[-20px_0_50px_rgba(0,0,0,0.2)]"
+              className="fixed right-0 top-0 h-full w-[85%] bg-white dark:bg-brand-dark z-210 p-10 flex flex-col shadow-[-20px_0_50px_rgba(0,0,0,0.2)]"
             >
               <div className="flex justify-between items-center mb-16">
                  <div className="flex flex-col">

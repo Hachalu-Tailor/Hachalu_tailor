@@ -28,7 +28,7 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode }) => {
         
         {/* BRAND LOGO */}
         <div className="mb-12 flex justify-center lg:justify-start items-center gap-4 px-2">
-          <div className="h-11 w-11 bg-red-600 rounded-2xl flex-shrink-0 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-red-600/20">H</div>
+          <div className="h-11 w-11 bg-red-600 rounded-2xl shrink-0 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-red-600/20">H</div>
           <div className="hidden lg:block">
             <h2 className="text-lg font-black text-black dark:text-white tracking-tighter uppercase italic leading-none">Protocol</h2>
             <p className="text-[8px] font-black text-red-600 uppercase tracking-[0.3em] mt-1">Management</p>

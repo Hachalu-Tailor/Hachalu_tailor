@@ -5,7 +5,7 @@ const ChatFloat = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="fixed bottom-24 md:bottom-10 right-6 md:right-10 z-[100]">
+    <div className="fixed bottom-24 md:bottom-10 right-6 md:right-10 z-100">
       {isOpen && (
         <div className="bg-white dark:bg-[#111] w-72 h-96 shadow-2xl rounded-2xl border border-gray-100 dark:border-white/10 mb-4 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5">
           <div className="bg-red-600 p-4 text-white flex justify-between items-center">

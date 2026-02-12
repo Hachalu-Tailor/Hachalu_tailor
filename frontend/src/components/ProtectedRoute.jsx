@@ -1,7 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
 
 const ProtectedRoute = ({ allowedRoles }) => {
-  // In a real app, you get this from your Auth Context or LocalStorage
+  // this could be get from Auth Context or LocalStorage
   const user = JSON.parse(localStorage.getItem('user')); 
 
   if (!user) {

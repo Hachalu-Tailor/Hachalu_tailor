@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import ValidationError
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
 
 from accounts.permissions import IsAdminOrReceptionist, IsReseptionist
 from .serializers import (
@@ -34,6 +34,36 @@ class OrderCreateView(APIView):
         tags=["Orders"],
         request=CreateOrderSerializer,
         responses={201: CreateOrderResponseSerializer, 400: dict},
+        examples=[
+            OpenApiExample(
+                "Create order request",
+                value={
+                    "customer_name": "Jane Doe",
+                    "customer_phone": "9991112222",
+                    "suit_type": 1,
+                    "material": 1,
+                    "quantity": 2,
+                    "measurements": {
+                        "chest": 40,
+                        "shoulder": 18,
+                        "waist": 32,
+                        "hips": 38,
+                        "arm_length": 25,
+                        "height": 170,
+                    },
+                },
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Create order response",
+                value={
+                    "order_id": "<uuid>",
+                    "order_code": "HP-00000001",
+                    "status": "INITIATED",
+                },
+                response_only=True,
+            ),
+        ],
         description=(
             "Create a new order with customer details and measurements. "
             "This starts the order in INITIATED and notifies staff."
@@ -90,6 +120,15 @@ class OrderListView(APIView):
             ),
         ],
         responses={200: OrderSerializer, 401: dict, 403: dict},
+        examples=[
+            OpenApiExample(
+                "Order list",
+                value=[
+                    {"id": "<uuid>", "order_code": "HP-00000001", "status": "INITIATED"}
+                ],
+                response_only=True,
+            )
+        ],
         description=(
             "List orders with optional filters. Results are paginated. "
             "Accessible to admins and receptionists."
@@ -129,6 +168,22 @@ class OrderProcessingView(APIView):
         tags=["Orders"],
         request=OrderProcessingSerializer,
         responses={200: OrderSerializer, 400: dict, 401: dict, 403: dict},
+        examples=[
+            OpenApiExample(
+                "Receive order",
+                value={
+                    "action": "receive",
+                    "total_price": "120.00",
+                    "due_date": "2030-01-01",
+                },
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Approve order",
+                value={"action": "approve"},
+                request_only=True,
+            ),
+        ],
         description=(
             "Process an order: receive (set price/date + allow payment), "
             "record payment (staff only), approve, or reject."
@@ -183,6 +238,13 @@ class OrderUpdateView(APIView):
         tags=["Orders"],
         request=OrderUpdateSerializer,
         responses={200: OrderSerializer, 400: dict, 401: dict, 403: dict},
+        examples=[
+            OpenApiExample(
+                "Update order",
+                value={"status": "COMPLETED"},
+                request_only=True,
+            )
+        ],
         description=(
             "Update order fields (receptionists only). "
             "Creates staff notifications after update."
@@ -203,6 +265,13 @@ class OrderExpirationView(APIView):
     @extend_schema(
         tags=["Orders"],
         responses={200: OrderExpirationResponseSerializer, 401: dict, 403: dict},
+        examples=[
+            OpenApiExample(
+                "Expire response",
+                value={"expired_count": 1},
+                response_only=True,
+            )
+        ],
         description="Expire overdue orders and notify staff.",
     )
     def post(self, request):

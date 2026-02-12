@@ -236,8 +236,8 @@ class PermissionTests(TestCase):
 
     def test_is_admin_permission(self):
         permission = IsAdmin()
-        admin_user = SimpleNamespace(role="ADMIN")
-        receptionist_user = SimpleNamespace(role="RECEPTIONIST")
+        admin_user = SimpleNamespace(role="ADMIN", is_authenticated=True)
+        receptionist_user = SimpleNamespace(role="RECEPTIONIST", is_authenticated=True)
 
         request = self.factory.get("/")
         request.user = admin_user
@@ -248,8 +248,8 @@ class PermissionTests(TestCase):
 
     def test_is_receptionist_permission(self):
         permission = IsReseptionist()
-        admin_user = SimpleNamespace(role="ADMIN")
-        receptionist_user = SimpleNamespace(role="RECEPTIONIST")
+        admin_user = SimpleNamespace(role="ADMIN", is_authenticated=True)
+        receptionist_user = SimpleNamespace(role="RECEPTIONIST", is_authenticated=True)
 
         request = self.factory.get("/")
         request.user = receptionist_user
@@ -460,3 +460,25 @@ class AuditLogApiTests(APITestCase):
 
         response = self.client.get("/api/accounts/admin/audit-logs/999999/")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class NotificationApiTests(APITestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            email="user@example.com",
+            password="secret123",
+            full_name="Regular User",
+            phone_number="111",
+            role=User.RECEPTIONIST,
+        )
+
+    def test_notification_list_requires_auth(self):
+        response = self.client.get("/api/accounts/user/notifications/")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_notification_list_returns_empty(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get("/api/accounts/user/notifications/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [])

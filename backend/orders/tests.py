@@ -76,6 +76,8 @@ class OrderApiTests(APITestCase):
         self.assertIn("order_id", response.data)
         self.assertIn("order_code", response.data)
         self.assertEqual(response.data["status"], "INITIATED")
+        self.assertTrue(response.data["order_code"].startswith("HP-"))
+        self.assertEqual(len(response.data["order_code"]), 11)
         self.assertTrue(Order.objects.filter(id=response.data["order_id"]).exists())
 
     def test_order_list_requires_admin(self):
@@ -162,6 +164,15 @@ class OrderApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["quantity"], 3)
         self.assertEqual(response.data["status"], "COMPLETED")
+
+    def test_order_update_requires_auth(self):
+        order = self._create_order(quantity=1)
+        response = self.client.patch(
+            f"/api/orders/{order.id}/",
+            {"quantity": 3},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_customer_payment_requires_allowance(self):
         order = self._create_order(status="INITIATED")

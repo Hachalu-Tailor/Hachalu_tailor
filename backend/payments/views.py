@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import ValidationError
 from django.core.exceptions import ValidationError as DjangoValidationError
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiExample, extend_schema
 
 from accounts.permissions import IsAdminOrReceptionist
 from .serializers import (
@@ -22,6 +22,36 @@ class PaymentCreateView(APIView):
         tags=["Payments"],
         request=PaymentCreateSerializer,
         responses={201: TransactionSerializer, 400: dict},
+        examples=[
+            OpenApiExample(
+                "Create payment request",
+                value={
+                    "order_code": "HP-00000001",
+                    "amount": "120.00",
+                    "full_name": "Jane Doe",
+                    "phone_number": "9991112222",
+                    "bank_ref_number": "REF123",
+                    "receipt_pdf_url": "https://example.com/receipt.pdf",
+                },
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Create payment response",
+                value={
+                    "id": "<uuid>",
+                    "order_id": "<uuid>",
+                    "order_code": "HP-00000001",
+                    "customer_full_name": "Jane Doe",
+                    "customer_phone_number": "9991112222",
+                    "payment_amount": "120.00",
+                    "bank_ref_number": "REF123",
+                    "receipt_pdf_url": "https://example.com/receipt.pdf",
+                    "is_verified": False,
+                    "created_at": "2026-02-12T10:00:00Z",
+                },
+                response_only=True,
+            ),
+        ],
         description=(
             "Create a payment for an order after staff enables payment. "
             "Links the payment to the order and sets order status to PENDING_APPROVAL."
@@ -54,6 +84,13 @@ class PaymentVerifyView(APIView):
         tags=["Payments"],
         request=PaymentVerifySerializer,
         responses={200: TransactionSerializer, 400: dict, 401: dict, 403: dict},
+        examples=[
+            OpenApiExample(
+                "Verify payment",
+                value={"is_verified": True},
+                request_only=True,
+            )
+        ],
         description=(
             "Verify a payment (admin/receptionist only). "
             "Marks payment as verified and confirms the order."

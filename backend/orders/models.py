@@ -56,6 +56,7 @@ class Order(models.Model):
         editable=False,
         help_text="Unique identifier for the order",
     )
+    order_code = models.CharField(max_length=12, unique=True)
     customer = models.ForeignKey(
         Customer, on_delete=models.CASCADE, related_name="orders"
     )
@@ -98,7 +99,7 @@ class Order(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Order #{self.id} - {self.customer.full_name}"
+        return f"Order {self.order_code} - {self.customer.full_name}"
 
 
 class Measurement(models.Model):

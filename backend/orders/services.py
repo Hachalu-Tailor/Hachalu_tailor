@@ -4,6 +4,8 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 from urllib import request as urllib_request
 from urllib.error import HTTPError, URLError
+import uuid
+import secrets
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -122,6 +124,27 @@ def _resolve_order(order_id):
         raise ValidationError("order not found.")
 
 
+def _resolve_order_by_code(order_code):
+    try:
+        return Order.objects.select_related(
+            "customer",
+            "suit_type",
+            "material",
+            "measurement",
+            "reviewed_by",
+        ).get(order_code=order_code)
+    except Order.DoesNotExist:
+        raise ValidationError("order not found.")
+
+
+def _generate_order_code() -> str:
+    for _ in range(5):
+        candidate = f"HP-{secrets.randbelow(10**8):08d}"
+        if not Order.objects.filter(order_code=candidate).exists():
+            return candidate
+    raise ValidationError("Failed to generate unique order code.")
+
+
 def _notify_users(
     order: Order,
     users,
@@ -140,6 +163,7 @@ def _notify_users(
         identifier_used=str(order.id),
         payload={
             "order_id": str(order.id),
+            "order_code": order.order_code,
             "user_ids": [str(user_id) for user_id in user_ids],
             "message": message,
         },
@@ -261,6 +285,7 @@ def create_order(
         suit_type=suit_type_obj,
         material=material_obj,
         measurement=measurement,
+        order_code=_generate_order_code(),
         status="INITIATED",
         quantity=normalized_quantity,
         total_price=Decimal("0.00"),
@@ -274,6 +299,7 @@ def create_order(
         identifier_used=customer.phone_number,
         payload={
             "order_id": str(order.id),
+            "order_code": order.order_code,
             "customer_id": customer.id,
             "customer_phone": customer.phone_number,
         },
@@ -386,14 +412,14 @@ def record_payment_info(
 @transaction.atomic
 def record_payment_info_by_customer(
     *,
-    order_id,
+    order_code,
     customer_phone,
     payment_reference,
     payment_amount=None,
     payment_received_at=None,
     payment_notes=None,
 ) -> Order:
-    order = _resolve_order(order_id)
+    order = _resolve_order_by_code(order_code)
     if order.status != "AWAITING_PAYMENT" or not order.payment_allowed:
         raise ValidationError("Order is not allowed to receive payment yet.")
 
@@ -430,6 +456,7 @@ def record_payment_info_by_customer(
         identifier_used=order.payment_reference,
         payload={
             "order_id": str(order.id),
+            "order_code": order.order_code,
             "customer_phone": order.customer.phone_number,
             "payment_reference": order.payment_reference,
             "payment_amount": (

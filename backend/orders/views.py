@@ -60,6 +60,7 @@ class OrderCreateView(APIView):
         return Response(
             {
                 "order_id": str(order.id),
+                "order_code": order.order_code,
                 "status": order.status,
             },
             status=status.HTTP_201_CREATED,
@@ -232,7 +233,7 @@ class OrderCustomerPaymentView(APIView):
         serializer.is_valid(raise_exception=True)
         try:
             order = record_payment_info_by_customer(
-                order_id=id,
+                order_code=serializer.validated_data["order_code"],
                 customer_phone=serializer.validated_data["customer_phone"],
                 payment_reference=serializer.validated_data["payment_reference"],
                 payment_amount=serializer.validated_data.get("payment_amount"),

@@ -7,9 +7,11 @@ from rest_framework.exceptions import ValidationError
 from django.core.exceptions import ValidationError as DjangoValidationError
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 
-from accounts.permissions import IsAdminOrReceptionist, IsReseptionist
+from .models import SuitType
+from accounts.permissions import IsAdminOrReceptionist, IsReseptionist, IsAdmin
 from .serializers import (
     CreateOrderResponseSerializer,
+    SuitTypeSerializer,
     CreateOrderSerializer,
     CustomerPaymentSerializer,
     OrderExpirationResponseSerializer,
@@ -67,7 +69,7 @@ class OrderCreateView(APIView):
 
 
 class OrderListView(APIView):
-    permission_classes = [IsAuthenticated, IsAdminOrReceptionist]
+    permission_classes = [IsAuthenticated, IsAdmin, IsAdminOrReceptionist]
 
     @extend_schema(
         tags=["Orders"],
@@ -125,7 +127,7 @@ class OrderListView(APIView):
 
 
 class OrderProcessingView(APIView):
-    permission_classes = [IsAuthenticated, IsAdminOrReceptionist]
+    permission_classes = [IsAuthenticated, IsAdmin, IsAdminOrReceptionist]
 
     @extend_schema(
         tags=["Orders"],
@@ -179,7 +181,7 @@ class OrderProcessingView(APIView):
 
 
 class OrderUpdateView(APIView):
-    permission_classes = [IsAuthenticated, IsReseptionist]
+    permission_classes = [IsAuthenticated, IsReseptionist, IsAdmin]
 
     @extend_schema(
         tags=["Orders"],
@@ -200,7 +202,7 @@ class OrderUpdateView(APIView):
 
 
 class OrderExpirationView(APIView):
-    permission_classes = [IsAuthenticated, IsAdminOrReceptionist]
+    permission_classes = [IsAuthenticated, IsAdmin, IsAdminOrReceptionist]
 
     @extend_schema(
         tags=["Orders"],
@@ -244,3 +246,37 @@ class OrderCustomerPaymentView(APIView):
         except DjangoValidationError as exc:
             raise ValidationError(str(exc))
         return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
+
+
+class SuitTypeCreateView(APIView):
+    permission_classes = [IsAuthenticated | IsAdmin]
+
+    @extend_schema(
+        tags=["Suit Types"],
+        request=SuitTypeSerializer,
+        responses={201: SuitTypeSerializer, 400: dict},
+        description="Create a new suit type (admin only)."
+    )
+    def post(self, request):
+        serializer = SuitTypeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        suit_type = serializer.save()
+
+        return Response(
+            SuitTypeSerializer(suit_type).data,
+            status=status.HTTP_201_CREATED
+        )
+
+
+class SuitTypeListView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        tags=["Suit Types"],
+        responses={200: SuitTypeSerializer},
+        description="List all available suit types."
+    )
+    def get(self, request):
+        suit_types = SuitType.objects.all()
+        serializer = SuitTypeSerializer(suit_types, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

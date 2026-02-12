@@ -6,6 +6,26 @@ const Login = () => {
   const [role, setRole] = useState('admin');
   const [showPassword, setShowPassword] = useState(false);
 
+
+  // handleLogin function:
+const handleLogin = (e) => {
+  e.preventDefault();
+  
+  // Fake authentication logic
+  const userData = {
+    id: "H-PRO-001",
+    name: "Abebe",
+    role: "receptionist" // or "admin"
+  };
+
+  localStorage.setItem('user', JSON.stringify(userData));
+  
+  // Redirect based on role
+  if(userData.role === 'admin') window.location.href = "/admin";
+  else if(userData.role === 'receptionist') window.location.href = "/reception";
+  else window.location.href = "/";
+};
+
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden font-sans">
       
@@ -96,6 +116,7 @@ const Login = () => {
             <motion.button 
               whileHover={{ scale: 1.02, boxShadow: "0 0 20px rgba(220, 38, 38, 0.4)" }}
               whileTap={{ scale: 0.98 }}
+              onClick={handleLogin}
               className="w-full bg-red-600 text-white py-5 font-black uppercase tracking-[0.5em] text-[10px] flex items-center justify-center gap-3 transition-all mt-4"
             >
               Verify Identity <HiOutlineShieldCheck size={18} />

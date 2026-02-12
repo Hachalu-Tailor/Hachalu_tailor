@@ -42,6 +42,7 @@ class Order(models.Model):
 
     STATUS_CHOICES = [
 <<<<<<< HEAD
+<<<<<<< HEAD
         ("INITIATED", "Initiated"),
         ("AWAITING_PAYMENT", "Awaiting_approval"),
         ("PENDING_APPROVAL", "pending_approval"),
@@ -51,6 +52,8 @@ class Order(models.Model):
         ("REJECTED", "Rejected"),
         ("EXPIRED", "Expired"),
 =======
+=======
+>>>>>>> 2550c1e796b35083c5bc24ad5230aac36039acc8
         ('AWAITING_PAYMENT', 'Awaiting_approval'),
         ('PENDING_APPROVAL', 'pending_approval'),
         ('IN_PROGRESS', 'In_progress'),

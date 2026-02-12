@@ -58,7 +58,7 @@ This is the **frontend application** for the Hachalu Protocol Tailor Suite Platf
 │   │   |   ├── receptionist/  # Order approval, payment review
 │   │   |   └── admin/         # Analytics, user management
 │   │   ├── layouts/
-│   │   │   ├── PublicLayout.jsx
+│   │   │   ├── MainLayout.jsx
 │   │   │   └── DashboardLayout.jsx
 │   │   │
 │   │   ├── routes/

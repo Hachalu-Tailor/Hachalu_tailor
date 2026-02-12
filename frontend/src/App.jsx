@@ -39,13 +39,13 @@ function App() {
         </Route>
 
         {/* RECEPTIONIST NESTED ROUTES */}
-        {/* <Route path="/reception" element={<DashboardLayout />}>
+        <Route path="/reception" element={<DashboardLayout />}>
           <Route index  element={<ReceptionDashboard />} />
           <Route path="inventory" element={<Inventory />} />
           <Route path="orders" element={<Orders />} />
           <Route path="announcement" element={<Announcement />} />
           <Route path="clients" element={<Clients />} />
-        </Route> */}
+        </Route>
 
         {/* --- 4. ADMIN ONLY ROUTES --- */}
         <Route element={<ProtectedRoute allowedRoles={['admin']} />}>

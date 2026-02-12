@@ -4,12 +4,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import ValidationError
+from django.core.exceptions import ValidationError as DjangoValidationError
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 
-from accounts.permissions import IsAdmin
+from accounts.permissions import IsAdminOrReceptionist, IsReseptionist
 from .serializers import (
     CreateOrderResponseSerializer,
     CreateOrderSerializer,
+    CustomerPaymentSerializer,
     OrderExpirationResponseSerializer,
     OrderProcessingSerializer,
     OrderSerializer,
@@ -17,10 +19,12 @@ from .serializers import (
 )
 from .services import (
     approve_order,
+    create_order,
     expire_orders,
     list_orders,
     receive_order_for_processing,
     record_payment_info,
+    record_payment_info_by_customer,
     reject_order,
     update_order,
 )
@@ -32,15 +36,27 @@ class OrderCreateView(APIView):
     @extend_schema(
         tags=["Orders"],
         request=CreateOrderSerializer,
-        responses={201: CreateOrderResponseSerializer},
-        description="Create a new order with customer details and measurements.",
+        responses={201: CreateOrderResponseSerializer, 400: dict},
+        description=(
+            "Create a new order with customer details and measurements. "
+            "This starts the order in INITIATED and notifies staff."
+        ),
     )
     def post(self, request):
-        serializer = CreateOrderSerializer(
-            data=request.data, context={"request": request}
-        )
+        serializer = CreateOrderSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        order = serializer.save()
+        validated = serializer.validated_data
+        customer_data = validated["customer"]
+        measurement_data = validated["measurements"]
+        order = create_order(
+            customer_name=customer_data["full_name"],
+            customer_phone=customer_data["phone_number"],
+            suit_type=validated["suit_type"],
+            material=validated["material"],
+            quantity=validated["quantity"],
+            measurements=measurement_data,
+            requester=request.user if request.user.is_authenticated else None,
+        )
         return Response(
             {
                 "order_id": str(order.id),
@@ -51,7 +67,7 @@ class OrderCreateView(APIView):
 
 
 class OrderListView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdminOrReceptionist]
 
     @extend_schema(
         tags=["Orders"],
@@ -75,8 +91,11 @@ class OrderListView(APIView):
                 type=str,
             ),
         ],
-        responses={200: OrderSerializer},
-        description="List orders with optional filters. Results are paginated.",
+        responses={200: OrderSerializer, 401: dict, 403: dict},
+        description=(
+            "List orders with optional filters. Results are paginated. "
+            "Accessible to admins and receptionists."
+        ),
     )
     def get(self, request):
         active_only = request.query_params.get("active_only")
@@ -106,13 +125,16 @@ class OrderListView(APIView):
 
 
 class OrderProcessingView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdminOrReceptionist]
 
     @extend_schema(
         tags=["Orders"],
         request=OrderProcessingSerializer,
-        responses={200: OrderSerializer},
-        description=("Process an order: receive, record payment, approve, or reject."),
+        responses={200: OrderSerializer, 400: dict, 401: dict, 403: dict},
+        description=(
+            "Process an order: receive (set price/date + allow payment), "
+            "record payment (staff only), approve, or reject."
+        ),
     )
     def post(self, request, id):
         serializer = OrderProcessingSerializer(data=request.data)
@@ -157,13 +179,16 @@ class OrderProcessingView(APIView):
 
 
 class OrderUpdateView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsReseptionist]
 
     @extend_schema(
         tags=["Orders"],
         request=OrderUpdateSerializer,
-        responses={200: OrderSerializer},
-        description="Update order fields and notify receptionists.",
+        responses={200: OrderSerializer, 400: dict, 401: dict, 403: dict},
+        description=(
+            "Update order fields (receptionists only). "
+            "Creates staff notifications after update."
+        ),
     )
     def patch(self, request, id):
         serializer = OrderUpdateSerializer(data=request.data)
@@ -175,12 +200,12 @@ class OrderUpdateView(APIView):
 
 
 class OrderExpirationView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdminOrReceptionist]
 
     @extend_schema(
         tags=["Orders"],
-        responses={200: OrderExpirationResponseSerializer},
-        description="Expire overdue orders and notify receptionists.",
+        responses={200: OrderExpirationResponseSerializer, 401: dict, 403: dict},
+        description="Expire overdue orders and notify staff.",
     )
     def post(self, request):
         expired = expire_orders(requester=request.user)
@@ -188,3 +213,34 @@ class OrderExpirationView(APIView):
             {"expired_count": len(expired)},
             status=status.HTTP_200_OK,
         )
+
+
+class OrderCustomerPaymentView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        tags=["Orders"],
+        request=CustomerPaymentSerializer,
+        responses={200: OrderSerializer, 400: dict},
+        description=(
+            "Customer submits payment info for an order. "
+            "Payment is accepted only after staff enables payment."
+        ),
+    )
+    def post(self, request, id):
+        serializer = CustomerPaymentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            order = record_payment_info_by_customer(
+                order_id=id,
+                customer_phone=serializer.validated_data["customer_phone"],
+                payment_reference=serializer.validated_data["payment_reference"],
+                payment_amount=serializer.validated_data.get("payment_amount"),
+                payment_received_at=serializer.validated_data.get(
+                    "payment_received_at"
+                ),
+                payment_notes=serializer.validated_data.get("payment_notes"),
+            )
+        except DjangoValidationError as exc:
+            raise ValidationError(str(exc))
+        return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)

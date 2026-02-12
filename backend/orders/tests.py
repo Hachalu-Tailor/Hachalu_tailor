@@ -32,23 +32,23 @@ class OrderApiTests(APITestCase):
             full_name=kwargs.get("customer_name", "John Doe"),
             phone_number=kwargs.get("customer_phone", default_phone),
         )
-        order = Order.objects.create(
-            customer=customer,
-            suit_type=kwargs.get("suit_type", self.suit_type),
-            material=kwargs.get("material", self.material),
-            status=kwargs.get("status", "INITIATED"),
-            quantity=kwargs.get("quantity", 1),
-            total_price=kwargs.get("total_price", "0.00"),
-            due_date=kwargs.get("due_date", timezone.localdate()),
-        )
-        Measurement.objects.create(
-            order=order,
+        measurement = Measurement.objects.create(
             chest=40,
             shoulder=18,
             waist=32,
             hips=38,
             arm_length=25,
             height=170,
+        )
+        order = Order.objects.create(
+            customer=customer,
+            suit_type=kwargs.get("suit_type", self.suit_type),
+            material=kwargs.get("material", self.material),
+            measurement=measurement,
+            status=kwargs.get("status", "INITIATED"),
+            quantity=kwargs.get("quantity", 1),
+            total_price=kwargs.get("total_price", "0.00"),
+            due_date=kwargs.get("due_date", timezone.localdate()),
         )
         return order
 
@@ -89,7 +89,7 @@ class OrderApiTests(APITestCase):
         )
         self.client.force_authenticate(user=receptionist)
         response = self.client.get("/api/orders/list/")
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_order_list_filters(self):
         active_order = self._create_order(status="INITIATED")
@@ -119,14 +119,16 @@ class OrderApiTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["status"], "AWAITING_PAYMENT")
+        self.assertTrue(response.data.get("payment_allowed"))
 
+        payment_payload = {
+            "customer_phone": order.customer.phone_number,
+            "payment_reference": "REF123",
+            "payment_amount": "120.00",
+        }
         response = self.client.post(
-            f"/api/orders/{order.id}/process/",
-            {
-                "action": "record_payment",
-                "payment_reference": "REF123",
-                "payment_amount": "120.00",
-            },
+            f"/api/orders/{order.id}/payment/",
+            payment_payload,
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -143,7 +145,14 @@ class OrderApiTests(APITestCase):
     def test_order_update(self):
         order = self._create_order(quantity=1)
 
-        self.client.force_authenticate(user=self.admin)
+        receptionist = User.objects.create_user(
+            email="receptionist@example.com",
+            password="secret123",
+            full_name="Receptionist User",
+            phone_number="444",
+            role=User.RECEPTIONIST,
+        )
+        self.client.force_authenticate(user=receptionist)
         response = self.client.patch(
             f"/api/orders/{order.id}/",
             {"quantity": 3, "status": "COMPLETED"},
@@ -152,6 +161,20 @@ class OrderApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["quantity"], 3)
         self.assertEqual(response.data["status"], "COMPLETED")
+
+    def test_customer_payment_requires_allowance(self):
+        order = self._create_order(status="INITIATED")
+
+        response = self.client.post(
+            f"/api/orders/{order.id}/payment/",
+            {
+                "customer_phone": order.customer.phone_number,
+                "payment_reference": "REF999",
+                "payment_amount": "20.00",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_order_expiration(self):
         past_due = timezone.localdate() - timedelta(days=1)

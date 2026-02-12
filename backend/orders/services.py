@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.utils import timezone
 
-from accounts.models import AuditLog, User
+from accounts.models import AuditLog, User, Notification
 from inventory.models import Material
 from .models import Customer, Order, Measurement, SuitType
 
@@ -111,90 +111,118 @@ def _resolve_material(material):
 
 def _resolve_order(order_id):
     try:
-        return Order.objects.select_related("customer", "suit_type", "material").get(
-            id=order_id
-        )
+        return Order.objects.select_related(
+            "customer",
+            "suit_type",
+            "material",
+            "measurement",
+            "reviewed_by",
+        ).get(id=order_id)
     except Order.DoesNotExist:
         raise ValidationError("order not found.")
 
 
-def _notify_receptionists(order: Order, requester=None) -> None:
-    receptionist_ids = list(
-        User.objects.filter(role=User.RECEPTIONIST).values_list("id", flat=True)
-    )
+def _notify_users(
+    order: Order,
+    users,
+    *,
+    requester=None,
+    title="Order Update",
+    message="Order requires review.",
+    notification_type="ORDER_UPDATE",
+) -> None:
+    user_list = list(users)
+    user_ids = [user.id for user in user_list]
     AuditLog.objects.create(
         actor=_normalize_actor(requester),
-        action="RECEPTIONIST_NOTIFIED",
+        action="STAFF_NOTIFIED",
         target_id=str(order.id),
         identifier_used=str(order.id),
         payload={
             "order_id": str(order.id),
-            "receptionist_ids": [str(user_id) for user_id in receptionist_ids],
-            "message": "New order requires review.",
+            "user_ids": [str(user_id) for user_id in user_ids],
+            "message": message,
         },
     )
+    if user_list:
+        Notification.objects.bulk_create(
+            [
+                Notification(
+                    user=user,
+                    title=title,
+                    message=message,
+                    notification_type=notification_type,
+                    payload={"order_id": str(order.id)},
+                )
+                for user in user_list
+            ]
+        )
 
 
-def _build_processing_payload(order: Order, measurement: Measurement) -> dict:
-    return {
-        "order_id": str(order.id),
-        "status": order.status,
-        "quantity": order.quantity,
-        "customer": {
-            "id": order.customer.id,
-            "full_name": order.customer.full_name,
-            "phone_number": order.customer.phone_number,
-        },
-        "suit_type": {
-            "id": order.suit_type.id,
-            "name": order.suit_type.name,
-            "lapel_count": order.suit_type.lapel_count,
-        },
-        "material": {
-            "id": order.material.id,
-            "name": order.material.name,
-            "color": order.material.color,
-        },
-        "measurements": {
-            "chest": measurement.chest,
-            "shoulder": measurement.shoulder,
-            "waist": measurement.waist,
-            "hips": measurement.hips,
-            "arm_length": measurement.arm_length,
-            "height": measurement.height,
-        },
-        "payment": {
-            "reference": order.payment_reference,
-            "amount": str(order.payment_amount) if order.payment_amount else None,
-            "received_at": (
-                order.payment_received_at.isoformat()
-                if order.payment_received_at
-                else None
-            ),
-        },
-    }
+def _staff_users():
+    return User.objects.filter(role__in={User.ADMIN, User.RECEPTIONIST})
 
 
-def _send_to_processing_service(payload: dict) -> bool:
-    service_url = getattr(settings, "ORDER_PROCESSING_SERVICE_URL", None)
-    if not service_url:
-        logger.warning("ORDER_PROCESSING_SERVICE_URL is not configured; skipping send")
-        return False
+# def _build_processing_payload(order: Order, measurement: Measurement) -> dict:
+#     return {
+#         "order_id": str(order.id),
+#         "status": order.status,
+#         "quantity": order.quantity,
+#         "customer": {
+#             "id": order.customer.id,
+#             "full_name": order.customer.full_name,
+#             "phone_number": order.customer.phone_number,
+#         },
+#         "suit_type": {
+#             "id": order.suit_type.id,
+#             "name": order.suit_type.name,
+#             "lapel_count": order.suit_type.lapel_count,
+#         },
+#         "material": {
+#             "id": order.material.id,
+#             "name": order.material.name,
+#             "color": order.material.color,
+#         },
+#         "measurements": {
+#             "chest": measurement.chest,
+#             "shoulder": measurement.shoulder,
+#             "waist": measurement.waist,
+#             "hips": measurement.hips,
+#             "arm_length": measurement.arm_length,
+#             "height": measurement.height,
+#         },
+#         "payment": {
+#             "reference": order.payment_reference,
+#             "amount": str(order.payment_amount) if order.payment_amount else None,
+#             "received_at": (
+#                 order.payment_received_at.isoformat()
+#                 if order.payment_received_at
+#                 else None
+#             ),
+#         },
+#     }
 
-    data = json.dumps(payload).encode("utf-8")
-    request = urllib_request.Request(
-        service_url,
-        data=data,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        with urllib_request.urlopen(request, timeout=10) as response:
-            if response.status >= 400:
-                raise ValidationError("order processing service rejected the order.")
-    except (HTTPError, URLError, ValidationError) as exc:
-        raise ValidationError("Failed to send order to processing service.") from exc
-    return True
+
+# def _send_to_processing_service(payload: dict) -> bool:
+#     service_url = getattr(settings, "ORDER_PROCESSING_SERVICE_URL", None)
+#     if not service_url:
+#         logger.warning("ORDER_PROCESSING_SERVICE_URL is not configured; skipping send")
+#         return False
+
+#     data = json.dumps(payload).encode("utf-8")
+#     request = urllib_request.Request(
+#         service_url,
+#         data=data,
+#         headers={"Content-Type": "application/json"},
+#         method="POST",
+#     )
+#     try:
+#         with urllib_request.urlopen(request, timeout=10) as response:
+#             if response.status >= 400:
+#                 raise ValidationError("order processing service rejected the order.")
+#     except (HTTPError, URLError, ValidationError) as exc:
+#         raise ValidationError("Failed to send order to processing service.") from exc
+#     return True
 
 
 @transaction.atomic
@@ -226,17 +254,18 @@ def create_order(
         customer.full_name = customer_name.strip()
         customer.save(update_fields=["full_name"])
 
+    measurement = Measurement.objects.create(**normalized_measurements)
+
     order = Order.objects.create(
         customer=customer,
         suit_type=suit_type_obj,
         material=material_obj,
+        measurement=measurement,
         status="INITIATED",
         quantity=normalized_quantity,
         total_price=Decimal("0.00"),
         due_date=PLACEHOLDER_DUE_DATE,
     )
-
-    measurement = Measurement.objects.create(order=order, **normalized_measurements)
 
     AuditLog.objects.create(
         actor=_normalize_actor(requester),
@@ -250,28 +279,14 @@ def create_order(
         },
     )
 
-    _notify_receptionists(order, requester=requester)
-
-    payload = _build_processing_payload(order, measurement)
-    try:
-        sent = _send_to_processing_service(payload)
-    except ValidationError as exc:
-        logger.exception("Order processing dispatch failed for %s", order.id)
-        AuditLog.objects.create(
-            actor=_normalize_actor(requester),
-            action="ORDER_PROCESSING_FAILED",
-            target_id=str(order.id),
-            identifier_used=str(order.id),
-            payload={"order_id": str(order.id), "error": str(exc)},
-        )
-    else:
-        AuditLog.objects.create(
-            actor=_normalize_actor(requester),
-            action="ORDER_SENT_TO_PROCESSING" if sent else "ORDER_PROCESSING_SKIPPED",
-            target_id=str(order.id),
-            identifier_used=str(order.id),
-            payload={"order_id": str(order.id), "sent": sent},
-        )
+    _notify_users(
+        order,
+        _staff_users(),
+        requester=requester,
+        title="New Order",
+        message="New order requires review.",
+        notification_type="ORDER_CREATED",
+    )
 
     return order
 
@@ -287,7 +302,19 @@ def receive_order_for_processing(
     order.total_price = _normalize_decimal(total_price, "total_price")
     order.due_date = _normalize_date(due_date, "due_date")
     order.status = "AWAITING_PAYMENT"
-    order.save(update_fields=["total_price", "due_date", "status", "updated_at"])
+    order.payment_allowed = True
+    if requester is not None:
+        order.reviewed_by = requester
+    order.save(
+        update_fields=[
+            "total_price",
+            "due_date",
+            "status",
+            "payment_allowed",
+            "updated_at",
+            "reviewed_by",
+        ]
+    )
 
     AuditLog.objects.create(
         actor=_normalize_actor(requester),
@@ -357,6 +384,81 @@ def record_payment_info(
 
 
 @transaction.atomic
+def record_payment_info_by_customer(
+    *,
+    order_id,
+    customer_phone,
+    payment_reference,
+    payment_amount=None,
+    payment_received_at=None,
+    payment_notes=None,
+) -> Order:
+    order = _resolve_order(order_id)
+    if order.status != "AWAITING_PAYMENT" or not order.payment_allowed:
+        raise ValidationError("Order is not allowed to receive payment yet.")
+
+    if not customer_phone or str(customer_phone).strip() != order.customer.phone_number:
+        raise ValidationError("customer_phone does not match order.")
+
+    if not payment_reference or not str(payment_reference).strip():
+        raise ValidationError("payment_reference is required.")
+
+    order.payment_reference = str(payment_reference).strip()
+    if payment_amount is not None:
+        order.payment_amount = _normalize_decimal(payment_amount, "payment_amount")
+    order.payment_received_at = _normalize_datetime(
+        payment_received_at, "payment_received_at"
+    )
+    if payment_notes is not None:
+        order.payment_notes = str(payment_notes).strip()
+    order.status = "PENDING_APPROVAL"
+    order.save(
+        update_fields=[
+            "payment_reference",
+            "payment_amount",
+            "payment_received_at",
+            "payment_notes",
+            "status",
+            "updated_at",
+        ]
+    )
+
+    AuditLog.objects.create(
+        actor=None,
+        action="ORDER_PAYMENT_SUBMITTED",
+        target_id=str(order.id),
+        identifier_used=order.payment_reference,
+        payload={
+            "order_id": str(order.id),
+            "customer_phone": order.customer.phone_number,
+            "payment_reference": order.payment_reference,
+            "payment_amount": (
+                str(order.payment_amount) if order.payment_amount else None
+            ),
+        },
+    )
+
+    if order.reviewed_by is not None:
+        _notify_users(
+            order,
+            [order.reviewed_by],
+            title="Payment Submitted",
+            message="Customer submitted payment. Review and approve.",
+            notification_type="PAYMENT_SUBMITTED",
+        )
+    else:
+        _notify_users(
+            order,
+            _staff_users(),
+            title="Payment Submitted",
+            message="Customer submitted payment. Review and approve.",
+            notification_type="PAYMENT_SUBMITTED",
+        )
+
+    return order
+
+
+@transaction.atomic
 def approve_order(*, order_id, requester=None) -> Order:
     order = _resolve_order(order_id)
     if order.status != "PENDING_APPROVAL":
@@ -393,14 +495,27 @@ def reject_order(*, order_id, reason=None, requester=None) -> Order:
         payload={"order_id": str(order.id), "reason": reason},
     )
 
-    _notify_receptionists(order, requester=requester)
+    _notify_users(
+        order,
+        _staff_users(),
+        requester=requester,
+        title="Order Rejected",
+        message="Order was rejected. Review the details.",
+        notification_type="ORDER_REJECTED",
+    )
     return order
 
 
 def list_orders(
     *, requester=None, active_only=None, processed_only=None, customer=None
 ):
-    queryset = Order.objects.select_related("customer", "suit_type", "material").all()
+    queryset = Order.objects.select_related(
+        "customer",
+        "suit_type",
+        "material",
+        "measurement",
+        "reviewed_by",
+    ).all()
 
     if active_only is not None:
         if active_only:
@@ -495,7 +610,14 @@ def update_order(*, order_id, updates: dict, requester=None) -> Order:
         payload={"order_id": str(order.id), "updates": updates},
     )
 
-    _notify_receptionists(order, requester=requester)
+    _notify_users(
+        order,
+        _staff_users(),
+        requester=requester,
+        title="Order Updated",
+        message="Order was updated. Review the changes.",
+        notification_type="ORDER_UPDATED",
+    )
     return order
 
 
@@ -517,6 +639,13 @@ def expire_orders(*, requester=None):
             identifier_used=str(order.id),
             payload={"order_id": str(order.id), "due_date": order.due_date.isoformat()},
         )
-        _notify_receptionists(order, requester=requester)
+        _notify_users(
+            order,
+            _staff_users(),
+            requester=requester,
+            title="Order Expired",
+            message="Order expired. Review the status.",
+            notification_type="ORDER_EXPIRED",
+        )
 
     return expired_orders

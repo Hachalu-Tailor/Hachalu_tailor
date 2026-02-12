@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from .models import SuitType, Order, Measurement
-from .services import create_order
 
 
 class SuitTypeSerializer(serializers.ModelSerializer):
@@ -36,6 +35,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "payment_amount",
             "payment_received_at",
             "payment_notes",
+            "payment_allowed",
             "created_at",
             "updated_at",
             "customer_name",
@@ -81,26 +81,6 @@ class CreateOrderSerializer(serializers.ModelSerializer):
             "due_date": {"required": False},
         }
 
-    def create(self, validated_data):
-        """
-        Custom create method to handle nested Customer and Measurement creation.
-        """
-        customer_data = validated_data.pop("customer")
-        measurement_data = validated_data.pop("measurements")
-
-        request = self.context.get("request")
-        requester = getattr(request, "user", None) if request else None
-
-        return create_order(
-            customer_name=customer_data["full_name"],
-            customer_phone=customer_data["phone_number"],
-            suit_type=validated_data["suit_type"],
-            material=validated_data["material"],
-            quantity=validated_data["quantity"],
-            measurements=measurement_data,
-            requester=requester,
-        )
-
 
 class OrderProcessingSerializer(serializers.Serializer):
     action = serializers.ChoiceField(
@@ -117,6 +97,16 @@ class OrderProcessingSerializer(serializers.Serializer):
     payment_received_at = serializers.DateTimeField(required=False)
     payment_notes = serializers.CharField(required=False, allow_blank=True)
     reason = serializers.CharField(required=False, allow_blank=True)
+
+
+class CustomerPaymentSerializer(serializers.Serializer):
+    customer_phone = serializers.CharField()
+    payment_reference = serializers.CharField()
+    payment_amount = serializers.DecimalField(
+        max_digits=12, decimal_places=2, required=False
+    )
+    payment_received_at = serializers.DateTimeField(required=False)
+    payment_notes = serializers.CharField(required=False, allow_blank=True)
 
 
 class OrderExpirationResponseSerializer(serializers.Serializer):

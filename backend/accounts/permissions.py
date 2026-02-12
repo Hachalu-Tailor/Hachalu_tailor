@@ -16,3 +16,10 @@ class IsReseptionist(BasePermission):
 
     def has_permission(self, request, view):
         return request.user.role == "RECEPTIONIST"
+
+
+class IsAdminOrReceptionist(BasePermission):
+    """Allow access to users who are ADMINs or RECEPTIONISTS."""
+
+    def has_permission(self, request, view):
+        return request.user.role in {"ADMIN", "RECEPTIONIST"}

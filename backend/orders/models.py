@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 import uuid
 from inventory.models import Material
 
@@ -64,6 +65,20 @@ class Order(models.Model):
     material = models.ForeignKey(
         Material, on_delete=models.CASCADE, related_name="orders"
     )
+    measurement = models.OneToOneField(
+        "Measurement",
+        on_delete=models.CASCADE,
+        related_name="order",
+        null=True,
+        blank=True,
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_orders",
+        null=True,
+        blank=True,
+    )
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default="INITIATED"
     )
@@ -77,6 +92,7 @@ class Order(models.Model):
     )
     payment_received_at = models.DateTimeField(null=True, blank=True)
     payment_notes = models.TextField(blank=True)
+    payment_allowed = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -90,9 +106,6 @@ class Measurement(models.Model):
     Represents measurements associated with a particular order.
     """
 
-    order = models.OneToOneField(
-        Order, on_delete=models.CASCADE, related_name="measurement"
-    )
     chest = models.FloatField()
     shoulder = models.FloatField()
     waist = models.FloatField()
@@ -101,4 +114,4 @@ class Measurement(models.Model):
     height = models.FloatField()
 
     def __str__(self):
-        return f"Measurements for Order #{self.order.id}"
+        return f"Measurements #{self.id}"

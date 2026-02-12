@@ -37,7 +37,6 @@ class Order(models.Model):
         ('REJECTED', 'Payment was invalid or order cancelled'),
     """
     STATUS_CHOICES = [
-        ('INITIATED', 'Initiated'),
         ('AWAITING_PAYMENT', 'Awaiting_approval'),
         ('PENDING_APPROVAL', 'pending_approval'),
         ('IN_PROGRESS', 'In_progress'),

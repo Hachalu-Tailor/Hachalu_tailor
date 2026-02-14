@@ -20,14 +20,14 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
 
     const getStoredRole = () => {
       const rawRole = localStorage.getItem('user_role');
-      console.log("1. Raw Role from LocalStorage:", rawRole);
+      // console.log("1. Raw Role from LocalStorage:", rawRole);
 
       if (rawRole) {
         const cleanedRole = rawRole.toLowerCase().trim();
-        console.log("2. Cleaned Role being set to state:", cleanedRole);
+        // console.log("2. Cleaned Role being set to state:", cleanedRole);
         setRole(cleanedRole);
       } else {
-        console.warn("2. No 'user_role' found in LocalStorage!");
+        // console.warn("2. No 'user_role' found in LocalStorage!");
         setRole('');
       }
     };
@@ -41,16 +41,21 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
     localStorage.setItem('theme', newTheme ? 'dark' : 'light');
   };
 
-  const menuItems = [
-    { path: '/admin', label: 'Dashboard', icon: <HiOutlineSquares2X2 />, roles: ['admin'] },
-    { path: '/admin-reception', label: 'Reception Management', icon: <HiOutlineUserGroup />, roles: ['admin'] },
-    { path: '/reception/inventory', label: 'Inventory', icon: <HiOutlineCube />, roles: ['receptionist',] },
-    { path: '/reception/orders', label: 'Orders', icon: <HiOutlineShoppingBag />, roles: ['receptionist'] },
-    { path: '/reception/clients', label: 'Clients', icon: <HiOutlineUserGroup />, roles: ['receptionist', 'admin'] },
-    { path: '/reception/payments', label: 'Finance', icon: <HiOutlineBanknotes />, roles: ['admin'] },
-    { path: '/reception/announcement', label: 'Bulletins', icon: <HiOutlineMegaphone />, roles: ['admin', 'receptionist'] },
-    { path: '/reception/messages', label: 'Messages', icon: <HiOutlineChatBubbleLeftRight />, roles: ['admin', 'receptionist'] },
-  ];
+const menuItems = [
+  // Admin Section
+  { path: '/admin', label: 'Dashboard', icon: <HiOutlineSquares2X2 />, roles: ['admin'] },
+  { path: '/admin/admin-reception', label: 'Reception Management', icon: <HiOutlineUserGroup />, roles: ['admin'] },
+  
+  // Reception Section
+  { path: '/reception/inventory', label: 'Inventory', icon: <HiOutlineCube />, roles: ['receptionist', 'admin'] },
+  { path: '/reception/orders', label: 'Orders', icon: <HiOutlineShoppingBag />, roles: ['receptionist'] },
+  { path: '/reception/clients', label: 'Clients', icon: <HiOutlineUserGroup />, roles: ['receptionist'] },
+  { path: '/reception/announcement', label: 'Bulletins', icon: <HiOutlineMegaphone />, roles: ['admin', 'receptionist'] },
+
+  // Finance Section
+  { path: '/reception/payments', label: 'Finance', icon: <HiOutlineBanknotes />, roles: ['receptionist'] },
+  { path: '/reception/messages', label: 'Messages', icon: <HiOutlineChatBubbleLeftRight />, roles: ['admin', 'receptionist'] },
+];
 
   // 2. DEBUG FILTER LOGIC
   const filteredMenu = menuItems.filter(item => {

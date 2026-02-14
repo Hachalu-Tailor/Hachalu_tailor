@@ -507,7 +507,7 @@ Body
 #### But here we need more things
 # ============================================================
 ### Payment Management 
-#### 1. Create object
+#### 1. Create Payment
 ##### Endpoint: POST /api/payments/
 Body
 ```
@@ -521,15 +521,33 @@ Body
 ##### Response: 201
 ```
 {
-    "id": 1,
-    "name": "Cotton",
-    "color": "White",
-    "texture": "Soft",
-    "image_url": null,
-    "inventory": {
-        "id": 1,
-        "quantity_meters": "10.50",
-        "is_available": true
-    }
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "order_code": "HP-2026-XYZ",
+  "payment_amount": "2500.00",
+  "bank_ref_number": "TXN_998877",
+  "receipt_pdf_url": "https://storage.provider.com/receipts/txn_01.pdf",
+  "is_verified": false,
+  "created_at": "2026-02-14T19:33:00Z"
+}
+```
+#### 2. Verify Payment
+##### Endpoint: POST /payments/<uuid:id>/verify/
+Body
+```
+{
+  "is_verified": true
+}
+```
+##### Response: 201
+```
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "order_id": "a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6",
+  "order_code": "HP-2026-XYZ",
+  "payment_amount": "250.00",
+  "bank_ref_number": "TXN_998877",
+  "receipt_pdf_url": "https://storage.provider.com/receipts/txn_01.pdf",
+  "is_verified": true,
+  "created_at": "2026-02-14T19:33:00Z"
 }
 ```

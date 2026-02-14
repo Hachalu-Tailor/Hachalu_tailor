@@ -28,8 +28,10 @@ const AdminReception = () => {
   const loadStaff = async () => {
     setLoading(true);
     try {
+      console.log("Loading staff data...");
       const res = await listStaff();
       setStaff(res.data);
+      console.log("Staff loaded:", res.data);
     } catch (err) {
       console.error("Failed to load staff");
     } finally {

@@ -11,18 +11,14 @@ const api = axios.create({
 
 /**
  * REQUEST INTERCEPTOR
- * We use a "fresh" get from localStorage every time to avoid stale tokens.
  */
 api.interceptors.request.use(
   (config) => {
-    // IMPORTANT: This must match exactly what you use in Login.jsx
     const token = localStorage.getItem('access_token');
-    
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      // Log for your debugging (Remove in production)
-      // console.log("Request sent with token:", token.substring(0, 10) + "...");
-    } else {
+    } else if (!config.url?.includes('/auth/login')) {
       console.warn("No access_token found in localStorage!");
     }
     return config;
@@ -36,8 +32,6 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // 401 = Token expired/Invalid
-    // 403 = Authenticated but lacks permissions (Role issue)
     if (error.response && (error.response.status === 401)) {
       console.error("Session expired. Redirecting...");
       localStorage.clear();
@@ -47,16 +41,59 @@ api.interceptors.response.use(
   }
 );
 
-// --- ENDPOINTS ---
-
+// ============================================
+// AUTH ENDPOINTS
+// ============================================
 export const login = (credentials) => api.post('/accounts/auth/login/', credentials);
+export const changePassword = (data) => api.post('/accounts/user/change-password/', data);
 
-// Staff Management
-export const addStaff = (data) => api.post('/accounts/admin/staff/', data);
-
-// If your Django view requires a trailing slash and POST, keep it like this
-export const listStaff = () => api.get('/accounts/admin/staff/'); 
-
+// ============================================
+// STAFF MANAGEMENT ENDPOINTS (Admin)
+// ============================================
+export const getStaffList = () => api.get('/accounts/admin/staff/');
+export const listStaff = getStaffList; // Alias for backward compatibility
+export const createStaff = (data) => api.post('/accounts/admin/staff/', data);
+export const addStaff = createStaff; // Alias for backward compatibility
 export const deleteStaff = (id) => api.delete(`/accounts/admin/staff/${id}/`);
+export const updateUserProfile = (id, data) => api.patch(`/accounts/admin/users/${id}/update-profile/`, data);
+export const resetUserPassword = (id) => api.post(`/accounts/admin/users/${id}/reset-password/`);
+
+// ============================================
+// AUDIT LOG ENDPOINTS (Admin)
+// ============================================
+export const getAuditLogs = (params) => api.get('/accounts/admin/audit-logs/', { params });
+export const getAuditLogDetail = (id) => api.get(`/accounts/admin/audit-logs/${id}/`);
+
+// ============================================
+// NOTIFICATION ENDPOINTS
+// ============================================
+export const getNotifications = () => api.get('/accounts/user/notifications/');
+
+// ============================================
+// ORDER ENDPOINTS
+// ============================================
+export const getOrders = (params) => api.get('/orders/list/', { params });
+export const createOrder = (data) => api.post('/orders/', data);
+export const updateOrder = (id, data) => api.patch(`/orders/${id}/`, data);
+export const receiveOrder = (id, totalPrice, dueDate) =>
+  api.post(`/orders/${id}/process/`, {
+    action: 'receive',
+    total_price: totalPrice,
+    due_date: dueDate
+  });
+export const recordPayment = (id, paymentData) =>
+  api.post(`/orders/${id}/payment/`, paymentData);
+export const approveOrder = (id) =>
+  api.post(`/orders/${id}/process/`, { action: 'approve' });
+export const rejectOrder = (id, reason) =>
+  api.post(`/orders/${id}/process/`, { action: 'reject', reason });
+
+// ============================================
+// INVENTORY ENDPOINTS
+// ============================================
+export const getMaterials = () => api.get('/materials/');
+export const createMaterial = (data) => api.post('/materials/', data);
+export const updateMaterial = (pk, data) => api.patch(`/materials/${pk}/`, data);
+export const adjustStock = (pk, data) => api.post(`/materials/${pk}/stock/`, data);
 
 export default api;

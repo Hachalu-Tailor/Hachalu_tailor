@@ -57,6 +57,6 @@ export const addStaff = (data) => api.post('/accounts/admin/staff/', data);
 // If your Django view requires a trailing slash and POST, keep it like this
 export const listStaff = () => api.get('/accounts/admin/staff/'); 
 
-export const deleteStaff = (id) => api.post(`/accounts/admin/staff/${id}/`);
+export const deleteStaff = (id) => api.delete(`/accounts/admin/staff/${id}/`);
 
 export default api;

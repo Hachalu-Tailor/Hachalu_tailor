@@ -13,7 +13,7 @@ import {
 
 const Login = () => {
   const navigate = useNavigate();
-  const [role, setRole] = useState('');
+  const [role, setRole] = useState('admin'); // Default to receptionist for easier testing
   const [showPassword, setShowPassword] = useState(false);
   
   // Form State

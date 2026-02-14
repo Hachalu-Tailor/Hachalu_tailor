@@ -39,8 +39,6 @@ def create_payment(
     *,
     order_code,
     amount,
-    full_name,
-    phone_number,
     bank_ref_number,
     receipt_pdf_url,
 ) -> Transaction:
@@ -54,12 +52,6 @@ def create_payment(
     if order.status != "AWAITING_PAYMENT" or not order.payment_allowed:
         raise ValidationError("Order is not allowed to receive payment yet.")
 
-    if not phone_number or str(phone_number).strip() != order.customer.phone_number:
-        raise ValidationError("phone_number does not match order.")
-
-    if not full_name or str(full_name).strip() != order.customer.full_name:
-        raise ValidationError("full_name does not match order.")
-
     if Transaction.objects.filter(order_id=order).exists():
         raise ValidationError("Payment already exists for this order.")
 
@@ -67,8 +59,6 @@ def create_payment(
 
     transaction_obj = Transaction.objects.create(
         order_id=order,
-        customer_full_name=str(full_name).strip(),
-        customer_phone_number=str(phone_number).strip(),
         payment_amount=normalized_amount,
         bank_ref_number=str(bank_ref_number).strip(),
         receipt_pdf_url=str(receipt_pdf_url).strip(),

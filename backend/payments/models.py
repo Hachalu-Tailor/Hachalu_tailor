@@ -5,13 +5,13 @@ from orders.models import Order
 
 
 class Transaction(models.Model):
-    # Using a UUID for the primary key for better security/uniqueness
+    """
+        Transaction data linked to an order
+    """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     order_id = models.OneToOneField(
         Order, on_delete=models.CASCADE, related_name="transaction"
     )
-    customer_full_name = models.CharField(max_length=255, default="")
-    customer_phone_number = models.CharField(max_length=20, default="")
     payment_amount = models.DecimalField(
         max_digits=12, decimal_places=2, default=Decimal("0.00")
     )

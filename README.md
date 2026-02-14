@@ -266,3 +266,31 @@ Body:
 
 # =============================================================
 
+# ============================================================
+### Payment Management 
+#### 1. Create object
+##### Endpoint: POST /api/payments/
+Body
+```
+{
+  "order_code": "HP-2026-XYZ",
+  "amount": "2500.00",
+  "bank_ref_number": "TXN_998877",
+  "receipt_pdf_url": "https://storage.provider.com/receipts/txn_01.pdf"
+}
+```
+##### Response: 201
+```
+{
+    "id": 1,
+    "name": "Cotton",
+    "color": "White",
+    "texture": "Soft",
+    "image_url": null,
+    "inventory": {
+        "id": 1,
+        "quantity_meters": "10.50",
+        "is_available": true
+    }
+}
+```

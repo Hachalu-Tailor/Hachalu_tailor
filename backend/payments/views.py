@@ -28,54 +28,36 @@ class PaymentCreateView(APIView):
                 value={
                     "order_code": "HP-00000001",
                     "amount": "120.00",
-                    "full_name": "Jane Doe",
-                    "phone_number": "9991112222",
                     "bank_ref_number": "REF123",
                     "receipt_pdf_url": "https://example.com/receipt.pdf",
                 },
                 request_only=True,
             ),
-            OpenApiExample(
-                "Create payment response",
-                value={
-                    "id": "<uuid>",
-                    "order_id": "<uuid>",
-                    "order_code": "HP-00000001",
-                    "customer_full_name": "Jane Doe",
-                    "customer_phone_number": "9991112222",
-                    "payment_amount": "120.00",
-                    "bank_ref_number": "REF123",
-                    "receipt_pdf_url": "https://example.com/receipt.pdf",
-                    "is_verified": False,
-                    "created_at": "2026-02-12T10:00:00Z",
-                },
-                response_only=True,
-            ),
         ],
         description=(
-            "Create a payment for an order after staff enables payment. "
-            "Links the payment to the order and sets order status to PENDING_APPROVAL."
+            "Submit payment details for an order. "
+            "Transitions order from AWAITING_PAYMENT to PENDING_APPROVAL."
         ),
     )
     def post(self, request):
         serializer = PaymentCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
+            # Removed full_name and phone_number to match the new service signature
             transaction_obj = create_payment(
                 order_code=serializer.validated_data["order_code"],
                 amount=serializer.validated_data["amount"],
-                full_name=serializer.validated_data["full_name"],
-                phone_number=serializer.validated_data["phone_number"],
                 bank_ref_number=serializer.validated_data["bank_ref_number"],
                 receipt_pdf_url=serializer.validated_data["receipt_pdf_url"],
             )
         except DjangoValidationError as exc:
             raise ValidationError(str(exc))
+            
         return Response(
             TransactionSerializer(transaction_obj).data,
             status=status.HTTP_201_CREATED,
         )
-
+   
 
 class PaymentVerifyView(APIView):
     permission_classes = [IsAuthenticated, IsAdminOrReceptionist]

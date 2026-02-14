@@ -16,8 +16,6 @@ class TransactionSerializer(serializers.ModelSerializer):
             "id",
             "order_id",
             "order_code",
-            "customer_full_name",
-            "customer_phone_number",
             "payment_amount",
             "bank_ref_number",
             "receipt_pdf_url",
@@ -35,7 +33,7 @@ class TransactionSerializer(serializers.ModelSerializer):
 
         # Business Logic: Update Order status if verified
         if not was_verified and is_verified:
-            order = instance.order
+            order = instance.order_id
             order.status = "IN_PROGRESS"
             order.save()
 
@@ -45,8 +43,6 @@ class TransactionSerializer(serializers.ModelSerializer):
 class PaymentCreateSerializer(serializers.Serializer):
     order_code = serializers.CharField()
     amount = serializers.DecimalField(max_digits=12, decimal_places=2)
-    full_name = serializers.CharField()
-    phone_number = serializers.CharField()
     bank_ref_number = serializers.CharField()
     receipt_pdf_url = serializers.URLField()
 

@@ -10,36 +10,53 @@ const api = axios.create({
 });
 
 /**
- * AUTH INTERCEPTOR
- * This runs before every single request. It grabs the 'access_token' 
- * from storage and injects it into the headers.
+ * REQUEST INTERCEPTOR
+ * We use a "fresh" get from localStorage every time to avoid stale tokens.
  */
 api.interceptors.request.use(
   (config) => {
+    // IMPORTANT: This must match exactly what you use in Login.jsx
     const token = localStorage.getItem('access_token');
+    
     if (token) {
-      // Django SimpleJWT expects 'Bearer <token>'
       config.headers.Authorization = `Bearer ${token}`;
+      // Log for your debugging (Remove in production)
+      // console.log("Request sent with token:", token.substring(0, 10) + "...");
+    } else {
+      console.warn("No access_token found in localStorage!");
     }
     return config;
   },
+  (error) => Promise.reject(error)
+);
+
+/**
+ * RESPONSE INTERCEPTOR
+ */
+api.interceptors.response.use(
+  (response) => response,
   (error) => {
+    // 401 = Token expired/Invalid
+    // 403 = Authenticated but lacks permissions (Role issue)
+    if (error.response && (error.response.status === 401)) {
+      console.error("Session expired. Redirecting...");
+      localStorage.clear();
+      window.location.href = '/login';
+    }
     return Promise.reject(error);
   }
 );
 
-// --- AUTH ---
-export const login = (credentials) => {
-  return api.post('/accounts/auth/login/', credentials);
-};
+// --- ENDPOINTS ---
 
-// --- STAFF MANAGEMENT (Requires Admin Token) ---
+export const login = (credentials) => api.post('/accounts/auth/login/', credentials);
+
+// Staff Management
 export const addStaff = (data) => api.post('/accounts/admin/staff/', data);
 
-// Note: Ensure your backend view handles POST for listing
-export const listStaff = () => api.post('/accounts/admin/staff/'); 
+// If your Django view requires a trailing slash and POST, keep it like this
+export const listStaff = () => api.get('/accounts/admin/staff/'); 
 
-// Note: Ensure your backend view handles POST for deletion
 export const deleteStaff = (id) => api.post(`/accounts/admin/staff/${id}/`);
 
 export default api;

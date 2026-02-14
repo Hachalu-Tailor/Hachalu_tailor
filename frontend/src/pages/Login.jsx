@@ -13,7 +13,7 @@ import {
 
 const Login = () => {
   const navigate = useNavigate();
-  const [role, setRole] = useState('admin');
+  const [role, setRole] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   
   // Form State
@@ -31,34 +31,47 @@ const Login = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
+  e.preventDefault();
+  setLoading(true);
+  setError('');
 
-    try {
-      console.log("Attempting login with:", formData, "as role:", role);
-      const response = await login(formData);
-      
-      // Store tokens (Standard practice for 201 response with refresh/access)
-      localStorage.setItem('access_token', response.data.access);
-      localStorage.setItem('refresh_token', response.data.refresh);
-      localStorage.setItem('user_role', role);
+  try {
+    const response = await login(formData);
+    
+    // Log this to your console to see EXACTLY what your backend returns
+    console.log("Backend Response:", response.data);
 
-      // redirect if role is admin or receptionist, otherwise to home
-      // if (role === 'admin') {
-      //   navigate('/admin');
-      // } else if (role === 'user') {
-        navigate('/admin');
-      // } else {
-      //   navigate('/');
-      // }
-    } catch (err) {
-      console.error("Login Error:", err);
-      setError(err.response?.data?.detail || "Identity Verification Failed. Access Denied.");
-    } finally {
-      setLoading(false);
+    // 1. Get tokens - handling potential nesting
+    const accessToken = response.data.access || response.data.token;
+    const refreshToken = response.data.refresh;
+    // Use the backend role if available, otherwise fallback to the UI state
+    const backendRole = response.data.role || role; 
+
+    if (!accessToken) {
+      throw new Error("No access token received from server");
     }
-  };
+
+    // 2. Save to localStorage (MATCH THESE KEYS TO YOUR api.js)
+    localStorage.setItem('access_token', accessToken);
+    localStorage.setItem('refresh_token', refreshToken);
+    localStorage.setItem('user_role', backendRole.toLowerCase());
+
+    console.log("Login successful! Role:", backendRole);
+    
+    // 3. Navigate
+    if (backendRole.toLowerCase() === 'admin') {
+      navigate('/admin');
+    } else {
+      navigate('/reception');
+    }
+
+  } catch (err) {
+    console.error("Login Error:", err);
+    setError(err.response?.data?.detail || "Access Denied: Invalid Credentials");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden font-sans">

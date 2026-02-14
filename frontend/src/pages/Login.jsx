@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { login } from '../api/api';// Ensure this matches your api.js file
+import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { 
   HiOutlineLockClosed, 
   HiOutlineUserCircle, 
@@ -12,8 +12,10 @@ import {
 } from 'react-icons/hi2';
 
 const Login = () => {
+  const { login, loading: authLoading, error: authError, clearError } = useAuth();
   const navigate = useNavigate();
-  const [role, setRole] = useState('admin'); // Default to receptionist for easier testing
+  const location = useLocation();
+  
   const [showPassword, setShowPassword] = useState(false);
   
   // Form State
@@ -27,51 +29,40 @@ const Login = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    if (error) setError(''); // Clear error when user types
+    if (error) setError('');
+    if (authError) clearError();
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  setError('');
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
-  try {
-    const response = await login(formData);
-    
-    // Log this to your console to see EXACTLY what your backend returns
-    console.log("Backend Response:", response.data);
-
-    // 1. Get tokens - handling potential nesting
-    const accessToken = response.data.access || response.data.token;
-    const refreshToken = response.data.refresh;
-    // Use the backend role if available, otherwise fallback to the UI state
-    const backendRole = response.data.role || role; 
-
-    if (!accessToken) {
-      throw new Error("No access token received from server");
+    try {
+      const result = await login(formData);
+      
+      if (result.success) {
+        // Navigate based on role
+        const from = location.state?.from?.pathname;
+        if (from) {
+          navigate(from, { replace: true });
+        } else if (result.role === 'admin') {
+          navigate('/admin', { replace: true });
+        } else {
+          navigate('/reception', { replace: true });
+        }
+      } else {
+        setError(result.error);
+      }
+    } catch (err) {
+      console.error("Login Error:", err);
+      setError(err.response?.data?.detail || "Access Denied: Invalid Credentials");
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // 2. Save to localStorage (MATCH THESE KEYS TO YOUR api.js)
-    localStorage.setItem('access_token', accessToken);
-    localStorage.setItem('refresh_token', refreshToken);
-    localStorage.setItem('user_role', backendRole.toLowerCase());
-
-    console.log("Login successful! Role:", backendRole);
-    
-    // 3. Navigate
-    if (backendRole.toLowerCase() === 'admin') {
-      navigate('/admin');
-    } else {
-      navigate('/reception');
-    }
-
-  } catch (err) {
-    console.error("Login Error:", err);
-    setError(err.response?.data?.detail || "Access Denied: Invalid Credentials");
-  } finally {
-    setLoading(false);
-  }
-};
+  const displayError = error || authError;
 
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden font-sans">
@@ -106,23 +97,9 @@ const Login = () => {
             </p>
           </div>
 
-          {/* ROLE SELECTOR */}
-          {/* <div className="flex bg-white/5 p-1 mb-8 rounded-full border border-white/10">
-            {['admin', 'receptionist'].map((r) => (
-              <button 
-                key={r}
-                type="button"
-                onClick={() => setRole(r)}
-                className={`flex-1 py-2 text-[9px] font-black uppercase tracking-widest transition-all rounded-full ${role === r ? 'bg-red-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
-              >
-                {r === 'admin' ? 'Admin' : 'Staff'}
-              </button>
-            ))}
-          </div> */}
-
           {/* ERROR DISPLAY */}
           <AnimatePresence>
-            {error && (
+            {displayError && (
               <motion.div 
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
@@ -130,7 +107,7 @@ const Login = () => {
                 className="mb-6 flex items-center gap-2 text-red-500 bg-red-500/10 border border-red-500/20 p-3 rounded-lg"
               >
                 <HiOutlineExclamationTriangle size={16} />
-                <span className="text-[10px] font-bold uppercase tracking-wider">{error}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider">{displayError}</span>
               </motion.div>
             )}
           </AnimatePresence>
@@ -167,8 +144,8 @@ const Login = () => {
                 type={showPassword ? "text" : "password"} 
                 value={formData.password}
                 onChange={handleInputChange}
-                placeholder="••••••••"
-                className="w-full bg-transparent border-b border-white/20 py-3 pl-8 text-sm font-bold tracking-widest text-white outline-none focus:border-red-600 transition-all placeholder:text-gray-700"
+                placeholder="Enter your password"
+                className="w-full bg-transparent border-b border-white/20 py-3 pl-8 pr-8 text-sm font-bold tracking-widest text-white outline-none focus:border-red-600 transition-all placeholder:text-gray-700"
               />
               <button 
                 type="button" 
@@ -181,12 +158,12 @@ const Login = () => {
 
             {/* LOGIN BUTTON */}
             <motion.button 
-              disabled={loading}
-              whileHover={!loading ? { scale: 1.02, boxShadow: "0 0 20px rgba(220, 38, 38, 0.4)" } : {}}
-              whileTap={!loading ? { scale: 0.98 } : {}}
-              className={`w-full bg-red-600 text-white py-5 font-black uppercase tracking-[0.5em] text-[10px] flex items-center justify-center gap-3 transition-all mt-4 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={loading || authLoading}
+              whileHover={!loading && !authLoading ? { scale: 1.02, boxShadow: "0 0 20px rgba(220, 38, 38, 0.4)" } : {}}
+              whileTap={!loading && !authLoading ? { scale: 0.98 } : {}}
+              className={`w-full bg-red-600 text-white py-5 font-black uppercase tracking-[0.5em] text-[10px] flex items-center justify-center gap-3 transition-all mt-4 ${loading || authLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              {loading ? (
+              {loading || authLoading ? (
                 <span className="animate-pulse">Verifying...</span>
               ) : (
                 <>Verify Identity <HiOutlineShieldCheck size={18} /></>
@@ -208,8 +185,5 @@ const Login = () => {
     </div>
   );
 };
-
-// Helper for animations
-import { AnimatePresence } from 'framer-motion';
 
 export default Login;

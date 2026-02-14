@@ -1,19 +1,40 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import React from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
-const ProtectedRoute = ({ allowedRoles }) => {
-  const token = localStorage.getItem('access_token');
-  const userRole = localStorage.getItem('user_role'); // Should be 'admin' or 'receptionist'
+const ProtectedRoute = ({ children, allowedRoles }) => {
+  const { user, loading, isAuthenticated, hasRole } = useAuth();
+  const location = useLocation();
 
-  if (!token) {
-    return <Navigate to="/login" replace />;
+  // Show loading state while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600"></div>
+      </div>
+    );
   }
 
-  // Check if the user's role is included in the allowed list for this route
-  return allowedRoles.includes(userRole) ? (
-    <Outlet />
-  ) : (
-    <Navigate to="/" replace /> // Send back to home if unauthorized
-  );
+  // Not authenticated - redirect to login
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Check role-based access
+  if (allowedRoles && !hasRole(allowedRoles)) {
+    // Redirect to appropriate dashboard based on role
+    if (user?.role === 'admin') {
+      return <Navigate to="/admin" replace />;
+    }
+    return <Navigate to="/reception" replace />;
+  }
+
+  // Render children (can be a Route or element)
+  if (Array.isArray(children)) {
+    return <>{children}</>;
+  }
+  
+  return children;
 };
 
 export default ProtectedRoute;

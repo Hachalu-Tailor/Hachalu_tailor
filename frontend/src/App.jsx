@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
 import MainLayout from './layouts/MainLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -20,52 +21,52 @@ import AdminReception from './pages/admin/AdminReception';
 import Inventory from './features/receptionist/Inventory';
 import Clients from './features/receptionist/Clients';
 import Announcement from './features/receptionist/Announcement';
-// import Payments from './features/admin/Payments';
+import ReceptionOrders from './features/receptionist/Orders';
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* --- 1. LOGIN --- */}
-        <Route path="/login" element={<Login />} />
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* --- 1. LOGIN --- */}
+          <Route path="/login" element={<Login />} />
 
-        {/* --- 2. PUBLIC ROUTES --- */}
-        <Route path="/" element={<MainLayout />}>
-          <Route index element={<Home />} />
-          <Route path="items" element={<Items />} />
-          <Route path="services" element={<Services />} />
-          <Route path="about" element={<About />} />
-          <Route path="my-orders" element={<Orders />} />
-        </Route>
-
-        {/* --- 3. STAFF AREA (Shared) --- */}
-        <Route element={<ProtectedRoute allowedRoles={['admin', 'receptionist']} />}>
-          {/* The Parent is /reception */}
-          <Route path="/reception" element={<DashboardLayout />}>
-            <Route index element={<ReceptionDashboard />} />
-            <Route path="inventory" element={<Inventory />} />  {/* URL: /reception/inventory */}
-            <Route path="orders" element={<Orders />} />        {/* URL: /reception/orders */}
-            <Route path="announcement" element={<Announcement />} />
-            <Route path="clients" element={<Clients />} />
-            {/* <Route path="payments" element={<Payments />} /> */}
-            
+          {/* --- 2. PUBLIC ROUTES --- */}
+          <Route path="/" element={<MainLayout />}>
+            <Route index element={<Home />} />
+            <Route path="items" element={<Items />} />
+            <Route path="services" element={<Services />} />
+            <Route path="about" element={<About />} />
+            <Route path="my-orders" element={<Orders />} />
           </Route>
-        </Route>
 
-        {/* --- 4. ADMIN EXCLUSIVE AREA --- */}
-        <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
-          {/* The Parent is /admin */}
-          <Route path="/admin" element={<DashboardLayout />}>
-            <Route index element={<AdminDashboard />} />
-            {/* REMOVED the leading slash from "admin-reception" */}
-            <Route path="admin-reception" element={<AdminReception />} /> {/* URL: /admin/admin-reception */}
+          {/* --- 3. STAFF AREA (Shared) --- */}
+          <Route element={<ProtectedRoute allowedRoles={['admin', 'receptionist']} />}>
+            {/* The Parent is /reception */}
+            <Route path="/reception" element={<DashboardLayout />}>
+              <Route index element={<ReceptionDashboard />} />
+              <Route path="inventory" element={<Inventory />} />  {/* URL: /reception/inventory */}
+              <Route path="orders" element={<ReceptionOrders />} />        {/* URL: /reception/orders */}
+              <Route path="announcement" element={<Announcement />} />
+              <Route path="clients" element={<Clients />} />
+            </Route>
           </Route>
-        </Route>
 
-        {/* --- 5. REDIRECTS & 404 --- */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+          {/* --- 4. ADMIN EXCLUSIVE AREA --- */}
+          <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+            {/* The Parent is /admin */}
+            <Route path="/admin" element={<DashboardLayout />}>
+              <Route index element={<AdminDashboard />} />
+              {/* REMOVED the leading slash from "admin-reception" */}
+              <Route path="admin-reception" element={<AdminReception />} /> {/* URL: /admin/admin-reception */}
+            </Route>
+          </Route>
+
+          {/* --- 5. REDIRECTS & 404 --- */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 

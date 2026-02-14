@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import AdminReceptionSidebar from '../components/AdminReceptionSidebar';
+import { useAuth } from '../context/AuthContext';
+import { getNotifications } from '../api/api';
 import { 
   HiOutlineBell, 
   HiOutlineMagnifyingGlass, 
@@ -13,24 +15,38 @@ import {
 } from 'react-icons/hi2';
 
 const DashboardLayout = () => {
+  const { user, logout } = useAuth();
   const [darkMode, setDarkMode] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [userRole, setUserRole] = useState('receptionist');
+  const [notifications, setNotifications] = useState([]);
   
   const location = useLocation();
   const navigate = useNavigate();
 
-  // 1. Sync Role and Theme on Mount
+  // Get user role from auth context
+  const userRole = user?.role || 'receptionist';
+
+  // Sync Theme on Mount
   useEffect(() => {
-    const storedRole = localStorage.getItem('user_role');
-    if (storedRole) setUserRole(storedRole.toLowerCase());
-    
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) setDarkMode(savedTheme === 'dark');
   }, []);
 
-  // 2. Dynamic Title Logic: Clean up the URL for the header
+  // Fetch notifications
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const response = await getNotifications();
+        setNotifications(response.data || []);
+      } catch (err) {
+        console.error('Failed to fetch notifications:', err);
+      }
+    };
+    fetchNotifications();
+  }, []);
+
+  // Dynamic Title Logic
   const getPageTitle = () => {
     const path = location.pathname.split('/').filter(Boolean).pop();
     if (!path || path === 'admin' || path === 'reception') return 'Overview';
@@ -38,9 +54,11 @@ const DashboardLayout = () => {
   };
 
   const handleLogout = () => {
-    localStorage.clear();
-    navigate('/login');
+    logout();
+    navigate('/login', { replace: true });
   };
+
+  const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
     <div className={`${darkMode ? 'dark' : ''} selection:bg-red-500 selection:text-white`}>
@@ -98,88 +116,70 @@ const DashboardLayout = () => {
               <div className="relative">
                 <button 
                   onClick={() => setShowNotifications(!showNotifications)}
-                  className={`p-3 rounded-2xl transition-all ${showNotifications ? 'bg-red-600 text-white shadow-xl shadow-red-600/40' : 'bg-gray-100 dark:bg-white/5 text-gray-500 hover:text-red-600 hover:bg-gray-200 dark:hover:bg-white/10'}`}
+                  className="relative p-2 text-gray-500 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-all"
                 >
-                  <HiOutlineBell size={20} />
-                  {!showNotifications && (
-                    <span className="absolute top-3 right-3 w-2 h-2 bg-red-600 rounded-full border-2 border-white dark:border-[#080808]" />
+                  <HiOutlineBell size={22} />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white text-[9px] font-black rounded-full flex items-center justify-center">
+                      {unreadCount}
+                    </span>
                   )}
                 </button>
 
+                {/* Notifications Dropdown */}
                 <AnimatePresence>
                   {showNotifications && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: 15, scale: 0.95 }} 
-                      animate={{ opacity: 1, y: 0, scale: 1 }} 
-                      exit={{ opacity: 0, y: 15, scale: 0.95 }}
-                      className="absolute top-16 right-0 w-80 bg-white dark:bg-[#0c0c0c] border border-gray-100 dark:border-white/10 rounded-[2.5rem] shadow-2xl p-6 z-50 overflow-hidden"
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute right-0 top-12 w-80 bg-white dark:bg-[#0a0a0a] border border-gray-100 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden z-50"
                     >
-                      <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-[10px] font-black uppercase tracking-widest dark:text-white">Central Feed</h3>
-                        <span className="bg-red-600/10 text-red-600 text-[8px] font-black px-2 py-1 rounded-lg uppercase">3 Pending</span>
+                      <div className="p-4 border-b border-gray-100 dark:border-white/5">
+                        <h3 className="text-[10px] font-black uppercase tracking-widest dark:text-white">Notifications</h3>
                       </div>
-                      
-                      <div className="space-y-2">
-                        <NotificationItem icon={<HiOutlineChatBubbleLeftEllipsis/>} text="Msg from Reception Area" time="2m ago" />
-                        <NotificationItem icon={<HiOutlineCheckBadge/>} text="System Integrity Check" time="15m ago" />
-                        <NotificationItem icon={<HiOutlineBell/>} text="Inventory Level Alert" time="1h ago" />
+                      <div className="max-h-64 overflow-y-auto">
+                        {notifications.length === 0 ? (
+                          <div className="p-4 text-center text-gray-400 text-sm">No notifications</div>
+                        ) : (
+                          notifications.slice(0, 5).map((notif, i) => (
+                            <div key={i} className="p-4 border-b border-gray-50 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/5">
+                              <p className="text-xs dark:text-white">{notif.message}</p>
+                              <p className="text-[9px] text-gray-400 mt-1">{new Date(notif.created_at).toLocaleString()}</p>
+                            </div>
+                          ))
+                        )}
                       </div>
-
-                      <button className="w-full mt-6 py-3 bg-gray-50 dark:bg-white/5 rounded-2xl text-[8px] font-black uppercase tracking-widest text-gray-400 hover:text-white hover:bg-red-600 transition-all">
-                        Clear All Logs
-                      </button>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
 
-              {/* User Identity & Logout */}
-              <div className="flex items-center gap-3 pl-3 border-l border-gray-100 dark:border-white/5">
-                <div className="hidden sm:flex flex-col items-end">
-                  <span className="text-[9px] font-black dark:text-white uppercase tracking-wider">{userRole}</span>
-                  <button 
-                    onClick={handleLogout}
-                    className="text-[7px] font-bold text-red-500 uppercase tracking-[0.2em] hover:tracking-[0.3em] transition-all flex items-center gap-1"
-                  >
-                    Terminate <HiOutlineArrowRightOnRectangle />
-                  </button>
+              {/* User Menu */}
+              <div className="flex items-center gap-3">
+                <div className="hidden md:block text-right">
+                  <p className="text-xs font-bold dark:text-white uppercase">{user?.email || 'User'}</p>
+                  <p className="text-[9px] text-gray-400 uppercase tracking-wider">{userRole}</p>
                 </div>
-                <button className="h-12 w-12 rounded-2xl bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center text-white shadow-xl shadow-red-600/20 group hover:rotate-3 transition-all">
-                   <HiOutlineUserCircle size={28} className="group-hover:scale-110 transition-transform" />
+                <button 
+                  onClick={handleLogout}
+                  className="p-2 text-gray-500 dark:text-white hover:bg-red-600 hover:text-white rounded-xl transition-all"
+                  title="Logout"
+                >
+                  <HiOutlineArrowRightOnRectangle size={22} />
                 </button>
               </div>
             </div>
           </header>
 
-          {/* DYNAMIC CONTENT SCROLL AREA */}
-          <main className="flex-1 overflow-y-auto custom-scrollbar">
-            <motion.div 
-              key={location.pathname}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="p-6 md:p-10 max-w-[1600px] mx-auto w-full pb-20"
-            >
-              <Outlet /> 
-            </motion.div>
+          {/* MAIN CONTENT */}
+          <main className="flex-1 overflow-y-auto">
+            <Outlet />
           </main>
         </div>
       </div>
     </div>
   );
 };
-
-/* --- SUB-COMPONENT: NOTIFICATION ITEM --- */
-const NotificationItem = ({ icon, text, time }) => (
-  <div className="flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-white/5 rounded-[1.5rem] transition-all cursor-pointer border border-transparent hover:border-red-600/10 group">
-    <div className="text-red-600 bg-red-600/10 p-2 rounded-xl group-hover:bg-red-600 group-hover:text-white transition-all">
-      {icon}
-    </div>
-    <div className="flex-1 overflow-hidden">
-      <p className="text-[10px] font-black dark:text-gray-200 uppercase truncate tracking-tight">{text}</p>
-      <p className="text-[8px] text-gray-500 font-bold uppercase mt-0.5">{time}</p>
-    </div>
-  </div>
-);
 
 export default DashboardLayout;

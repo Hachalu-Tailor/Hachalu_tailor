@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import AdminReceptionSidebar from '../components/AdminReceptionSidebar';
@@ -8,99 +8,160 @@ import {
   HiOutlineUserCircle,
   HiOutlineBars3BottomLeft,
   HiOutlineChatBubbleLeftEllipsis,
-  HiOutlineCheckBadge
+  HiOutlineCheckBadge,
+  HiOutlineArrowRightOnRectangle
 } from 'react-icons/hi2';
 
 const DashboardLayout = () => {
   const [darkMode, setDarkMode] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [userRole, setUserRole] = useState('receptionist');
+  
   const location = useLocation();
   const navigate = useNavigate();
 
-  const userRole = localStorage.getItem('user_role') || 'receptionist';
-  const pageTitle = location.pathname.split('/').pop()?.replace('-', ' ') || 'Overview';
+  // 1. Sync Role and Theme on Mount
+  useEffect(() => {
+    const storedRole = localStorage.getItem('user_role');
+    if (storedRole) setUserRole(storedRole.toLowerCase());
+    
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) setDarkMode(savedTheme === 'dark');
+  }, []);
+
+  // 2. Dynamic Title Logic: Clean up the URL for the header
+  const getPageTitle = () => {
+    const path = location.pathname.split('/').filter(Boolean).pop();
+    if (!path || path === 'admin' || path === 'reception') return 'Overview';
+    return path.replace('-', ' ');
+  };
+
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate('/login');
+  };
 
   return (
     <div className={`${darkMode ? 'dark' : ''} selection:bg-red-500 selection:text-white`}>
-      <div className="flex h-screen bg-[#F8F9FA] dark:bg-[#050505] transition-colors duration-500 overflow-hidden">
+      <div className="flex h-screen bg-[#F8F9FA] dark:bg-[#050505] transition-colors duration-500 overflow-hidden font-sans">
         
-        {/* FIXED SIDEBAR */}
+        {/* SIDEBAR COMPONENT */}
         <AdminReceptionSidebar 
           darkMode={darkMode} 
           setDarkMode={setDarkMode} 
           isOpen={isSidebarOpen} 
           setIsOpen={setIsSidebarOpen} 
-          userRole={userRole}
         />
         
         {/* MAIN CONTENT AREA */}
         <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
           
-          {/* FIXED HEADER */}
+          {/* HEADER SECTION */}
           <header className="h-20 flex-shrink-0 border-b border-gray-100 dark:border-white/5 bg-white/90 dark:bg-[#080808]/90 backdrop-blur-xl px-6 md:px-10 flex items-center justify-between z-40">
+            
+            {/* Left: Mobile Toggle & Title */}
             <div className="flex items-center gap-4">
-              <button onClick={() => setIsSidebarOpen(true)} className="md:hidden p-2 text-gray-500 dark:text-white">
+              <button 
+                onClick={() => setIsSidebarOpen(true)} 
+                className="md:hidden p-2 text-gray-500 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-all"
+              >
                 <HiOutlineBars3BottomLeft size={26} />
               </button>
+              
               <div className="flex flex-col">
-                <h1 className="text-xs md:text-sm font-black uppercase tracking-[0.2em] dark:text-white italic">
-                  {pageTitle} <span className="text-red-600 font-sans">/</span>
+                <h1 className="text-[10px] md:text-xs font-black uppercase tracking-[0.3em] dark:text-white italic">
+                  {getPageTitle()} <span className="text-red-600 font-sans ml-1">/</span>
                 </h1>
-                <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest hidden sm:block">
-                  Terminal ID: {userRole === 'admin' ? 'MASTER_01' : 'STAFF_04'}
+                <span className="text-[7px] font-black text-gray-400 uppercase tracking-[0.4em] hidden sm:block mt-1">
+                  Terminal: <span className={userRole === 'admin' ? 'text-red-500' : 'text-blue-500'}>
+                    {userRole === 'admin' ? 'SECURE_MASTER_NODE' : 'STAFF_ACCESS_PT'}
+                  </span>
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 md:gap-5">
-              {/* Search Icon (Mobile) / Search Bar (Desktop) */}
-              <div className="hidden lg:flex items-center bg-gray-100 dark:bg-white/5 px-4 py-2 rounded-xl border border-transparent focus-within:border-red-600 transition-all group">
-                <HiOutlineMagnifyingGlass className="text-gray-400 group-focus-within:text-red-600" />
-                <input type="text" placeholder="CMD+K TO SEARCH" className="bg-transparent border-none text-[9px] font-black px-3 outline-none dark:text-white w-32" />
+            {/* Right: Actions */}
+            <div className="flex items-center gap-3 md:gap-6">
+              
+              {/* Desktop Search Bar */}
+              <div className="hidden lg:flex items-center bg-gray-100 dark:bg-white/5 px-4 py-2.5 rounded-2xl border border-transparent focus-within:border-red-600/50 transition-all group">
+                <HiOutlineMagnifyingGlass className="text-gray-400 group-focus-within:text-red-600" size={18} />
+                <input 
+                  type="text" 
+                  placeholder="SEARCH PROTOCOL..." 
+                  className="bg-transparent border-none text-[9px] font-black px-3 outline-none dark:text-white w-40 placeholder:text-gray-500" 
+                />
               </div>
 
-              {/* Notification System */}
+              {/* Notification Toggle */}
               <div className="relative">
                 <button 
                   onClick={() => setShowNotifications(!showNotifications)}
-                  className={`p-2.5 rounded-xl transition-all ${showNotifications ? 'bg-red-600 text-white shadow-lg shadow-red-600/30' : 'bg-gray-100 dark:bg-white/5 text-gray-500 hover:text-red-600'}`}
+                  className={`p-3 rounded-2xl transition-all ${showNotifications ? 'bg-red-600 text-white shadow-xl shadow-red-600/40' : 'bg-gray-100 dark:bg-white/5 text-gray-500 hover:text-red-600 hover:bg-gray-200 dark:hover:bg-white/10'}`}
                 >
-                  <HiOutlineBell size={22} />
-                  {!showNotifications && <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-600 rounded-full border-2 border-white dark:border-[#080808]" />}
+                  <HiOutlineBell size={20} />
+                  {!showNotifications && (
+                    <span className="absolute top-3 right-3 w-2 h-2 bg-red-600 rounded-full border-2 border-white dark:border-[#080808]" />
+                  )}
                 </button>
 
                 <AnimatePresence>
                   {showNotifications && (
                     <motion.div 
-                      initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 15 }}
-                      className="absolute top-14 right-0 w-80 bg-white dark:bg-[#111] border border-gray-100 dark:border-white/10 rounded-[2rem] shadow-2xl p-6 z-50 overflow-hidden"
+                      initial={{ opacity: 0, y: 15, scale: 0.95 }} 
+                      animate={{ opacity: 1, y: 0, scale: 1 }} 
+                      exit={{ opacity: 0, y: 15, scale: 0.95 }}
+                      className="absolute top-16 right-0 w-80 bg-white dark:bg-[#0c0c0c] border border-gray-100 dark:border-white/10 rounded-[2.5rem] shadow-2xl p-6 z-50 overflow-hidden"
                     >
-                      <h3 className="text-[10px] font-black uppercase tracking-widest dark:text-white mb-4 flex items-center justify-between">
-                        Live Feeds <span className="text-red-600 text-[8px]">3 New</span>
-                      </h3>
-                      <div className="space-y-3">
-                        <NotificationItem icon={<HiOutlineChatBubbleLeftEllipsis/>} text="New message from Reception" time="2m ago" />
-                        <NotificationItem icon={<HiOutlineCheckBadge/>} text="Inventory backup completed" time="15m ago" />
-                        <NotificationItem icon={<HiOutlineBell/>} text="Low stock alert: Velvet Blue" time="1h ago" />
+                      <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-[10px] font-black uppercase tracking-widest dark:text-white">Central Feed</h3>
+                        <span className="bg-red-600/10 text-red-600 text-[8px] font-black px-2 py-1 rounded-lg uppercase">3 Pending</span>
                       </div>
+                      
+                      <div className="space-y-2">
+                        <NotificationItem icon={<HiOutlineChatBubbleLeftEllipsis/>} text="Msg from Reception Area" time="2m ago" />
+                        <NotificationItem icon={<HiOutlineCheckBadge/>} text="System Integrity Check" time="15m ago" />
+                        <NotificationItem icon={<HiOutlineBell/>} text="Inventory Level Alert" time="1h ago" />
+                      </div>
+
+                      <button className="w-full mt-6 py-3 bg-gray-50 dark:bg-white/5 rounded-2xl text-[8px] font-black uppercase tracking-widest text-gray-400 hover:text-white hover:bg-red-600 transition-all">
+                        Clear All Logs
+                      </button>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
 
-              {/* User Avatar */}
-              <button className="h-11 w-11 rounded-2xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center text-white shadow-lg shadow-red-600/20 group overflow-hidden">
-                 <HiOutlineUserCircle size={28} className="group-hover:scale-110 transition-transform" />
-              </button>
+              {/* User Identity & Logout */}
+              <div className="flex items-center gap-3 pl-3 border-l border-gray-100 dark:border-white/5">
+                <div className="hidden sm:flex flex-col items-end">
+                  <span className="text-[9px] font-black dark:text-white uppercase tracking-wider">{userRole}</span>
+                  <button 
+                    onClick={handleLogout}
+                    className="text-[7px] font-bold text-red-500 uppercase tracking-[0.2em] hover:tracking-[0.3em] transition-all flex items-center gap-1"
+                  >
+                    Terminate <HiOutlineArrowRightOnRectangle />
+                  </button>
+                </div>
+                <button className="h-12 w-12 rounded-2xl bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center text-white shadow-xl shadow-red-600/20 group hover:rotate-3 transition-all">
+                   <HiOutlineUserCircle size={28} className="group-hover:scale-110 transition-transform" />
+                </button>
+              </div>
             </div>
           </header>
 
-          {/* SCROLLABLE VIEWPORT */}
-          <main className="flex-1 overflow-y-auto custom-scrollbar bg-transparent">
-            <div className="p-6 md:p-10 max-w-[1600px] mx-auto w-full pb-20">
+          {/* DYNAMIC CONTENT SCROLL AREA */}
+          <main className="flex-1 overflow-y-auto custom-scrollbar">
+            <motion.div 
+              key={location.pathname}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="p-6 md:p-10 max-w-[1600px] mx-auto w-full pb-20"
+            >
               <Outlet /> 
-            </div>
+            </motion.div>
           </main>
         </div>
       </div>
@@ -108,12 +169,15 @@ const DashboardLayout = () => {
   );
 };
 
+/* --- SUB-COMPONENT: NOTIFICATION ITEM --- */
 const NotificationItem = ({ icon, text, time }) => (
-  <div className="flex items-center gap-4 p-3 hover:bg-gray-50 dark:hover:bg-white/5 rounded-2xl transition-all cursor-pointer border border-transparent hover:border-red-600/20">
-    <div className="text-red-600">{icon}</div>
+  <div className="flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-white/5 rounded-[1.5rem] transition-all cursor-pointer border border-transparent hover:border-red-600/10 group">
+    <div className="text-red-600 bg-red-600/10 p-2 rounded-xl group-hover:bg-red-600 group-hover:text-white transition-all">
+      {icon}
+    </div>
     <div className="flex-1 overflow-hidden">
-      <p className="text-[10px] font-black dark:text-gray-200 uppercase truncate">{text}</p>
-      <p className="text-[8px] text-gray-500 font-bold uppercase">{time}</p>
+      <p className="text-[10px] font-black dark:text-gray-200 uppercase truncate tracking-tight">{text}</p>
+      <p className="text-[8px] text-gray-500 font-bold uppercase mt-0.5">{time}</p>
     </div>
   </div>
 );

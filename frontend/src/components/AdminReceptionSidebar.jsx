@@ -50,11 +50,11 @@ const menuItems = [
   { path: '/reception/inventory', label: 'Inventory', icon: <HiOutlineCube />, roles: ['receptionist', 'admin'] },
   { path: '/reception/orders', label: 'Orders', icon: <HiOutlineShoppingBag />, roles: ['receptionist'] },
   { path: '/reception/clients', label: 'Clients', icon: <HiOutlineUserGroup />, roles: ['receptionist'] },
-  { path: '/reception/announcement', label: 'Bulletins', icon: <HiOutlineMegaphone />, roles: ['admin', 'receptionist'] },
+  // { path: '/reception/announcement', label: 'Bulletins', icon: <HiOutlineMegaphone />, roles: ['admin', 'receptionist'] },
 
   // Finance Section
   { path: '/reception/payments', label: 'Finance', icon: <HiOutlineBanknotes />, roles: ['receptionist'] },
-  { path: '/reception/messages', label: 'Messages', icon: <HiOutlineChatBubbleLeftRight />, roles: ['admin', 'receptionist'] },
+  // { path: '/reception/messages', label: 'Messages', icon: <HiOutlineChatBubbleLeftRight />, roles: ['admin', 'receptionist'] },
 ];
 
   // 2. DEBUG FILTER LOGIC
@@ -62,8 +62,6 @@ const menuItems = [
     const hasAccess = item.roles.includes(role);
     return hasAccess;
   });
-
-  console.log("3. Number of menu items to display:", filteredMenu.length);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -87,35 +85,35 @@ const menuItems = [
           </div>
         </div>
 
-        <nav className="flex-1 space-y-2 overflow-y-auto no-scrollbar">
-          {filteredMenu.length > 0 ? (
-            filteredMenu.map((item) => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={({ isActive }) => `
-                  w-full flex items-center justify-center lg:justify-start gap-4 p-4 rounded-2xl transition-all group
-                  ${isActive 
-                    ? 'bg-red-600 text-white shadow-xl shadow-red-600/40 ring-1 ring-red-400/20' 
-                    : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-black dark:hover:text-white'}
-                `}
-              >
-                <span className="text-2xl group-hover:scale-110 transition-transform">{item.icon}</span>
-                <span className="hidden lg:block text-[10px] font-black uppercase tracking-[0.2em]">{item.label}</span>
-              </NavLink>
-            ))
-          ) : (
-            <div className="py-10 text-center border border-dashed border-gray-200 dark:border-white/10 rounded-2xl">
-               <p className="text-[10px] font-black text-red-500 uppercase tracking-widest">
-                Access Denied
-               </p>
-               <p className="text-[8px] text-gray-400 mt-2 uppercase tracking-tighter">
-                 System looking for: "admin" or "receptionist"<br/>
-                 System found: "{role || 'EMPTY'}"
-               </p>
-            </div>
-          )}
-        </nav>
+{/* DYNAMIC MENU LINKS */}
+<nav className="flex-1 space-y-2 overflow-y-auto no-scrollbar">
+  {filteredMenu.length > 0 ? (
+    filteredMenu.map((item) => (
+      <NavLink
+        key={item.path}
+        to={item.path}
+        // ADD THIS PROP HERE:
+        // It ensures /admin isn't active when you are at /admin/admin-reception
+        end={item.path === '/admin' || item.path === '/reception'} 
+        className={({ isActive }) => `
+          w-full flex items-center justify-center lg:justify-start gap-4 p-4 rounded-2xl transition-all group
+          ${isActive 
+            ? 'bg-red-600 text-white shadow-xl shadow-red-600/40 ring-1 ring-red-400/20' 
+            : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-black dark:hover:text-white'}
+        `}
+      >
+        <span className="text-2xl group-hover:scale-110 transition-transform">{item.icon}</span>
+        <span className="hidden lg:block text-[10px] font-black uppercase tracking-[0.2em]">{item.label}</span>
+      </NavLink>
+    ))
+  ) : (
+    <div className="py-10 text-center border border-dashed border-gray-200 dark:border-white/10 rounded-2xl">
+       <p className="text-[10px] font-black text-red-500 uppercase tracking-widest">
+        Access Denied
+       </p>
+    </div>
+  )}
+</nav>
 
         <div className="pt-6 mt-6 border-t border-gray-100 dark:border-white/5 space-y-3">
           <button onClick={toggleTheme} className="w-full flex items-center justify-between p-2 bg-gray-100 dark:bg-white/5 rounded-2xl transition-all">

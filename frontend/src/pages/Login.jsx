@@ -107,7 +107,7 @@ const Login = () => {
           </div>
 
           {/* ROLE SELECTOR */}
-          <div className="flex bg-white/5 p-1 mb-8 rounded-full border border-white/10">
+          {/* <div className="flex bg-white/5 p-1 mb-8 rounded-full border border-white/10">
             {['admin', 'receptionist'].map((r) => (
               <button 
                 key={r}
@@ -118,7 +118,7 @@ const Login = () => {
                 {r === 'admin' ? 'Admin' : 'Staff'}
               </button>
             ))}
-          </div>
+          </div> */}
 
           {/* ERROR DISPLAY */}
           <AnimatePresence>

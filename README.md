@@ -265,7 +265,246 @@ Body:
 #### On this one the options are add, Set are the only ones
 
 # =============================================================
+# =============================================================
+### Orders
+#### 1. Create Suit(For Recieptionist/Admin)
+#### Note Here that both admin and receptionist can login
+##### Endpoint: POST /api/orders/suit-types/create/
 
+Body:
+```
+{
+  "name": "Single Lapel Suit",
+  "lapel_count": 1
+}
+```
+##### Response: 201
+```
+{
+    "id": 1,
+    "name": "Single Lapel Suit",
+    "lapel_count": 1
+}
+```
+#### 2. List Suit
+#### (For Recieptionist/Admin/User Needs to see this too)
+#### Note Here that both admin and receptionist Shall see
+##### Endpoint: GET /api/orders/suit-types/
+
+Body:None
+##### Response: 200
+```
+[
+    {
+        "id": 1,
+        "name": "Single Lapel Suit",
+        "lapel_count": 1
+    }
+]
+```
+#### 3. Create Order
+##### Endpoint: POST /api/orders/
+
+Body:
+```
+{
+  "customer_name": "John Doe",
+  "customer_phone": "+251900000000",
+  "suit_type": 1,
+  "material": 1,
+  "quantity": 1,
+  "measurements":{
+    "height":178,
+  "chest": 100,
+  "shoulder": 45,
+  "waist": 80,
+  "hips": 95,
+  "arm_length": 60
+  }
+}
+```
+
+##### Response: 201
+```
+{
+    "order_id": "ac2a7eeb-9cea-4200-b09c-c55e2cadaacf",
+    "status": "INITIATED"
+}
+```
+# MAKE SURE THE ORDER ID IS DISPLAYED TO THE CUSTOMER ON THE FRONT END
+#### 3. List Orders
+#### Note Here that both admin and receptionist can view this
+##### Endpoint: GET /api/orders/list/
+
+Body:None
+
+## Here It need query params
+- active_only:Bool
+-processed_only:Bool
+-customer:String
+##### Response: 200
+```
+[
+    {
+        "id": "ac2a7eeb-9cea-4200-b09c-c55e2cadaacf",
+        "status": "INITIATED",
+        "quantity": 1,
+        "total_price": "0.00",
+        "due_date": "2000-01-01",
+        "payment_reference": "",
+        "payment_amount": null,
+        "payment_received_at": null,
+        "payment_notes": "",
+        "payment_allowed": false,
+        "created_at": "2026-02-12T20:41:43.944985Z",
+        "updated_at": "2026-02-12T20:41:43.944985Z",
+        "customer_name": "John Doe",
+        "customer_phone": "+251900000000",
+        "suit_type": 1,
+        "suit_type_name": "Single Lapel Suit",
+        "material": 1,
+        "material_name": "Cotton",
+        "measurements": {
+            "chest": 100.0,
+            "shoulder": 45.0,
+            "waist": 80.0,
+            "hips": 95.0,
+            "arm_length": 60.0,
+            "height": 178.0
+        }
+    }
+]
+```
+
+#### 3. List Order
+##### Endpoint: POST /api/orders/{uuid}/process
+##### For admin and receptionist
+
+Here there may be different options
+a. Recieve Order
+Body
+```
+{
+"action": "receive",
+"total_price": 2500,
+"due_date": "2026-03-01"
+}
+```
+
+##### Response: 200
+```
+{
+    "id": "ac2a7eeb-9cea-4200-b09c-c55e2cadaacf",
+    "status": "AWAITING_PAYMENT",
+    "quantity": 1,
+    "total_price": "2500.00",
+    "due_date": "2026-03-01",
+    .....
+```
+b. Record Payment
+Body
+```
+{
+"action": "record_payment",
+"payment_reference": "TX123",
+"payment_amount": 2500,
+"payment_received_at": "2026-02-12T10:00:00Z",
+"payment_notes": "Paid via bank"
+}
+```
+
+##### Response: 200
+```
+{
+    "id": "ac2a7eeb-9cea-4200-b09c-c55e2cadaacf",
+    "status": "PENDING_APRROVAL",
+    "quantity": 1,
+    "total_price": "2500.00",
+    "due_date": "2026-03-01",
+    .....
+```
+c. Approve Order
+Body
+```
+{
+"action": "approve"
+}
+```
+
+##### Response: 200
+```
+{
+    "id": "ac2a7eeb-9cea-4200-b09c-c55e2cadaacf",
+    "status": "IN_PROGRESS",
+    "quantity": 1,
+    "total_price": "2500.00",
+    "due_date": "2026-03-01",
+    .....
+```
+c. Reject Order
+### NOTE that this process of can only be done after the AWAITING_PAYMENT stage
+Body
+```
+{
+"action": "reject",
+"reason": "Invalid payment"
+}
+```
+
+##### Response: 200
+```
+{
+    "id": "ac2a7eeb-9cea-4200-b09c-c55e2cadaacf",
+    "status": "REJECTED",
+    "quantity": 1,
+    "total_price": "2500.00",
+    "due_date": "2026-03-01",
+    .....
+```
+
+## ????
+
+#### 3. Update Order
+##### Endpoint: PATCH /api/orders/{uuid}/process
+##### For admin and receptionist
+Body
+```
+{
+"quantity": 2,
+"due_date": "2026-03-05"
+}
+```
+
+##### Response: 200
+```
+{
+    "id": "ac2a7eeb-9cea-4200-b09c-c55e2cadaacf",
+    "status": "AWAITING_PAYMENT",
+    "quantity": 1,
+    "total_price": "2500.00",
+    "due_date": "2026-03-01",
+    .....
+```
+
+#### 4. Expired Orders
+##### Endpoint: POST /api/orders/expire/
+##### For admin and receptionist
+Body
+```
+{
+"quantity": 2,
+"due_date": "2026-03-05"
+}
+```
+
+##### Response: 200
+```
+{
+"expired_count": 3
+}
+```
+
+#### But here we need more things
 # ============================================================
 ### Payment Management 
 #### 1. Create object

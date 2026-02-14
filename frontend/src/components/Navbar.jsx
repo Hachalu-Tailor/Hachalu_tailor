@@ -148,7 +148,7 @@ const Navbar = () => {
             </button>
 
             {isAdminOrReceptionist && (
-              <Link to="" className="hidden md:block bg-red-600 hover:bg-red-700 text-white text-[10px] font-black px-6 py-2.5 uppercase tracking-widest transition-all hover:shadow-[0_0_20px_rgba(220,38,38,0.3)]">
+              <Link to="/login" className="hidden md:block bg-red-600 hover:bg-red-700 text-white text-[10px] font-black px-6 py-2.5 uppercase tracking-widest transition-all hover:shadow-[0_0_20px_rgba(220,38,38,0.3)]">
                 Access Hub
               </Link>
             )}

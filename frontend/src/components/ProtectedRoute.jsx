@@ -1,18 +1,19 @@
 import { Navigate, Outlet } from 'react-router-dom';
 
 const ProtectedRoute = ({ allowedRoles }) => {
-  // this could be get from Auth Context or LocalStorage
-  const user = JSON.parse(localStorage.getItem('user')); 
+  const token = localStorage.getItem('access_token');
+  const userRole = localStorage.getItem('user_role'); // Should be 'admin' or 'receptionist'
 
-  if (!user) {
+  if (!token) {
     return <Navigate to="/login" replace />;
   }
 
-  if (!allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace />; // Send back home if they don't have permission
-  }
-
-  return <Outlet />;
+  // Check if the user's role is included in the allowed list for this route
+  return allowedRoles.includes(userRole) ? (
+    <Outlet />
+  ) : (
+    <Navigate to="/" replace /> // Send back to home if unauthorized
+  );
 };
 
 export default ProtectedRoute;

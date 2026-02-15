@@ -383,11 +383,13 @@ Body:
 ##### Response: 201
 ```
 {
-    "order_id": "ac2a7eeb-9cea-4200-b09c-c55e2cadaacf",
+    "order_id": "25f1e832-6aba-4306-a29c-238168e6697f",
+    "order_code": "HP-28182092",
     "status": "INITIATED"
 }
 ```
-# MAKE SURE THE ORDER ID IS DISPLAYED TO THE CUSTOMER ON THE FRONT END
+# MAKE SURE THE ORDER CODE IS DISPLAYED TO THE CUSTOMER ON THE FRONT END
+
 #### 3. List Orders
 #### Note Here that both admin and receptionist can view this
 ##### Endpoint: GET /api/orders/list/
@@ -431,12 +433,7 @@ Body:None
     }
 ]
 ```
-
-<<<<<<< HEAD
-#### 3. Create Order
-=======
-#### 3. List Order
->>>>>>> backend/payments
+#### 3. Process Order
 ##### Endpoint: POST /api/orders/{uuid}/process
 ##### For admin and receptionist
 
@@ -501,7 +498,14 @@ Body
     "due_date": "2026-03-01",
     .....
 ```
-c. Reject Order
+d. Reject Order
+Body
+```
+{
+"action": "reject"
+}
+```
+
 ### NOTE that this process of can only be done after the AWAITING_PAYMENT stage
 Body
 ```
@@ -564,9 +568,6 @@ Body
 }
 ```
 
-
-#### But here we need more things
-=======
 #### But here we need more things
 # ============================================================
 ### Payment Management 

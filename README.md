@@ -287,11 +287,12 @@ Body:
 #### 2. Update Object Data (only on Stock)
 #### Note Here that both admin and receptionist can login
 ##### Endpoint: POST /api/invetory/materials/{id}/stock/
+###### Actions are add and set
 Body: 
 ```
 {
   "action_type": "add",
-  "quantity_meters": 50,
+  "quantity_meters": 50
 }
 
 ```
@@ -321,14 +322,10 @@ Body:
 #### On this one the options are add, Set are the only ones
 
 # =============================================================
-<<<<<<< HEAD
-=======
-# =============================================================
->>>>>>> backend/payments
 ### Orders
 #### 1. Create Suit(For Recieptionist/Admin)
 #### Note Here that both admin and receptionist can login
-##### Endpoint: POST /api/orders/suit-types/create/
+##### Endpoint: POST /api/suit-types/create/
 
 Body:
 ```

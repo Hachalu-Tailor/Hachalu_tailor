@@ -285,6 +285,7 @@ class OrderExpirationView(APIView):
             status=status.HTTP_200_OK,
         )
 
+
 class SuitTypeCreateView(APIView):
     permission_classes = [IsAuthenticated | IsAdmin]
 

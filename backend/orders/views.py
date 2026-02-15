@@ -293,7 +293,7 @@ class SuitTypeCreateView(APIView):
         tags=["Suit Types"],
         request=SuitTypeSerializer,
         responses={201: SuitTypeSerializer, 400: dict},
-        description="Create a new suit type (admin only)."
+        description="Create a new suit type (admin only).",
     )
     def post(self, request):
         serializer = SuitTypeSerializer(data=request.data)
@@ -301,8 +301,7 @@ class SuitTypeCreateView(APIView):
         suit_type = serializer.save()
 
         return Response(
-            SuitTypeSerializer(suit_type).data,
-            status=status.HTTP_201_CREATED
+            SuitTypeSerializer(suit_type).data, status=status.HTTP_201_CREATED
         )
 
 
@@ -312,10 +311,9 @@ class SuitTypeListView(APIView):
     @extend_schema(
         tags=["Suit Types"],
         responses={200: SuitTypeSerializer},
-        description="List all available suit types."
+        description="List all available suit types.",
     )
     def get(self, request):
         suit_types = SuitType.objects.all()
         serializer = SuitTypeSerializer(suit_types, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-

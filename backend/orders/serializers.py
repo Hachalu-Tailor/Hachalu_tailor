@@ -103,6 +103,17 @@ class OrderProcessingSerializer(serializers.Serializer):
     reason = serializers.CharField(required=False, allow_blank=True)
 
 
+class CustomerPaymentSerializer(serializers.Serializer):
+    order_code = serializers.CharField()
+    customer_phone = serializers.CharField()
+    payment_reference = serializers.CharField()
+    payment_amount = serializers.DecimalField(
+        max_digits=12, decimal_places=2, required=False
+    )
+    payment_received_at = serializers.DateTimeField(required=False)
+    payment_notes = serializers.CharField(required=False, allow_blank=True)
+
+
 class OrderExpirationResponseSerializer(serializers.Serializer):
     expired_count = serializers.IntegerField()
 

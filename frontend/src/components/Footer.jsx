@@ -19,7 +19,7 @@ const Footer = () => {
               HACHALU PROTOCOL
             </h3>
             <p className="text-gray-500 dark:text-gray-400 text-xs tracking-widest uppercase max-w-sm leading-relaxed">
-              Subscribe for exclusive collection updates and tailoring events.
+              Subscribe for exclusive collection updates and tailoring discount events.
             </p>
             <div className="relative max-w-md">
               <input 

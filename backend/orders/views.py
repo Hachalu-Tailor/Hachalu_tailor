@@ -99,7 +99,7 @@ class OrderCreateView(APIView):
 
 
 class OrderListView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin, IsAdminOrReceptionist]
+    permission_classes = [IsAuthenticated, IsAdminOrReceptionist]
 
     @extend_schema(
         tags=["Orders"],
@@ -166,7 +166,7 @@ class OrderListView(APIView):
 
 
 class OrderProcessingView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin, IsAdminOrReceptionist]
+    permission_classes = [IsAuthenticated, IsAdminOrReceptionist]
 
     @extend_schema(
         tags=["Orders"],
@@ -236,7 +236,7 @@ class OrderProcessingView(APIView):
 
 
 class OrderUpdateView(APIView):
-    permission_classes = [IsAuthenticated, IsReseptionist, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdminOrReceptionist]
 
     @extend_schema(
         tags=["Orders"],
@@ -264,7 +264,7 @@ class OrderUpdateView(APIView):
 
 
 class OrderExpirationView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin, IsAdminOrReceptionist]
+    permission_classes = [IsAuthenticated, IsAdminOrReceptionist]
 
     @extend_schema(
         tags=["Orders"],

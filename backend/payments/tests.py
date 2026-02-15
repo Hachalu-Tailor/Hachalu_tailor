@@ -101,8 +101,6 @@ class PaymentApiTests(APITestCase):
         order = self._create_order(allow_payment=True, reviewed_by=self.reviewer)
         transaction = Transaction.objects.create(
             order_id=order,
-            customer_full_name=order.customer.full_name,
-            customer_phone_number=order.customer.phone_number,
             payment_amount="120.00",
             bank_ref_number="REF123",
             receipt_pdf_url="https://example.com/receipt.pdf",
@@ -191,8 +189,6 @@ class PaymentServiceTests(APITestCase):
         order = self._create_order()
         transaction = Transaction.objects.create(
             order_id=order,
-            customer_full_name=order.customer.full_name,
-            customer_phone_number=order.customer.phone_number,
             payment_amount="120.00",
             bank_ref_number="REF123",
             receipt_pdf_url="https://example.com/receipt.pdf",

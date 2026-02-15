@@ -45,6 +45,7 @@ class OrderApiTests(APITestCase):
             suit_type=kwargs.get("suit_type", self.suit_type),
             material=kwargs.get("material", self.material),
             measurement=measurement,
+            order_code=uuid4().hex[:10].upper(),
             status=kwargs.get("status", "INITIATED"),
             quantity=kwargs.get("quantity", 1),
             total_price=kwargs.get("total_price", "0.00"),
@@ -73,7 +74,10 @@ class OrderApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIn("order_id", response.data)
+        self.assertIn("order_code", response.data)
         self.assertEqual(response.data["status"], "INITIATED")
+        self.assertTrue(response.data["order_code"].startswith("HP-"))
+        self.assertEqual(len(response.data["order_code"]), 11)
         self.assertTrue(Order.objects.filter(id=response.data["order_id"]).exists())
 
     def test_order_list_requires_admin(self):
@@ -122,17 +126,16 @@ class OrderApiTests(APITestCase):
         self.assertTrue(response.data.get("payment_allowed"))
 
         payment_payload = {
-            "customer_phone": order.customer.phone_number,
-            "payment_reference": "REF123",
-            "payment_amount": "120.00",
+            "order_code": order.order_code,
+            "amount": "120.00",
+            "full_name": order.customer.full_name,
+            "phone_number": order.customer.phone_number,
+            "bank_ref_number": "REF123",
+            "receipt_pdf_url": "https://example.com/receipt.pdf",
         }
-        response = self.client.post(
-            f"/api/orders/{order.id}/payment/",
-            payment_payload,
-            format="json",
-        )
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["status"], "PENDING_APPROVAL")
+        response = self.client.post("/api/payments/", payment_payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["is_verified"], False)
 
         response = self.client.post(
             f"/api/orders/{order.id}/process/",
@@ -162,15 +165,27 @@ class OrderApiTests(APITestCase):
         self.assertEqual(response.data["quantity"], 3)
         self.assertEqual(response.data["status"], "COMPLETED")
 
+    def test_order_update_requires_auth(self):
+        order = self._create_order(quantity=1)
+        response = self.client.patch(
+            f"/api/orders/{order.id}/",
+            {"quantity": 3},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
     def test_customer_payment_requires_allowance(self):
         order = self._create_order(status="INITIATED")
 
         response = self.client.post(
-            f"/api/orders/{order.id}/payment/",
+            "/api/payments/",
             {
-                "customer_phone": order.customer.phone_number,
-                "payment_reference": "REF999",
-                "payment_amount": "20.00",
+                "order_code": order.order_code,
+                "amount": "20.00",
+                "full_name": order.customer.full_name,
+                "phone_number": order.customer.phone_number,
+                "bank_ref_number": "REF999",
+                "receipt_pdf_url": "https://example.com/receipt.pdf",
             },
             format="json",
         )

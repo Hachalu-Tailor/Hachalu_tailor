@@ -1,11 +1,12 @@
 from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.exceptions import ValidationError
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
 from django.core.exceptions import ValidationError as DjangoValidationError
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework.exceptions import ValidationError
 
 from .models import SuitType
 from accounts.permissions import IsAdminOrReceptionist, IsReseptionist, IsAdmin
@@ -13,7 +14,6 @@ from .serializers import (
     CreateOrderResponseSerializer,
     SuitTypeSerializer,
     CreateOrderSerializer,
-    CustomerPaymentSerializer,
     OrderExpirationResponseSerializer,
     OrderProcessingSerializer,
     OrderSerializer,
@@ -26,7 +26,6 @@ from .services import (
     list_orders,
     receive_order_for_processing,
     record_payment_info,
-    record_payment_info_by_customer,
     reject_order,
     update_order,
 )
@@ -39,6 +38,36 @@ class OrderCreateView(APIView):
         tags=["Orders"],
         request=CreateOrderSerializer,
         responses={201: CreateOrderResponseSerializer, 400: dict},
+        examples=[
+            OpenApiExample(
+                "Create order request",
+                value={
+                    "customer_name": "Jane Doe",
+                    "customer_phone": "9991112222",
+                    "suit_type": 1,
+                    "material": 1,
+                    "quantity": 2,
+                    "measurements": {
+                        "chest": 40,
+                        "shoulder": 18,
+                        "waist": 32,
+                        "hips": 38,
+                        "arm_length": 25,
+                        "height": 170,
+                    },
+                },
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Create order response",
+                value={
+                    "order_id": "<uuid>",
+                    "order_code": "HP-00000001",
+                    "status": "INITIATED",
+                },
+                response_only=True,
+            ),
+        ],
         description=(
             "Create a new order with customer details and measurements. "
             "This starts the order in INITIATED and notifies staff."
@@ -62,6 +91,7 @@ class OrderCreateView(APIView):
         return Response(
             {
                 "order_id": str(order.id),
+                "order_code": order.order_code,
                 "status": order.status,
             },
             status=status.HTTP_201_CREATED,
@@ -94,6 +124,15 @@ class OrderListView(APIView):
             ),
         ],
         responses={200: OrderSerializer, 401: dict, 403: dict},
+        examples=[
+            OpenApiExample(
+                "Order list",
+                value=[
+                    {"id": "<uuid>", "order_code": "HP-00000001", "status": "INITIATED"}
+                ],
+                response_only=True,
+            )
+        ],
         description=(
             "List orders with optional filters. Results are paginated. "
             "Accessible to admins and receptionists."
@@ -133,6 +172,22 @@ class OrderProcessingView(APIView):
         tags=["Orders"],
         request=OrderProcessingSerializer,
         responses={200: OrderSerializer, 400: dict, 401: dict, 403: dict},
+        examples=[
+            OpenApiExample(
+                "Receive order",
+                value={
+                    "action": "receive",
+                    "total_price": "120.00",
+                    "due_date": "2030-01-01",
+                },
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Approve order",
+                value={"action": "approve"},
+                request_only=True,
+            ),
+        ],
         description=(
             "Process an order: receive (set price/date + allow payment), "
             "record payment (staff only), approve, or reject."
@@ -187,6 +242,13 @@ class OrderUpdateView(APIView):
         tags=["Orders"],
         request=OrderUpdateSerializer,
         responses={200: OrderSerializer, 400: dict, 401: dict, 403: dict},
+        examples=[
+            OpenApiExample(
+                "Update order",
+                value={"status": "COMPLETED"},
+                request_only=True,
+            )
+        ],
         description=(
             "Update order fields (receptionists only). "
             "Creates staff notifications after update."
@@ -207,6 +269,13 @@ class OrderExpirationView(APIView):
     @extend_schema(
         tags=["Orders"],
         responses={200: OrderExpirationResponseSerializer, 401: dict, 403: dict},
+        examples=[
+            OpenApiExample(
+                "Expire response",
+                value={"expired_count": 1},
+                response_only=True,
+            )
+        ],
         description="Expire overdue orders and notify staff.",
     )
     def post(self, request):
@@ -215,38 +284,6 @@ class OrderExpirationView(APIView):
             {"expired_count": len(expired)},
             status=status.HTTP_200_OK,
         )
-
-
-class OrderCustomerPaymentView(APIView):
-    permission_classes = [AllowAny]
-
-    @extend_schema(
-        tags=["Orders"],
-        request=CustomerPaymentSerializer,
-        responses={200: OrderSerializer, 400: dict},
-        description=(
-            "Customer submits payment info for an order. "
-            "Payment is accepted only after staff enables payment."
-        ),
-    )
-    def post(self, request, id):
-        serializer = CustomerPaymentSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        try:
-            order = record_payment_info_by_customer(
-                order_id=id,
-                customer_phone=serializer.validated_data["customer_phone"],
-                payment_reference=serializer.validated_data["payment_reference"],
-                payment_amount=serializer.validated_data.get("payment_amount"),
-                payment_received_at=serializer.validated_data.get(
-                    "payment_received_at"
-                ),
-                payment_notes=serializer.validated_data.get("payment_notes"),
-            )
-        except DjangoValidationError as exc:
-            raise ValidationError(str(exc))
-        return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
-
 
 class SuitTypeCreateView(APIView):
     permission_classes = [IsAuthenticated | IsAdmin]
@@ -280,3 +317,4 @@ class SuitTypeListView(APIView):
         suit_types = SuitType.objects.all()
         serializer = SuitTypeSerializer(suit_types, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+

@@ -27,6 +27,7 @@ class OrderSerializer(serializers.ModelSerializer):
         model = Order
         fields = [
             "id",
+            "order_code",
             "status",
             "quantity",
             "total_price",
@@ -50,6 +51,7 @@ class OrderSerializer(serializers.ModelSerializer):
 
 class CreateOrderResponseSerializer(serializers.Serializer):
     order_id = serializers.UUIDField()
+    order_code = serializers.CharField()
     status = serializers.CharField()
 
 
@@ -63,11 +65,13 @@ class CreateOrderSerializer(serializers.ModelSerializer):
 
     # Read-only fields to show the user after creation
     order_id = serializers.UUIDField(source="id", read_only=True)
+    order_code = serializers.CharField(read_only=True)
 
     class Meta:
         model = Order
         fields = [
             "order_id",
+            "order_code",
             "customer_name",
             "customer_phone",
             "suit_type",
@@ -97,16 +101,6 @@ class OrderProcessingSerializer(serializers.Serializer):
     payment_received_at = serializers.DateTimeField(required=False)
     payment_notes = serializers.CharField(required=False, allow_blank=True)
     reason = serializers.CharField(required=False, allow_blank=True)
-
-
-class CustomerPaymentSerializer(serializers.Serializer):
-    customer_phone = serializers.CharField()
-    payment_reference = serializers.CharField()
-    payment_amount = serializers.DecimalField(
-        max_digits=12, decimal_places=2, required=False
-    )
-    payment_received_at = serializers.DateTimeField(required=False)
-    payment_notes = serializers.CharField(required=False, allow_blank=True)
 
 
 class OrderExpirationResponseSerializer(serializers.Serializer):

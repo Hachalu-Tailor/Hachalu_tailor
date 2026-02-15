@@ -4,6 +4,8 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 from urllib import request as urllib_request
 from urllib.error import HTTPError, URLError
+import uuid
+import secrets
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -122,6 +124,27 @@ def _resolve_order(order_id):
         raise ValidationError("order not found.")
 
 
+def _resolve_order_by_code(order_code):
+    try:
+        return Order.objects.select_related(
+            "customer",
+            "suit_type",
+            "material",
+            "measurement",
+            "reviewed_by",
+        ).get(order_code=order_code)
+    except Order.DoesNotExist:
+        raise ValidationError("order not found.")
+
+
+def _generate_order_code() -> str:
+    for _ in range(5):
+        candidate = f"HP-{secrets.randbelow(10**8):08d}"
+        if not Order.objects.filter(order_code=candidate).exists():
+            return candidate
+    raise ValidationError("Failed to generate unique order code.")
+
+
 def _notify_users(
     order: Order,
     users,
@@ -140,6 +163,7 @@ def _notify_users(
         identifier_used=str(order.id),
         payload={
             "order_id": str(order.id),
+            "order_code": order.order_code,
             "user_ids": [str(user_id) for user_id in user_ids],
             "message": message,
         },
@@ -261,6 +285,7 @@ def create_order(
         suit_type=suit_type_obj,
         material=material_obj,
         measurement=measurement,
+        order_code=_generate_order_code(),
         status="INITIATED",
         quantity=normalized_quantity,
         total_price=Decimal("0.00"),
@@ -274,6 +299,7 @@ def create_order(
         identifier_used=customer.phone_number,
         payload={
             "order_id": str(order.id),
+            "order_code": order.order_code,
             "customer_id": customer.id,
             "customer_phone": customer.phone_number,
         },
@@ -323,6 +349,7 @@ def receive_order_for_processing(
         identifier_used=str(order.id),
         payload={
             "order_id": str(order.id),
+            "order_code": order.order_code,
             "total_price": str(order.total_price),
             "due_date": order.due_date.isoformat(),
         },
@@ -374,86 +401,12 @@ def record_payment_info(
         identifier_used=order.payment_reference,
         payload={
             "order_id": str(order.id),
+            "order_code": order.order_code,
             "payment_reference": order.payment_reference,
             "payment_amount": str(order.payment_amount),
             "payment_received_at": order.payment_received_at.isoformat(),
         },
     )
-
-    return order
-
-
-@transaction.atomic
-def record_payment_info_by_customer(
-    *,
-    order_id,
-    customer_phone,
-    payment_reference,
-    payment_amount=None,
-    payment_received_at=None,
-    payment_notes=None,
-) -> Order:
-    order = _resolve_order(order_id)
-    if order.status != "AWAITING_PAYMENT" or not order.payment_allowed:
-        raise ValidationError("Order is not allowed to receive payment yet.")
-
-    if not customer_phone or str(customer_phone).strip() != order.customer.phone_number:
-        raise ValidationError("customer_phone does not match order.")
-
-    if not payment_reference or not str(payment_reference).strip():
-        raise ValidationError("payment_reference is required.")
-
-    order.payment_reference = str(payment_reference).strip()
-    if payment_amount is not None:
-        order.payment_amount = _normalize_decimal(payment_amount, "payment_amount")
-    order.payment_received_at = _normalize_datetime(
-        payment_received_at, "payment_received_at"
-    )
-    if payment_notes is not None:
-        order.payment_notes = str(payment_notes).strip()
-    order.status = "PENDING_APPROVAL"
-    order.save(
-        update_fields=[
-            "payment_reference",
-            "payment_amount",
-            "payment_received_at",
-            "payment_notes",
-            "status",
-            "updated_at",
-        ]
-    )
-
-    AuditLog.objects.create(
-        actor=None,
-        action="ORDER_PAYMENT_SUBMITTED",
-        target_id=str(order.id),
-        identifier_used=order.payment_reference,
-        payload={
-            "order_id": str(order.id),
-            "customer_phone": order.customer.phone_number,
-            "payment_reference": order.payment_reference,
-            "payment_amount": (
-                str(order.payment_amount) if order.payment_amount else None
-            ),
-        },
-    )
-
-    if order.reviewed_by is not None:
-        _notify_users(
-            order,
-            [order.reviewed_by],
-            title="Payment Submitted",
-            message="Customer submitted payment. Review and approve.",
-            notification_type="PAYMENT_SUBMITTED",
-        )
-    else:
-        _notify_users(
-            order,
-            _staff_users(),
-            title="Payment Submitted",
-            message="Customer submitted payment. Review and approve.",
-            notification_type="PAYMENT_SUBMITTED",
-        )
 
     return order
 
@@ -472,7 +425,7 @@ def approve_order(*, order_id, requester=None) -> Order:
         action="ORDER_APPROVED",
         target_id=str(order.id),
         identifier_used=str(order.id),
-        payload={"order_id": str(order.id)},
+        payload={"order_id": str(order.id), "order_code": order.order_code},
     )
 
     return order
@@ -492,7 +445,11 @@ def reject_order(*, order_id, reason=None, requester=None) -> Order:
         action="ORDER_REJECTED",
         target_id=str(order.id),
         identifier_used=str(order.id),
-        payload={"order_id": str(order.id), "reason": reason},
+        payload={
+            "order_id": str(order.id),
+            "order_code": order.order_code,
+            "reason": reason,
+        },
     )
 
     _notify_users(

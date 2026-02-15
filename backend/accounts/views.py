@@ -7,7 +7,7 @@ from rest_framework.exceptions import NotFound
 
 from rest_framework.decorators import action
 from .permissions import IsAdmin
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
 
 from .serializers import (
     UserSerializer,
@@ -44,7 +44,19 @@ class LoginView(TokenObtainPairView):
             "Authenticate a user and return access/refresh JWT tokens."
             " Use the returned access token in the Authorization header."
         ),
-        responses={200: dict},
+        responses={200: dict, 401: dict},
+        examples=[
+            OpenApiExample(
+                "Login request",
+                value={"email": "admin@example.com", "password": "secret123"},
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Login response",
+                value={"access": "<jwt>", "refresh": "<jwt>"},
+                response_only=True,
+            ),
+        ],
     )
     def post(self, request, *args, **kwargs):
         return super().post(request, *args, **kwargs)
@@ -59,6 +71,22 @@ class StaffManagementView(views.APIView):
     @extend_schema(
         tags=["Staff"],
         responses={200: UserSerializer(many=True)},
+        examples=[
+            OpenApiExample(
+                "Staff list",
+                value=[
+                    {
+                        "id": "<uuid>",
+                        "email": "receptionist@example.com",
+                        "full_name": "Receptionist User",
+                        "phone_number": "444",
+                        "role": "RECEPTIONIST",
+                        "is_active": True,
+                    }
+                ],
+                response_only=True,
+            )
+        ],
         description="List all active staff (admins and receptionists).",
     )
     def get(self, request):
@@ -74,6 +102,27 @@ class StaffManagementView(views.APIView):
         tags=["Staff"],
         request=UserSerializer,
         responses={201: dict, 400: dict},
+        examples=[
+            OpenApiExample(
+                "Create staff",
+                value={
+                    "email": "staff@example.com",
+                    "full_name": "Staff User",
+                    "phone_number": "123",
+                    "role": "RECEPTIONIST",
+                },
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Create staff response",
+                value={
+                    "message": "User created successfully",
+                    "temporary_password": "Abc12345",
+                    "user_id": "<uuid>",
+                },
+                response_only=True,
+            ),
+        ],
         description=(
             "Create a staff user (default role: RECEPTIONIST). Returns a temporary password."
         ),
@@ -108,6 +157,13 @@ class StaffDetailView(views.APIView):
     @extend_schema(
         tags=["Staff"],
         responses={204: None, 404: dict},
+        examples=[
+            OpenApiExample(
+                "Delete staff not found",
+                value={"error": "User not found"},
+                response_only=True,
+            )
+        ],
         description="Delete a staff user by id.",
     )
     def delete(self, request, id):
@@ -126,6 +182,18 @@ class UserChangePasswordView(views.APIView):
         tags=["Users"],
         request=ChangePasswordSerializer,
         responses={200: dict, 400: dict},
+        examples=[
+            OpenApiExample(
+                "Change password",
+                value={"old_password": "secret123", "new_password": "newpass123"},
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Change password response",
+                value={"message": "Password updated successfully"},
+                response_only=True,
+            ),
+        ],
         description="Change the authenticated user's password.",
     )
     def post(self, request):
@@ -159,6 +227,13 @@ class UserUpdateProfileView(views.APIView):
         tags=["Users"],
         request=UpdateUserSerializer,
         responses={200: dict, 400: dict},
+        examples=[
+            OpenApiExample(
+                "Update user",
+                value={"full_name": "Updated Name"},
+                request_only=True,
+            )
+        ],
         description="Update a user's profile fields (admin only).",
     )
     def patch(self, request, id):
@@ -219,6 +294,23 @@ class AuditLogListView(generics.ListAPIView):
             ),
         ],
         responses={200: AuditLogSerializer(many=True)},
+        examples=[
+            OpenApiExample(
+                "Audit log list",
+                value=[
+                    {
+                        "id": 1,
+                        "actor": "<uuid>",
+                        "action": "USER_CREATED",
+                        "target_id": "<uuid>",
+                        "identifier_used": "staff@example.com",
+                        "created_at": "2026-02-12T10:00:00Z",
+                        "payload": {"user_id": "<uuid>"},
+                    }
+                ],
+                response_only=True,
+            )
+        ],
         description="List audit logs with optional filters.",
     )
     def get(self, request):
@@ -249,6 +341,21 @@ class AuditLogDetailView(generics.RetrieveAPIView):
     @extend_schema(
         tags=["Audit"],
         responses={200: AuditLogSerializer, 404: dict},
+        examples=[
+            OpenApiExample(
+                "Audit log detail",
+                value={
+                    "id": 1,
+                    "actor": "<uuid>",
+                    "action": "USER_CREATED",
+                    "target_id": "<uuid>",
+                    "identifier_used": "staff@example.com",
+                    "created_at": "2026-02-12T10:00:00Z",
+                    "payload": {"user_id": "<uuid>"},
+                },
+                response_only=True,
+            )
+        ],
         description="Retrieve a single audit log by id.",
     )
     def get_object(self):
@@ -273,6 +380,23 @@ class NotificationListView(generics.ListAPIView):
             )
         ],
         responses={200: NotificationSerializer(many=True)},
+        examples=[
+            OpenApiExample(
+                "Notification list",
+                value=[
+                    {
+                        "id": 1,
+                        "title": "Payment Submitted",
+                        "message": "Customer submitted payment.",
+                        "notification_type": "PAYMENT_SUBMITTED",
+                        "payload": {"order_code": "HP-00000001"},
+                        "is_read": False,
+                        "created_at": "2026-02-12T10:00:00Z",
+                    }
+                ],
+                response_only=True,
+            )
+        ],
         description="List notifications for the authenticated user.",
     )
     def get(self, request):
@@ -294,6 +418,16 @@ class UserResetPasswordView(views.APIView):
     @extend_schema(
         tags=["Users"],
         responses={200: dict, 400: dict},
+        examples=[
+            OpenApiExample(
+                "Reset password response",
+                value={
+                    "temporary_password": "Abc12345",
+                    "message": "Password reset successful",
+                },
+                response_only=True,
+            )
+        ],
         description="Admin reset password for a user. Returns a temporary password.",
     )
     def post(self, request, id):

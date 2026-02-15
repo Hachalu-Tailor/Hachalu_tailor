@@ -173,7 +173,7 @@ const DashboardLayout = () => {
           </header>
 
           {/* MAIN CONTENT */}
-          <main className="flex-1 overflow-y-auto">
+          <main className="flex-1 overflow-y-auto bg-[#F8F9FA] dark:bg-[#050505]">
             <Outlet />
           </main>
         </div>

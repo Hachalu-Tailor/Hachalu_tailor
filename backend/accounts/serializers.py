@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import AuditLog, User, Customer
+from .models import AuditLog, User, Customer, Notification
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -42,6 +42,7 @@ class ChangePasswordSerializer(serializers.Serializer):
     """
     This updates users password
     """
+
     old_password = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True, min_length=8)
 
@@ -50,10 +51,12 @@ class UpdateUserSerializer(serializers.Serializer):
     """
     User update their own credential
     """
+
     email = serializers.EmailField(required=False)
     full_name = serializers.CharField(required=False)
     phone_number = serializers.CharField(required=False)
     role = serializers.CharField(required=False)
+
 
 class AuditLogSerializer(serializers.ModelSerializer):
     """
@@ -73,3 +76,20 @@ class AuditLogSerializer(serializers.ModelSerializer):
             "payload",
         ]
 
+
+class NotificationSerializer(serializers.ModelSerializer):
+    """
+    Serializer for in-app notifications.
+    """
+
+    class Meta:
+        model = Notification
+        fields = [
+            "id",
+            "title",
+            "message",
+            "notification_type",
+            "payload",
+            "is_read",
+            "created_at",
+        ]

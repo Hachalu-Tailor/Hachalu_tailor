@@ -47,6 +47,7 @@ api.interceptors.response.use(
 // ============================================
 export const login = (credentials) => api.post('/accounts/auth/login/', credentials);
 export const changePassword = (data) => api.post('/accounts/user/change-password/', data);
+export const getCurrentUser = () => api.get('/accounts/admin/staff/'); // Get staff list and find current user by email
 
 // ============================================
 // STAFF MANAGEMENT ENDPOINTS (Admin)

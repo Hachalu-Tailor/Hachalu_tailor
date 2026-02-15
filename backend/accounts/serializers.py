@@ -1,5 +1,22 @@
 from rest_framework import serializers
 from .models import AuditLog, User, Customer, Notification
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
+
+class TokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token['role'] = user.role if hasattr(user, 'role') else 'user'
+        return token
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+       
+        data['user_id'] = self.user.id
+        data['role'] = getattr(self.user, 'role', 'user') 
+        
+        return data
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -93,3 +110,19 @@ class NotificationSerializer(serializers.ModelSerializer):
             "is_read",
             "created_at",
         ]
+
+
+class TokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token['role'] = user.role if hasattr(user, 'role') else 'user'
+        return token
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+       
+        data['user_id'] = self.user.id
+        data['role'] = getattr(self.user, 'role', 'user') 
+        
+        return data

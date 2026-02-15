@@ -15,6 +15,7 @@ from .serializers import (
     ChangePasswordSerializer,
     UpdateUserSerializer,
     NotificationSerializer,
+    TokenObtainPairSerializer ,
 )
 from .services import (
     update_user,
@@ -37,23 +38,21 @@ class LoginView(TokenObtainPairView):
     """
 
     permission_classes = [AllowAny]
+    serializer_class = TokenObtainPairSerializer 
 
     @extend_schema(
         tags=["Auth"],
-        description=(
-            "Authenticate a user and return access/refresh JWT tokens."
-            " Use the returned access token in the Authorization header."
-        ),
+        description="Authenticate a user and return access/refresh JWT tokens along with user metadata.",
         responses={200: dict, 401: dict},
         examples=[
             OpenApiExample(
-                "Login request",
-                value={"email": "admin@example.com", "password": "secret123"},
-                request_only=True,
-            ),
-            OpenApiExample(
                 "Login response",
-                value={"access": "<jwt>", "refresh": "<jwt>"},
+                value={
+                    "access": "<jwt>", 
+                    "refresh": "<jwt>",
+                    "user_id": "<UUID>",
+                    "role": "admin"
+                },
                 response_only=True,
             ),
         ],

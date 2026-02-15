@@ -15,9 +15,7 @@ def _generate_unique_phone(existing_values):
 
 def fix_duplicate_phone_numbers(apps, schema_editor):
     User = apps.get_model("accounts", "User")
-    existing_values = set(
-        User.objects.values_list("phone_number", flat=True)
-    )
+    existing_values = set(User.objects.values_list("phone_number", flat=True))
 
     duplicates = (
         User.objects.values("phone_number")

@@ -110,8 +110,8 @@ Body:
     "message": "Password updated successfully"
 }
 ```
-#### 6. Update Profile (Only for admin)
-##### Endpoint: PATCH /admin/users/{UUid}/update-profile/
+#### 6. Update Profile
+##### Endpoint: PATCH api/accounts/admin/users/{UUid}/update-profile/
 Body:
 ```
 {
@@ -127,7 +127,7 @@ Body:
 }
 ```
 #### 7. Reset Password
-##### Endpoint: POST /admin/users/{id}/reset-password/
+##### Endpoint: POST api/accounts/admin/users/{id}/reset-password/
 Body: None (password generated automatically)
 
 ##### Response: 200
@@ -137,6 +137,62 @@ Body: None (password generated automatically)
   "message": "Password reset successful"
 }
 ```
+#### 7. Audit Log
+##### Endpoint: GET api/accounts/admin/audit-logs/
+Body: None 
+| Parameter     | Type   | Description                                      |
+|---------------|--------|--------------------------------------------------|
+| `search`      | string | Search by identifier, email, or phone.           |
+| `actor`       | uuid   | Filter by the ID of the user who performed the action. |
+| `action`      | string | Filter by action name (e.g., `USER_CREATED`).    |
+| `start_date`  | string | Filter start date (format: `YYYY-MM-DD`).        |
+| `end_date`    | string | Filter end date (format: `YYYY-MM-DD`).          |
+
+##### Response: 200
+```
+[
+    {
+        "id": 20,
+        "actor": "62759895-0632-4055-b924-5cbe0d4ddaa0",
+        "action": "PASSWORD_CHANGED",
+        "target_id": "62759895-0632-4055-b924-5cbe0d4ddaa0",
+        "identifier_used": "admin1@gmail.com",
+        "created_at": "2026-02-15T06:10:55.413080Z",
+        "payload": {
+            "user_id": "62759895-0632-4055-b924-5cbe0d4ddaa0",
+            "full_name": "Admin Admin",
+            "phone_number": "",
+            "role": "ADMIN"
+        }
+    },
+    {
+        "id": 18,
+        "actor": "62759895-0632-4055-b924-5cbe0d4ddaa0",
+        "action": "USER_CREATED",.......
+```
+#### 7. Detail Audit Log 
+##### Endpoint: GET api/accounts/admin/audit-logs/{id}/
+###### returns the audit log with that specific ID
+Body: None 
+
+##### Response: 200
+```
+{
+    "id": 20,
+    "actor": "62759895-0632-4055-b924-5cbe0d4ddaa0",
+    "action": "PASSWORD_CHANGED",
+    "target_id": "62759895-0632-4055-b924-5cbe0d4ddaa0",
+    "identifier_used": "admin1@gmail.com",
+    "created_at": "2026-02-15T06:10:55.413080Z",
+    "payload": {
+        "user_id": "62759895-0632-4055-b924-5cbe0d4ddaa0",
+        "full_name": "Admin Admin",
+        "phone_number": "",
+        "role": "ADMIN"
+    }
+}
+```
+
 # ============================================================
 ### Inventory manangment 
 #### 1. Create object

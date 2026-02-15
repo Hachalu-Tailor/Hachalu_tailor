@@ -16,11 +16,15 @@ import AdminDashboard from './pages/AdminDashboard';
 import DashboardLayout from './layouts/DashboardLayout';
 import AdminReception from './pages/admin/AdminReception';
 
-// Features
+// Receptionist Features
 import Inventory from './features/receptionist/Inventory';
+import OrdersManagement from './features/receptionist/Orders';
 import Clients from './features/receptionist/Clients';
 import Announcement from './features/receptionist/Announcement';
-// import Payments from './features/admin/Payments';
+
+// Admin Features
+import UserManagement from './features/admin/userManagement';
+import Analytics from './features/admin/Analytics';
 
 function App() {
   return (
@@ -43,12 +47,10 @@ function App() {
           {/* The Parent is /reception */}
           <Route path="/reception" element={<DashboardLayout />}>
             <Route index element={<ReceptionDashboard />} />
-            <Route path="inventory" element={<Inventory />} />  {/* URL: /reception/inventory */}
-            <Route path="orders" element={<Orders />} />        {/* URL: /reception/orders */}
-            <Route path="announcement" element={<Announcement />} />
+            <Route path="inventory" element={<Inventory />} />
+            <Route path="orders" element={<OrdersManagement />} />
             <Route path="clients" element={<Clients />} />
-            {/* <Route path="payments" element={<Payments />} /> */}
-            
+            <Route path="announcement" element={<Announcement />} />
           </Route>
         </Route>
 
@@ -57,8 +59,9 @@ function App() {
           {/* The Parent is /admin */}
           <Route path="/admin" element={<DashboardLayout />}>
             <Route index element={<AdminDashboard />} />
-            {/* REMOVED the leading slash from "admin-reception" */}
-            <Route path="admin-reception" element={<AdminReception />} /> {/* URL: /admin/admin-reception */}
+            <Route path="staff" element={<UserManagement />} />
+            <Route path="analytics" element={<Analytics />} />
+            <Route path="admin-reception" element={<AdminReception />} />
           </Route>
         </Route>
 

@@ -54,9 +54,11 @@ export const login = (credentials) => api.post('/accounts/auth/login/', credenti
 // Staff Management
 export const addStaff = (data) => api.post('/accounts/admin/staff/', data);
 
-// If your Django view requires a trailing slash and POST, keep it like this
-export const listStaff = () => api.get('/accounts/admin/staff/'); 
+// List staff uses POST according to README
+export const listStaff = () => api.post('/accounts/admin/staff/'); 
 
 export const deleteStaff = (id) => api.delete(`/accounts/admin/staff/${id}/`);
+
+export const resetPassword = (id) => api.post(`/accounts/admin/users/${id}/reset-password/`);
 
 export default api;

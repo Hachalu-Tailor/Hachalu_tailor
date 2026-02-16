@@ -596,7 +596,7 @@ Body
 }
 ```
 #### 2. Verify Payment
-##### Endpoint: POST /payments/<uuid:id>/verify/
+##### Endpoint: POST api/payments/<uuid:id>/verify/
 ###### The id is the id of the payment(not the order)
 Body
 ```
@@ -616,5 +616,25 @@ Body
     "is_verified": true,
     "created_at": "2026-02-16T09:26:51.286556Z"
 }
+```
+#### 3. List payments
+##### Endpoint: GET api/payments/list/
+
+Body: None
+##### query param will be is_verified. It can be true or false based on what you want to filter
+##### Response: 200
+```
+[
+    {
+        "id": "ea0cb258-750d-43cd-a36b-87312cbb8f08",
+        "order_id": "25f1e832-6aba-4306-a29c-238168e6697f",
+        "order_code": "HP-28182092",
+        "payment_amount": "2500.00",
+        "bank_ref_number": "TXN_998877",
+        "receipt_pdf_url": "https://storage.provider.com/receipts/txn_01.pdf",
+        "is_verified": true,
+        "created_at": "2026-02-16T09:26:51.286556Z"
+    }
+]
 ```
 

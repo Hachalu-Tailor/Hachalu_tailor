@@ -15,7 +15,7 @@ class Transaction(models.Model):
     payment_amount = models.DecimalField(
         max_digits=12, decimal_places=2, default=Decimal("0.00")
     )
-    bank_ref_number = models.CharField(max_length=255, blank=True, null=True)
+    bank_ref_number = models.CharField(max_length=255, blank=True, null=True, unique=True)
     receipt_pdf_url = models.URLField(max_length=500, blank=True, null=True)
     is_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

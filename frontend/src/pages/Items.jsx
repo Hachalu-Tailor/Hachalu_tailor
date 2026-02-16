@@ -37,7 +37,7 @@ const Items = ({ isHomePage = true }) => {
   }, [isPaused, selectedItem, filteredProducts, activeIdx]);
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#080808] pt-20 md:pt-28 pb-20 px-4 md:px-16 transition-colors duration-500">
+    <div className="min-h-screen bg-white dark:bg-[#080808] pt-20 md:pt-28 pb-20 md:px-16 transition-colors duration-500">
       <div className="max-w-[1600px] mx-auto">
         
         {/* HEADER SECTION */}

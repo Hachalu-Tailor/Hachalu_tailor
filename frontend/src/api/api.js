@@ -61,7 +61,7 @@ export const logout = () => {
 
 export const addStaff = (data) => api.post('/accounts/admin/staff/', data);
 
-export const listStaff = () => api.post('/accounts/admin/staff/');
+export const listStaff = () => api.get('/accounts/admin/staff/');
 
 export const getStaffDetail = (id) => api.get(`/accounts/admin/staff/${id}/`);
 

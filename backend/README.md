@@ -576,7 +576,7 @@ Body
 Body
 ```
 {
-  "order_code": "HP-2026-XYZ",
+  "order_code": "HP-28182092",
   "amount": "2500.00",
   "bank_ref_number": "TXN_998877",
   "receipt_pdf_url": "https://storage.provider.com/receipts/txn_01.pdf"
@@ -585,34 +585,36 @@ Body
 ##### Response: 201
 ```
 {
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "order_code": "HP-2026-XYZ",
-  "payment_amount": "2500.00",
-  "bank_ref_number": "TXN_998877",
-  "receipt_pdf_url": "https://storage.provider.com/receipts/txn_01.pdf",
-  "is_verified": false,
-  "created_at": "2026-02-14T19:33:00Z"
+    "id": "ea0cb258-750d-43cd-a36b-87312cbb8f08",
+    "order_id": "25f1e832-6aba-4306-a29c-238168e6697f",
+    "order_code": "HP-28182092",
+    "payment_amount": "2500.00",
+    "bank_ref_number": "TXN_998877",
+    "receipt_pdf_url": "https://storage.provider.com/receipts/txn_01.pdf",
+    "is_verified": false,
+    "created_at": "2026-02-16T09:26:51.286556Z"
 }
 ```
 #### 2. Verify Payment
 ##### Endpoint: POST /payments/<uuid:id>/verify/
+###### The id is the id of the payment(not the order)
 Body
 ```
 {
   "is_verified": true
 }
 ```
-##### Response: 201
+##### Response: 200
 ```
 {
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "order_id": "a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6",
-  "order_code": "HP-2026-XYZ",
-  "payment_amount": "250.00",
-  "bank_ref_number": "TXN_998877",
-  "receipt_pdf_url": "https://storage.provider.com/receipts/txn_01.pdf",
-  "is_verified": true,
-  "created_at": "2026-02-14T19:33:00Z"
+    "id": "ea0cb258-750d-43cd-a36b-87312cbb8f08",
+    "order_id": "25f1e832-6aba-4306-a29c-238168e6697f",
+    "order_code": "HP-28182092",
+    "payment_amount": "2500.00",
+    "bank_ref_number": "TXN_998877",
+    "receipt_pdf_url": "https://storage.provider.com/receipts/txn_01.pdf",
+    "is_verified": true,
+    "created_at": "2026-02-16T09:26:51.286556Z"
 }
 ```
 

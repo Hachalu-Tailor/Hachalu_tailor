@@ -77,7 +77,7 @@ const Inventory = () => {
     <div className="min-h-screen bg-white dark:bg-[#050505] text-zinc-900 dark:text-zinc-100 transition-colors duration-300">
       
       {/* --- RESPONSIVE CONTAINER --- */}
-      <div className="max-w-7xl mx-auto px-4 py-6 md:py-10">
+      <div className="max-w-7xl mx-auto py-6 md:py-10">
         
         {/* HEADER & KPI HUD */}
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-10">

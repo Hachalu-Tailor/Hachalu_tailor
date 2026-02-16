@@ -3,38 +3,94 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { 
   HiOutlineXMark, 
-  HiArrowLongRight, 
   HiOutlineQueueList, 
   HiOutlineChatBubbleBottomCenterText,
-  HiOutlineScale
+  HiOutlineScale,
+  HiOutlineUser,
+  HiOutlinePhone
 } from 'react-icons/hi2';
 import { products } from '../hooks/productData';
 import ItemCard from '../components/ItemCard';
+import { createOrder } from '../api/api';
 
 const Items = ({ isHomePage = true }) => {
   const [filter, setFilter] = useState('All');
   const [activeIdx, setActiveIdx] = useState(0);
   const [selectedItem, setSelectedItem] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
-  const [activeTab, setActiveTab] = useState('details'); // 'details' | 'bespoke'
+  const [activeTab, setActiveTab] = useState('details');
+  
+  // --- NEW: Form State matching your API ---
+  const [formData, setFormData] = useState({
+    customer_name: "",
+    customer_phone: "",
+    suit_type: 1, // Default or mapped from selectedItem
+    material: 1,  // Default
+    quantity: 1,
+    measurements: {
+      height: "",
+      chest: "",
+      shoulder: "",
+      waist: "",
+      hips: "",
+      arm_length: ""
+    }
+  });
 
-  // 1. Filter Logic
   const filteredProducts = filter === 'All' 
     ? products 
     : products.filter(p => p.category === filter);
 
   const activeItem = filteredProducts[activeIdx] || filteredProducts[0];
 
-  // 2. Auto-play Logic
+  // Auto-play Logic
   useEffect(() => {
     if (isPaused || selectedItem || filteredProducts.length <= 1) return;
-    
     const timer = setInterval(() => {
       setActiveIdx((prev) => (prev + 1) % filteredProducts.length);
     }, 5000);
-    
     return () => clearInterval(timer);
-  }, [isPaused, selectedItem, filteredProducts, activeIdx]);
+  }, [isPaused, selectedItem, filteredProducts]);
+
+  // --- NEW: Handlers ---
+  const handleInputChange = (field, value, isMeasurement = false) => {
+    if (isMeasurement) {
+      setFormData(prev => ({
+        ...prev,
+        measurements: { ...prev.measurements, [field]: value }
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
+  };
+
+  const handleSubmit = async () => {
+    // Basic validation
+    if (!formData.customer_name || !formData.customer_phone) {
+      alert("Please fill in contact details");
+      return;
+    }
+
+    const payload = {
+      ...formData,
+      suit_type: selectedItem?.id || 1, // Map item ID to suit_type
+      // Convert measurement strings to numbers for API
+      measurements: Object.fromEntries(
+        Object.entries(formData.measurements).map(([k, v]) => [k, parseFloat(v) || 0])
+      )
+    };
+
+    try {
+      const response = await createOrder(payload);
+      if (response.ok) {
+        const data = await response.json();
+        alert(`Order Created! Code: ${data.order_code}`);
+        setSelectedItem(null); // Close modal
+      }
+    } catch (error) {
+      console.error("Order failed", error);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#080808] pt-20 md:pt-28 pb-20 px-4 md:px-16 transition-colors duration-500">
@@ -55,7 +111,6 @@ const Items = ({ isHomePage = true }) => {
             </h2>
           </header>
 
-          {/* Classification Filter */}
           <div className="flex gap-2 overflow-x-auto no-scrollbar w-full md:w-auto py-2">
             {['All', 'Men', 'Women', 'Children'].map((cat) => (
               <button
@@ -75,8 +130,6 @@ const Items = ({ isHomePage = true }) => {
 
         {/* MAIN INTERACTIVE LAYOUT */}
         <div className="flex flex-col lg:flex-row gap-6 md:gap-8 h-auto lg:h-[75vh]">
-          
-          {/* LEFT: CINEMATIC PREVIEW */}
           <div 
             className="flex-[2] relative overflow-hidden bg-zinc-100 dark:bg-zinc-900 rounded-sm aspect-[4/5] lg:aspect-auto" 
             onMouseEnter={() => setIsPaused(true)} 
@@ -96,7 +149,6 @@ const Items = ({ isHomePage = true }) => {
               </motion.div>
             </AnimatePresence>
 
-            {/* Preview Floating Content */}
             <div className="absolute bottom-6 left-6 right-6 md:bottom-12 md:left-12 md:right-12 flex flex-col md:flex-row justify-between items-end gap-6 z-10">
               <motion.div 
                 key={activeItem?.id + "info"}
@@ -124,7 +176,6 @@ const Items = ({ isHomePage = true }) => {
             </div>
           </div>
 
-          {/* RIGHT: SCROLLABLE LIST (Responsive) */}
           <div className="flex-1 w-full lg:max-w-[420px] flex flex-col gap-4">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2 px-1">
                <HiOutlineQueueList size={16} className="text-red-600"/> Discover {filter}
@@ -145,7 +196,6 @@ const Items = ({ isHomePage = true }) => {
         </div>
       </div>
 
-      {/* --- BESPOKE MODAL / DRAWER --- */}
       <AnimatePresence>
         {selectedItem && (
           <div className="fixed inset-0 z-[200] flex justify-end">
@@ -159,7 +209,6 @@ const Items = ({ isHomePage = true }) => {
               transition={{ type: 'spring', damping: 30, stiffness: 200 }}
               className="relative w-full max-w-2xl h-full bg-white dark:bg-[#0c0c0c] flex flex-col shadow-2xl"
             >
-              {/* Drawer Header */}
               <div className="p-6 md:p-8 border-b border-gray-100 dark:border-white/5 flex justify-between items-center bg-zinc-50 dark:bg-zinc-900/50">
                 <div className="flex gap-4">
                   <TabBtn active={activeTab === 'details'} onClick={() => setActiveTab('details')} label="Overview" icon={<HiOutlineQueueList/>} />
@@ -170,7 +219,6 @@ const Items = ({ isHomePage = true }) => {
                 </button>
               </div>
 
-              {/* Drawer Content */}
               <div className="flex-1 overflow-y-auto p-8 md:p-12">
                 <AnimatePresence mode="wait">
                   {activeTab === 'details' ? (
@@ -197,11 +245,32 @@ const Items = ({ isHomePage = true }) => {
                           <p className="text-gray-500 text-xs uppercase tracking-widest mt-2">Personalize your garment details below.</p>
                        </header>
 
-                       <div className="grid grid-cols-2 gap-6">
-                          <Input label="Chest (cm)" placeholder="00.0" />
-                          <Input label="Waist (cm)" placeholder="00.0" />
-                          <Input label="Shoulder (cm)" placeholder="00.0" />
-                          <Input label="Height (cm)" placeholder="00.0" />
+                       {/* Contact Info */}
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 dark:bg-white/5 p-6 rounded-sm">
+                          <Input 
+                            label="Full Name" 
+                            type="text"
+                            placeholder="John Doe" 
+                            value={formData.customer_name}
+                            onChange={(e) => handleInputChange('customer_name', e.target.value)}
+                          />
+                          <Input 
+                            label="Phone Number" 
+                            type="text"
+                            placeholder="+251..." 
+                            value={formData.customer_phone}
+                            onChange={(e) => handleInputChange('customer_phone', e.target.value)}
+                          />
+                       </div>
+
+                       {/* Measurements */}
+                       <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                          <Input label="Height" placeholder="178" value={formData.measurements.height} onChange={(e) => handleInputChange('height', e.target.value, true)} />
+                          <Input label="Chest" placeholder="100" value={formData.measurements.chest} onChange={(e) => handleInputChange('chest', e.target.value, true)} />
+                          <Input label="Shoulder" placeholder="45" value={formData.measurements.shoulder} onChange={(e) => handleInputChange('shoulder', e.target.value, true)} />
+                          <Input label="Waist" placeholder="80" value={formData.measurements.waist} onChange={(e) => handleInputChange('waist', e.target.value, true)} />
+                          <Input label="Hips" placeholder="95" value={formData.measurements.hips} onChange={(e) => handleInputChange('hips', e.target.value, true)} />
+                          <Input label="Arm Length" placeholder="60" value={formData.measurements.arm_length} onChange={(e) => handleInputChange('arm_length', e.target.value, true)} />
                        </div>
 
                        <div className="space-y-4">
@@ -209,13 +278,16 @@ const Items = ({ isHomePage = true }) => {
                             <HiOutlineChatBubbleBottomCenterText size={16}/> Special Instructions
                           </label>
                           <textarea 
-                            className="w-full bg-gray-50 dark:bg-white/5 p-6 dark:text-white outline-none focus:ring-1 ring-red-600 min-h-[150px] border-none text-sm leading-relaxed"
-                            placeholder="e.g., Silk inner lining in emerald green, hidden pocket for timepiece, initials 'H.A' on cuff..."
+                            className="w-full bg-gray-50 dark:bg-white/5 p-6 dark:text-white outline-none focus:ring-1 ring-red-600 min-h-[120px] border-none text-sm leading-relaxed"
+                            placeholder="Notes for the tailor..."
                           />
                        </div>
 
-                       <button className="w-full py-6 bg-red-600 text-white font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:bg-black transition-all">
-                         Submit Bespoke Request
+                       <button 
+                        onClick={handleSubmit}
+                        className="w-full py-6 bg-red-600 text-white font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:bg-black transition-all"
+                       >
+                         Book Your Order
                        </button>
                     </motion.div>
                   )}
@@ -229,7 +301,7 @@ const Items = ({ isHomePage = true }) => {
   );
 };
 
-// Sub-components
+// Updated Sub-components with props
 const TabBtn = ({ active, onClick, label, icon }) => (
   <button 
     onClick={onClick}
@@ -241,11 +313,13 @@ const TabBtn = ({ active, onClick, label, icon }) => (
   </button>
 );
 
-const Input = ({ label, placeholder }) => (
+const Input = ({ label, placeholder, type = "number", value, onChange }) => (
   <div className="flex flex-col gap-2">
     <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{label}</label>
     <input 
-      type="number" 
+      type={type}
+      value={value}
+      onChange={onChange}
       placeholder={placeholder}
       className="bg-transparent border-b border-gray-200 dark:border-white/10 py-3 text-lg font-bold dark:text-white outline-none focus:border-red-600 transition-all"
     />

@@ -23,7 +23,22 @@ const DashboardLayout = () => {
 
   // 1. Sync Role and Theme on Mount and location change
   useEffect(() => {
-    const storedRole = localStorage.getItem('user_role');
+    // Try to get role from multiple sources
+    let storedRole = localStorage.getItem('user_role');
+
+    // Fallback: check user_data if user_role is not set
+    if (!storedRole) {
+      const userData = localStorage.getItem('user_data');
+      if (userData) {
+        try {
+          const parsed = JSON.parse(userData);
+          storedRole = parsed.role;
+        } catch (e) {
+          console.error('Failed to parse user_data:', e);
+        }
+      }
+    }
+
     if (storedRole) setUserRole(storedRole.toLowerCase());
 
     const savedTheme = localStorage.getItem('theme');

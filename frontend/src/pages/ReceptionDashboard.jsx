@@ -40,7 +40,7 @@ const ReceptionDashboard = () => {
       const [ordersRes, materialsRes, paymentsRes] = await Promise.all([
         api.get('/orders/list/', { params: { active_only: true } }),
         api.get('/invetory/materials/'),
-        api.get('/payments/').catch(() => ({ data: [] }))
+        api.get('/payments/list/').catch(() => ({ data: [] }))
       ]);
       setOrders(ordersRes.data || []);
       setMaterials(materialsRes.data || []);

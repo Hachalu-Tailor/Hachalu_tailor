@@ -28,7 +28,7 @@ const AdminDashboard = () => {
       setLoading(true);
       const [ordersRes, staffRes] = await Promise.all([
         api.get('/orders/list/'),
-        api.post('/accounts/admin/staff/')  // Use POST for listing staff
+        api.get('/accounts/admin/staff/')  // Use GET for listing staff
       ]);
       setOrders(ordersRes.data || []);
       setStaff(staffRes.data || []);

@@ -15,7 +15,6 @@ import NotFound from './pages/NotFound';
 import ReceptionDashboard from './pages/ReceptionDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import DashboardLayout from './layouts/DashboardLayout';
-import AdminReception from './pages/admin/AdminReception';
 import Profile from './pages/Profile';
 
 // Receptionist Features
@@ -26,7 +25,7 @@ import Announcement from './features/receptionist/Announcement';
 import PaymentReview from './features/receptionist/PaymentReview';
 
 // Admin Features
-import UserManagement from './features/admin/userManagement';
+import StaffManagement from './features/admin/StaffManagement';
 import Analytics from './features/admin/Analytics';
 
 // Customer Features
@@ -71,9 +70,8 @@ function App() {
           {/* The Parent is /admin */}
           <Route path="/admin" element={<DashboardLayout />}>
             <Route index element={<AdminDashboard />} />
-            <Route path="staff" element={<UserManagement />} />
+            <Route path="staff" element={<StaffManagement />} />
             <Route path="analytics" element={<Analytics />} />
-            <Route path="admin-reception" element={<AdminReception />} />
             <Route path="profile" element={<Profile />} />
           </Route>
         </Route>

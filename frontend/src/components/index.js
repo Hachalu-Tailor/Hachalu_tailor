@@ -5,8 +5,10 @@ export { default as ProtectedRoute } from './ProtectedRoute';
 
 // UI Components
 export { default as Loading } from './Loading';
-export { default as Modal, ConfirmModal } from './Modal';
-export { default as Toast, ToastProvider, useToast } from './Toast';
+export { default as Modal } from './Modal';
+export { ConfirmModal } from './Modal';
+export { default as Toast } from './Toast';
+export { ToastProvider, useToast } from './Toast';
 export { default as DataTable } from './DataTable';
 export { default as StatusBadge } from './StatusBadge';
 export { default as SearchInput } from './SearchInput';

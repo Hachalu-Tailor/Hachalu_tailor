@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { API_BASE_URL } from '../utils/constants';
+import { API_BASE_URL, STORAGE_KEYS } from '../utils/constants';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -8,6 +8,45 @@ const api = axios.create({
   }
 });
 
+// ============================================
+// TOKEN MANAGEMENT FUNCTIONS
+// ============================================
+
+/**
+ * Set tokens in localStorage
+ */
+export const setTokens = (accessToken, refreshToken) => {
+  if (accessToken) {
+    localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken);
+  }
+  if (refreshToken) {
+    localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, refreshToken);
+  }
+};
+
+/**
+ * Get access token from localStorage
+ */
+export const getAccessToken = () => {
+  return localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+};
+
+/**
+ * Get refresh token from localStorage
+ */
+export const getRefreshToken = () => {
+  return localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+};
+
+/**
+ * Clear all tokens from localStorage
+ */
+export const clearTokens = () => {
+  localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+  localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+  localStorage.removeItem(STORAGE_KEYS.USER_DATA);
+};
+
 /**
  * REQUEST INTERCEPTOR
  * We use a "fresh" get from localStorage every time to avoid stale tokens.
@@ -15,8 +54,8 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     // IMPORTANT: This must match exactly what you use in Login.jsx
-    const token = localStorage.getItem('access_token');
-    
+    const token = getAccessToken();
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     } else {
@@ -29,17 +68,28 @@ api.interceptors.request.use(
 
 /**
  * RESPONSE INTERCEPTOR
+ * Handles 401 errors - redirect to login
  */
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+
     // 401 = Token expired/Invalid
-    // 403 = Authenticated but lacks permissions (Role issue)
-    if (error.response && (error.response.status === 401)) {
-      console.error("Session expired. Redirecting...");
-      localStorage.clear();
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      // Clear tokens and redirect to login
+      clearTokens();
+      localStorage.removeItem('user_data');
       window.location.href = '/login';
     }
+
+    // 403 = Authenticated but lacks permissions (Role issue)
+    if (error.response?.status === 403) {
+      console.error("Permission denied:", error.response.data);
+    }
+
     return Promise.reject(error);
   }
 );
@@ -51,7 +101,7 @@ api.interceptors.response.use(
 export const login = (credentials) => api.post('/accounts/auth/login/', credentials);
 
 export const logout = () => {
-  localStorage.clear();
+  clearTokens();
   window.location.href = '/login';
 };
 
@@ -61,7 +111,7 @@ export const logout = () => {
 
 export const addStaff = (data) => api.post('/accounts/admin/staff/', data);
 
-export const listStaff = () => api.post('/accounts/admin/staff/');
+export const listStaff = () => api.get('/accounts/admin/staff/');
 
 export const getStaffDetail = (id) => api.get(`/accounts/admin/staff/${id}/`);
 
@@ -156,7 +206,7 @@ export const handleApiError = (error) => {
   if (error.response) {
     // Server responded with error status
     const { status, data } = error.response;
-    
+
     switch (status) {
       case 400:
         return data.detail || 'Invalid request data';
@@ -186,12 +236,12 @@ export const handleApiError = (error) => {
 export const getErrorMessage = (error) => {
   if (error.response?.data) {
     const data = error.response.data;
-    
+
     // Handle different error formats
     if (data.detail) return data.detail;
     if (data.message) return data.message;
     if (data.error) return data.error;
-    
+
     // Handle field errors
     if (typeof data === 'object') {
       const messages = [];
@@ -205,7 +255,7 @@ export const getErrorMessage = (error) => {
       if (messages.length > 0) return messages.join('\n');
     }
   }
-  
+
   return error.message || 'An unexpected error occurred.';
 };
 

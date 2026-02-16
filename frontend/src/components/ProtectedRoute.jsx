@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { ROUTES } from '../utils/constants';
+import { ROUTES } from '../utils/routes';
 
 const ProtectedRoute = ({ allowedRoles }) => {
   const { user, loading } = useAuth();
@@ -25,10 +25,13 @@ const ProtectedRoute = ({ allowedRoles }) => {
     return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />;
   }
 
+  // Normalize user role to uppercase for comparison
+  const userRole = user.role?.toUpperCase();
+
   // Check if the user's role is included in the allowed list for this route
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  if (allowedRoles && !allowedRoles.includes(userRole)) {
     // Redirect to appropriate dashboard based on role
-    const redirectPath = user.role === 'admin' ? ROUTES.ADMIN_DASHBOARD : ROUTES.RECEPTION_DASHBOARD;
+    const redirectPath = userRole === 'ADMIN' ? ROUTES.ADMIN.DASHBOARD : ROUTES.RECEPTION.DASHBOARD;
     return <Navigate to={redirectPath} replace />;
   }
 

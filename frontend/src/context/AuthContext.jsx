@@ -1,122 +1,169 @@
-import React, { createContext, useState, useEffect, useCallback } from 'react';
-import { login as apiLogin } from '../api/api';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import api, { setTokens, clearTokens, getAccessToken, getRefreshToken } from '../api/api';
+import { STORAGE_KEYS } from '../utils/constants';
 
-export const AuthContext = createContext(null);
+// Create Auth Context
+const AuthContext = createContext(null);
 
+// Auth Provider Component
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Initialize auth state from localStorage
+  // Check if user is authenticated on mount
   useEffect(() => {
-    const initializeAuth = () => {
-      try {
-        const token = localStorage.getItem('access_token');
-        const role = localStorage.getItem('user_role');
-        const userId = localStorage.getItem('user_id');
-        const userName = localStorage.getItem('user_name');
-        const userEmail = localStorage.getItem('user_email');
-
-        if (token && role) {
-          setUser({
-            id: userId,
-            name: userName,
-            email: userEmail,
-            role: role.toLowerCase(),
-            token,
-          });
-        }
-      } catch (err) {
-        console.error('Error initializing auth:', err);
-        logout();
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initializeAuth();
+    checkAuth();
   }, []);
+
+  // Check authentication status
+  const checkAuth = async () => {
+    const token = getAccessToken();
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    // Get user data from localStorage (stored during login)
+    const userData = localStorage.getItem('user_data');
+    if (userData) {
+      try {
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+        setIsAuthenticated(true);
+      } catch (e) {
+        console.error('Failed to parse user data:', e);
+      }
+    }
+    setLoading(false);
+  };
+
+  // Refresh access token (disabled - backend doesn't have this endpoint)
+  const refreshAccessToken = async () => {
+    // Backend doesn't have token refresh endpoint configured
+    // Return false to indicate refresh is not available
+    return false;
+  };
 
   // Login function
-  const login = useCallback(async (credentials) => {
-    setLoading(true);
-    setError(null);
-
+  const login = async (credentials) => {
     try {
-      const response = await apiLogin(credentials);
-      const { access, refresh, role, user_id, name, email } = response.data;
+      const response = await api.post('/accounts/auth/login/', credentials);
 
-      if (!access) {
-        throw new Error('No access token received from server');
-      }
+      const { access, refresh, user_id, role } = response.data;
 
-      // Store in localStorage
-      localStorage.setItem('access_token', access);
-      localStorage.setItem('refresh_token', refresh);
-      localStorage.setItem('user_role', role?.toLowerCase() || 'receptionist');
-      localStorage.setItem('user_id', user_id || '');
-      localStorage.setItem('user_name', name || '');
-      localStorage.setItem('user_email', email || credentials.email);
+      // Store tokens
+      setTokens(access, refresh);
 
-      // Update state
+      // Create user object from response (backend returns user_id and role separately)
       const userData = {
         id: user_id,
-        name: name,
-        email: email || credentials.email,
-        role: role?.toLowerCase() || 'receptionist',
-        token: access,
+        role: role?.toUpperCase() // Normalize role to uppercase
       };
 
+      // Store user data in localStorage for persistence
+      localStorage.setItem('user_data', JSON.stringify(userData));
+      localStorage.setItem('user_role', role?.toLowerCase()); // For DashboardLayout compatibility
+
+      // Set user data
       setUser(userData);
+      setIsAuthenticated(true);
+
       return { success: true, user: userData };
-    } catch (err) {
-      const errorMessage = err.response?.data?.detail || err.message || 'Login failed';
-      setError(errorMessage);
-      return { success: false, error: errorMessage };
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error('Login failed:', error);
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.response?.data?.message || 'Login failed'
+      };
     }
-  }, []);
+  };
 
   // Logout function
-  const logout = useCallback(() => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user_role');
-    localStorage.removeItem('user_id');
-    localStorage.removeItem('user_name');
-    localStorage.removeItem('user_email');
-    setUser(null);
-  }, []);
+  const logout = async () => {
+    try {
+      // Call logout endpoint if authenticated
+      if (isAuthenticated) {
+        await api.post('/accounts/auth/logout/').catch(() => { });
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Clear tokens and user data
+      clearTokens();
+      localStorage.removeItem('user_data');
+      localStorage.removeItem('user_role');
+      setUser(null);
+      setIsAuthenticated(false);
+    }
+  };
 
-  // Check if user is authenticated
-  const isAuthenticated = useCallback(() => {
-    return !!user && !!localStorage.getItem('access_token');
-  }, [user]);
+  // Update user profile
+  const updateProfile = async (data) => {
+    try {
+      const response = await api.patch(`/accounts/admin/users/${user.id}/update-profile/`, data);
+
+      if (response.data) {
+        setUser(prev => ({ ...prev, ...response.data }));
+        return { success: true };
+      }
+    } catch (error) {
+      console.error('Profile update failed:', error);
+      return {
+        success: false,
+        error: error.response?.data?.detail || 'Failed to update profile'
+      };
+    }
+  };
+
+  // Change password
+  const changePassword = async (data) => {
+    try {
+      await api.post('/accounts/auth/change-password/', data);
+      return { success: true, message: 'Password changed successfully' };
+    } catch (error) {
+      console.error('Password change failed:', error);
+      return {
+        success: false,
+        error: error.response?.data?.detail || 'Failed to change password'
+      };
+    }
+  };
 
   // Check if user has specific role
-  const hasRole = useCallback((allowedRoles) => {
-    return user && allowedRoles.includes(user.role);
-  }, [user]);
+  const hasRole = (role) => {
+    return user?.role === role;
+  };
 
-  // Update user profile in context
-  const updateUser = useCallback((updates) => {
-    setUser(prev => prev ? { ...prev, ...updates } : null);
-    if (updates.name) localStorage.setItem('user_name', updates.name);
-    if (updates.email) localStorage.setItem('user_email', updates.email);
-  }, []);
+  // Check if user has any of the specified roles
+  const hasAnyRole = (roles) => {
+    return roles.includes(user?.role);
+  };
+
+  // Check if user is admin
+  const isAdmin = () => hasRole('ADMIN');
+
+  // Check if user is receptionist
+  const isReceptionist = () => hasRole('RECEPTIONIST');
+
+  // Check if user is tailor
+  const isTailor = () => hasRole('TAILOR');
 
   const value = {
     user,
     loading,
-    error,
+    isAuthenticated,
     login,
     logout,
-    isAuthenticated,
+    updateProfile,
+    changePassword,
     hasRole,
-    updateUser,
-    setError,
+    hasAnyRole,
+    isAdmin,
+    isReceptionist,
+    isTailor,
+    refreshAccessToken,
+    checkAuth
   };
 
   return (
@@ -126,4 +173,14 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
+// Custom hook to use auth context
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+// Export context for direct use if needed
 export default AuthContext;

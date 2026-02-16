@@ -39,13 +39,8 @@ urlpatterns = [
         AuditLogDetailView.as_view(),
         name="audit-log-detail",
     ),
-<<<<<<< HEAD
-
-]
-=======
     # User Notifications
     path(
         "user/notifications/", NotificationListView.as_view(), name="notification-list"
     ),
 ]
->>>>>>> e8c1ac2385d5a68b42db2f529467934626afcc98

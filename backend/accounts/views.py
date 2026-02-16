@@ -7,12 +7,6 @@ from rest_framework.exceptions import NotFound
 
 from rest_framework.decorators import action
 from .permissions import IsAdmin
-<<<<<<< HEAD
-
-from .serializers import UserSerializer, ChangePasswordSerializer, UpdateUserSerializer
-from .services import create_user, delete_user, list_users, update_user, reset_password, change_password
-from .serializers import UserSerializer, AuditLogSerializer
-=======
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
 
 from .serializers import (
@@ -23,7 +17,6 @@ from .serializers import (
     NotificationSerializer,
     TokenObtainPairSerializer ,
 )
->>>>>>> e8c1ac2385d5a68b42db2f529467934626afcc98
 from .services import (
     update_user,
     reset_password,

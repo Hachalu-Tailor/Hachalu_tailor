@@ -13,6 +13,8 @@ from .serializers import (
     TransactionSerializer,
 )
 from .services import create_payment, verify_payment
+from rest_framework.generics import ListAPIView
+from .models import Transaction
 
 
 class PaymentCreateView(APIView):
@@ -91,3 +93,25 @@ class PaymentVerifyView(APIView):
         except DjangoValidationError as exc:
             raise ValidationError(str(exc))
         return Response(TransactionSerializer(transaction_obj).data)
+
+
+class PaymentListView(ListAPIView):
+    permission_classes = [IsAuthenticated, IsAdminOrReceptionist]
+    serializer_class = TransactionSerializer
+
+    @extend_schema(
+        tags=["Payments"],
+        responses={200: TransactionSerializer(many=True)},
+        description="List all payments (admin/receptionist only).",
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    def get_queryset(self):
+        queryset = Transaction.objects.select_related("order_id").order_by("-created_at")
+
+        is_verified = self.request.query_params.get("is_verified")
+        if is_verified is not None:
+            queryset = queryset.filter(is_verified=is_verified.lower() == "true")
+
+        return queryset

@@ -47,9 +47,15 @@ INSTALLED_APPS = [
 
     "accounts",
     "inventory",
+    
+    # corsheaders should be after django apps but before rest_framework
+    "corsheaders",
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",  # Add this at the VERY TOP
+    # "django.middleware.common.CommonMiddleware",
+    
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -177,3 +183,16 @@ SPECTACULAR_SETTINGS = {
     "SECURITY": [{"bearerAuth": []}],
     "AUTHENTICATION_WHITELIST": [],
 }
+
+
+
+# That Lidetu added
+# Add this at the bottom of settings.py
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # Default React port
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",  # Default Vite port (if using Vite)
+]
+
+# To allow the login to send tokens/cookies back and forth
+CORS_ALLOW_CREDENTIALS = True

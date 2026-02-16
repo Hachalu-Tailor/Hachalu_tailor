@@ -253,10 +253,6 @@ class UserUpdateProfileView(views.APIView):
                 return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-<<<<<<< HEAD
-=======
-
->>>>>>> e8c1ac2385d5a68b42db2f529467934626afcc98
 class AuditLogListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated, IsAdmin]
     serializer_class = AuditLogSerializer

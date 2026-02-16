@@ -26,9 +26,6 @@ class MaterialListCreateView(APIView):
 
     permission_classes = [IsReseptionist | IsAdmin]
 
-<<<<<<< HEAD
-    permission_classes = [IsReseptionist, IsAdmin]
-=======
     @extend_schema(
         tags=["Inventory"],
         responses={200: MaterialSerializer(many=True)},
@@ -54,7 +51,6 @@ class MaterialListCreateView(APIView):
         ],
         description="List all materials with stock.",
     )
->>>>>>> e8c1ac2385d5a68b42db2f529467934626afcc98
     def get(self, request):
         materials = list_materials()
         serializer = MaterialSerializer(materials, many=True)
@@ -98,22 +94,9 @@ class MaterialListCreateView(APIView):
         description="Create a material with initial stock.",
     )
     def post(self, request):
-<<<<<<< HEAD
-
-        material_data = request.data.get('material')
-        quantity = request.data.get('quantity_meters')
-        
-
-        # Data expected: { "material": {...}, "quantity_meters": 10.5 }
         material_data = request.data.get("material")
         quantity = request.data.get("quantity_meters")
 
-
-=======
-        material_data = request.data.get("material")
-        quantity = request.data.get("quantity_meters")
-
->>>>>>> e8c1ac2385d5a68b42db2f529467934626afcc98
         material = create_material_with_stock(
             material_data=material_data,
             quantity_meters=quantity,
@@ -130,12 +113,6 @@ class MaterialDetailView(APIView):
     """
 
     permission_classes = [IsReseptionist | IsAdmin]
-<<<<<<< HEAD
-
-
-    permission_classes = [IsReseptionist, IsAdmin]
-=======
->>>>>>> e8c1ac2385d5a68b42db2f529467934626afcc98
 
     @extend_schema(
         tags=["Inventory"],
@@ -165,13 +142,6 @@ class StockAdjustmentView(APIView):
     """
 
     permission_classes = [IsReseptionist | IsAdmin]
-<<<<<<< HEAD
-
-
-    permission_classes = [IsReseptionist, IsAdmin]
-
-=======
->>>>>>> e8c1ac2385d5a68b42db2f529467934626afcc98
 
     @extend_schema(
         tags=["Inventory"],

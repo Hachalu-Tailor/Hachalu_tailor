@@ -38,7 +38,8 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
     { path: '/admin', label: 'Dashboard', icon: <HiOutlineSquares2X2 />, roles: ['admin'] },
     { path: '/admin/analytics', label: 'Analytics', icon: <HiOutlineChartBar />, roles: ['admin'] },
     { path: '/admin/staff', label: 'Staff Management', icon: <HiOutlineUserGroup />, roles: ['admin'] },
-    { path: '/admin/admin-reception', label: 'Reception', icon: <HiOutlineClipboardDocumentList />, roles: ['admin'] },
+
+
     
     // Reception Section
     { path: '/reception', label: 'Dashboard', icon: <HiOutlineSquares2X2 />, roles: ['receptionist'] },

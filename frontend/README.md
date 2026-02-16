@@ -110,13 +110,53 @@ This is the **frontend application** for the Hachalu Protocol Tailor Suite Platf
 * Upload transaction screenshot image
 * View payment confirmation status
 
-### 🧑‍💼 Receptionist / Admin Dashboard
+# 🛡️ Hachalu Protocol - Management Terminal
 
-* View all customer orders
-* Review measurements
-* Request payment from customers
-* View uploaded payment screenshots
-* Update order status (pending, paid, in progress, completed)
+A high-security internal management system designed for **Administrators** and **Reception Staff**. This system manages the full lifecycle of custom tailoring, from client measurements to final payment verification.
+
+
+
+## 🔑 Access Control & Routing
+
+The system uses Role-Based Access Control (RBAC). Navigation items are dynamically filtered based on the `user_role` stored in the browser terminal.
+
+### 🏛️ Admin Exclusive Sections
+* **Dashboard** (`/admin`): Overview of system metrics and performance.
+* **Staff Management** (`/admin/admin-reception`): Create, update, and manage receptionist accounts.
+
+### 👔 Receptionist & Shared Sections
+* **Inventory** (`/reception/inventory`): Manage fabric stock and tailoring supplies. (Accessible by Admin & Receptionist)
+* **Orders** (`/reception/orders`): Central hub for all active customer requests.
+* **Clients** (`/reception/clients`): Detailed database of customer profiles and contact info.
+* **Finance** (`/reception/payments`): Payment tracking and verification node.
+
+  ### Common
+* **Bulletins** (`/reception/announcement`): System-wide announcements and staff updates.
+* **Messages** (`/reception/messages`): Communication terminal for staff coordination.
+
+---
+
+## 🚀 Core Features
+
+### 🧑‍💼 Receptionist / Admin Dashboard Functions
+* **Order Tracking:** View and monitor all customer orders in real-time.
+* **Measurement Analysis:** Review custom measurements submitted by clients for precision tailoring.
+* **Payment Processing:** * Request payments directly from customers.
+    * Review and verify uploaded payment screenshots/receipts.
+* **Workflow Management:** Update order status through the production pipeline:
+    * `Pending` ➔ `Paid` ➔ `In Progress` ➔ `Completed`.
+
+---
+
+### Navigation Structure
+The system uses **React Router 6** with nested routes. All authenticated pages are wrapped in a `ProtectedRoute` to prevent unauthorized access.
+
+```text
+/admin              -> AdminDashboard
+/admin-reception    -> StaffManagement
+/reception/         -> ReceptionDashboard
+/reception/orders   -> OrderManagement
+/reception/payments -> FinanceNode
 
 ---
 

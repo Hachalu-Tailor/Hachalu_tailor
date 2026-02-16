@@ -47,9 +47,8 @@ INSTALLED_APPS = [
 
     "accounts",
     "inventory",
-    
-    # corsheaders should be after django apps but before rest_framework
-    "corsheaders",
+    "orders",
+    "payments",
 ]
 
 MIDDLEWARE = [

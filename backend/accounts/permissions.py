@@ -8,11 +8,26 @@ class IsAdmin(BasePermission):
 
     def has_permission(self, request, view):
         """Return True when `request.user` has HR or MANAGER role."""
-        return request.user.role == "ADMIN"
+        return (
+            bool(getattr(request.user, "is_authenticated", False))
+            and request.user.role == "ADMIN"
+        )
 
 
 class IsReseptionist(BasePermission):
     """Allow access to users who are RECEPTIONISTS."""
 
     def has_permission(self, request, view):
-        return request.user.role == "RECEPTIONIST"
+        return (
+            bool(getattr(request.user, "is_authenticated", False))
+            and request.user.role == "RECEPTIONIST"
+        )
+
+
+class IsAdminOrReceptionist(BasePermission):
+    """Allow access to users who are ADMINs or RECEPTIONISTS."""
+
+    def has_permission(self, request, view):
+        return bool(
+            getattr(request.user, "is_authenticated", False)
+        ) and request.user.role in {"ADMIN", "RECEPTIONIST"}

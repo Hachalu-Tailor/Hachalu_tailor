@@ -1,89 +1,195 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   HiOutlineCube, HiOutlineShoppingBag, HiOutlineChatBubbleLeftRight, 
   HiOutlineUserGroup, HiOutlineBanknotes, HiOutlineArrowLeftOnRectangle,
-  HiOutlineSun, HiOutlineMoon, HiOutlineMegaphone, HiOutlineAdjustmentsHorizontal
+  HiOutlineSun, HiOutlineMoon, HiOutlineMegaphone, HiOutlineSquares2X2,
+  HiOutlineXMark, HiOutlineChartBar, HiOutlineUser, HiOutlineClipboardDocumentList
 } from 'react-icons/hi2';
 
-const AdminReceptionSidebar = ({ darkMode, setDarkMode }) => {
+const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [role, setRole] = useState('');
+
+  // 1. SYNC ROLE AND THEME WITH LOGGING
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) setDarkMode(savedTheme === 'dark');
+
+    const rawRole = localStorage.getItem('user_role');
+    if (rawRole) {
+      setRole(rawRole.toLowerCase().trim());
+    }
+  }, [location.pathname, setDarkMode]);
+
+  // Get role directly for filtering (fallback to state)
+  const currentRole = localStorage.getItem('user_role')?.toLowerCase().trim() || role;
+
+  const toggleTheme = () => {
+    const newTheme = !darkMode;
+    setDarkMode(newTheme);
+    localStorage.setItem('theme', newTheme ? 'dark' : 'light');
+  };
+
   const menuItems = [
-    // { path: 'dashboard', label: 'Dashboard', icon: <HiOutlineAdjustmentsHorizontal /> },
-    { path: 'inventory', label: 'Inventory', icon: <HiOutlineCube /> },
-    { path: 'orders', label: 'Orders', icon: <HiOutlineShoppingBag /> },
-    { path: 'clients', label: 'Clients', icon: <HiOutlineUserGroup /> },
-    { path: 'payments', label: 'Finance', icon: <HiOutlineBanknotes /> },
-    { path: 'announcement', label: 'Bulletins', icon: <HiOutlineMegaphone /> },
-    { path: 'messages', label: 'Chat', icon: <HiOutlineChatBubbleLeftRight /> },
+    // Admin Section
+    { path: '/admin', label: 'Dashboard', icon: <HiOutlineSquares2X2 />, roles: ['admin'] },
+    { path: '/admin/analytics', label: 'Analytics', icon: <HiOutlineChartBar />, roles: ['admin'] },
+    { path: '/admin/staff', label: 'Staff Management', icon: <HiOutlineUserGroup />, roles: ['admin'] },
+    { path: '/admin/admin-reception', label: 'Reception', icon: <HiOutlineClipboardDocumentList />, roles: ['admin'] },
+    
+    // Reception Section
+    { path: '/reception', label: 'Dashboard', icon: <HiOutlineSquares2X2 />, roles: ['receptionist'] },
+    { path: '/reception/orders', label: 'Orders', icon: <HiOutlineShoppingBag />, roles: ['receptionist'] },
+    { path: '/reception/inventory', label: 'Inventory', icon: <HiOutlineCube />, roles: ['receptionist'] },
+    { path: '/reception/clients', label: 'Clients', icon: <HiOutlineUserGroup />, roles: ['receptionist'] },
+    { path: '/reception/announcement', label: 'Bulletins', icon: <HiOutlineMegaphone />, roles: ['receptionist'] },
   ];
 
-  // Helper for Active Link Styling
-  const activeStyle = "bg-red-600 text-white shadow-xl shadow-red-600/30 ring-1 ring-red-400/50";
-  const inactiveStyle = "text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-black dark:hover:text-white";
+  // 2. DEBUG FILTER LOGIC
+  const filteredMenu = menuItems.filter(item => {
+    const hasAccess = item.roles.includes(currentRole);
+    return hasAccess;
+  });
+
+  const handleLogout = () => {
+    localStorage.clear();
+    setRole('');
+    navigate('/login');
+  };
 
   return (
     <>
-      {/* DESKTOP SIDEBAR (Adaptive for Tablet/Laptop) */}
-      <aside className="hidden md:flex w-20 lg:w-72 border-r border-gray-100 dark:border-white/5 bg-white dark:bg-[#080808] flex-col p-4 lg:p-7 h-screen sticky top-0 transition-all duration-500 z-50">
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex w-24 lg:w-72 bg-white dark:bg-[#080808] border-r border-gray-100 dark:border-white/5 flex-col p-6 h-screen sticky top-0 left-0 z-50 transition-colors duration-500">
         
-        {/* BRAND LOGO */}
         <div className="mb-12 flex justify-center lg:justify-start items-center gap-4 px-2">
-          <div className="h-11 w-11 bg-red-600 rounded-2xl shrink-0 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-red-600/20">H</div>
-          <div className="hidden lg:block">
-            <h2 className="text-lg font-black text-black dark:text-white tracking-tighter uppercase italic leading-none">Protocol</h2>
-            <p className="text-[8px] font-black text-red-600 uppercase tracking-[0.3em] mt-1">Management</p>
+          <div className="h-12 w-12 bg-red-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-red-600/30 shrink-0">
+            <span className="font-black text-2xl italic">H</span>
+          </div>
+          <div className="hidden lg:block truncate">
+            <h2 className="text-xl font-black dark:text-white tracking-tighter uppercase italic leading-none">Protocol</h2>
+            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-1">
+              Active: <span className="text-red-600">{currentRole || 'NO ROLE DETECTED'}</span>
+            </p>
           </div>
         </div>
 
-        {/* NAVIGATION LINKS */}
-        <nav className="flex-1 space-y-2">
-          {menuItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={`/reception/${item.path}`}
-              className={({ isActive }) => `
-                w-full flex items-center justify-center lg:justify-start gap-4 p-3.5 lg:px-5 lg:py-4 rounded-2xl transition-all duration-300 group
-                ${isActive ? activeStyle : inactiveStyle}
-              `}
-            >
-              <span className="text-2xl group-hover:scale-110 transition-transform">{item.icon}</span>
-              <span className="hidden lg:block text-[11px] font-black uppercase tracking-[0.2em]">{item.label}</span>
-            </NavLink>
-          ))}
+        {/* DYNAMIC MENU LINKS */}
+        <nav className="flex-1 space-y-2 overflow-y-auto no-scrollbar">
+          {filteredMenu.length > 0 ? (
+            filteredMenu.map((item) => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                end={item.path === '/admin' || item.path === '/reception'} 
+                className={({ isActive }) => `
+                  w-full flex items-center justify-center lg:justify-start gap-4 p-4 rounded-2xl transition-all group
+                  ${isActive 
+                    ? 'bg-red-600 text-white shadow-xl shadow-red-600/40 ring-1 ring-red-400/20' 
+                    : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-black dark:hover:text-white'}
+                `}
+              >
+                <span className="text-2xl group-hover:scale-110 transition-transform">{item.icon}</span>
+                <span className="hidden lg:block text-[10px] font-black uppercase tracking-[0.2em]">{item.label}</span>
+              </NavLink>
+            ))
+          ) : (
+            <div className="py-10 text-center border border-dashed border-gray-200 dark:border-white/10 rounded-2xl">
+               <p className="text-[10px] font-black text-red-500 uppercase tracking-widest">
+                Access Denied
+               </p>
+            </div>
+          )}
         </nav>
 
-        {/* BOTTOM UTILS */}
-        <div className="pt-8 border-t border-gray-100 dark:border-white/5 space-y-4">
-          <button 
-            onClick={() => setDarkMode(!darkMode)}
-            className="w-full flex items-center justify-center lg:justify-between p-3 lg:px-5 lg:py-3 bg-gray-50 dark:bg-white/5 rounded-2xl text-gray-500 dark:text-gray-400 hover:ring-1 ring-gray-200 dark:ring-white/10 transition-all"
-          >
-            <span className="hidden lg:block text-[9px] font-black uppercase tracking-widest">Toggle Theme</span>
-            {darkMode ? <HiOutlineSun size={20} /> : <HiOutlineMoon size={20} />}
+        <div className="pt-6 mt-6 border-t border-gray-100 dark:border-white/5 space-y-3">
+          <button onClick={toggleTheme} className="w-full flex items-center justify-between p-2 bg-gray-100 dark:bg-white/5 rounded-2xl transition-all">
+            <div className={`p-2 rounded-xl transition-all flex-1 flex justify-center ${!darkMode ? 'bg-white text-orange-500 shadow-md' : 'text-gray-500'}`}>
+              <HiOutlineSun size={18} />
+            </div>
+            <div className={`p-2 rounded-xl transition-all flex-1 flex justify-center ${darkMode ? 'bg-zinc-800 text-blue-400 shadow-md' : 'text-gray-500'}`}>
+              <HiOutlineMoon size={18} />
+            </div>
           </button>
 
-          <button className="w-full flex items-center justify-center lg:justify-start gap-4 p-3 lg:px-5 text-gray-400 hover:text-red-600 transition-colors">
+          <button onClick={handleLogout} className="w-full flex items-center justify-center lg:justify-start gap-4 p-4 text-gray-400 hover:text-red-600 transition-all hover:translate-x-1">
             <HiOutlineArrowLeftOnRectangle size={24} />
-            <span className="hidden lg:block text-[10px] font-black uppercase tracking-widest">Sign Out</span>
+            <span className="hidden lg:block text-[10px] font-black uppercase tracking-widest">Logout</span>
           </button>
         </div>
       </aside>
 
-      {/* MOBILE BOTTOM NAVIGATION (Hidden on Desktop) */}
-      <nav className="md:hidden fixed bottom-6 left-6 right-6 bg-white/80 dark:bg-black/80 backdrop-blur-2xl border border-white/20 dark:border-white/5 flex justify-around p-3 z-[100] rounded-3xl shadow-2xl">
-        {menuItems.slice(0, 5).map((item) => (
-          <NavLink 
-            key={item.path}
-            to={`/reception/${item.path}`}
-            className={({ isActive }) => `
-              p-3 rounded-2xl transition-all
-              ${isActive ? 'bg-red-600 text-white shadow-lg shadow-red-600/40' : 'text-gray-400'}
-            `}
-          >
-            {React.cloneElement(item.icon, { size: 22 })}
-          </NavLink>
-        ))}
-      </nav>
+      {/* Mobile Sidebar Overlay */}
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsOpen(false)}
+              className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            />
+            <motion.aside
+              initial={{ x: -300 }}
+              animate={{ x: 0 }}
+              exit={{ x: -300 }}
+              transition={{ type: 'spring', damping: 25 }}
+              className="md:hidden fixed top-0 left-0 w-72 bg-white dark:bg-[#080808] border-r border-gray-100 dark:border-white/5 flex flex-col p-6 h-screen z-50"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 bg-red-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+                    <span className="font-black text-xl italic">H</span>
+                  </div>
+                  <h2 className="text-lg font-black dark:text-white uppercase italic">Protocol</h2>
+                </div>
+                <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl">
+                  <HiOutlineXMark size={20} />
+                </button>
+              </div>
+
+              <nav className="flex-1 space-y-2 overflow-y-auto">
+                {filteredMenu.map((item) => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    end={item.path === '/admin' || item.path === '/reception'}
+                    onClick={() => setIsOpen(false)}
+                    className={({ isActive }) => `
+                      w-full flex items-center gap-4 p-4 rounded-2xl transition-all
+                      ${isActive 
+                        ? 'bg-red-600 text-white shadow-xl shadow-red-600/40' 
+                        : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-black dark:hover:text-white'}
+                    `}
+                  >
+                    <span className="text-xl">{item.icon}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">{item.label}</span>
+                  </NavLink>
+                ))}
+              </nav>
+
+              <div className="pt-4 border-t border-gray-100 dark:border-white/5 space-y-3">
+                <button onClick={toggleTheme} className="w-full flex items-center justify-between p-2 bg-gray-100 dark:bg-white/5 rounded-2xl">
+                  <div className={`p-2 rounded-xl flex-1 flex justify-center ${!darkMode ? 'bg-white text-orange-500 shadow-md' : 'text-gray-500'}`}>
+                    <HiOutlineSun size={18} />
+                  </div>
+                  <div className={`p-2 rounded-xl flex-1 flex justify-center ${darkMode ? 'bg-zinc-800 text-blue-400 shadow-md' : 'text-gray-500'}`}>
+                    <HiOutlineMoon size={18} />
+                  </div>
+                </button>
+                <button onClick={handleLogout} className="w-full flex items-center gap-4 p-4 text-gray-400 hover:text-red-600 transition-all">
+                  <HiOutlineArrowLeftOnRectangle size={20} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Logout</span>
+                </button>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
     </>
   );
 };

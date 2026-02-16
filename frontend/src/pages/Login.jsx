@@ -106,20 +106,6 @@ const Login = () => {
             </p>
           </div>
 
-          {/* ROLE SELECTOR */}
-          {/* <div className="flex bg-white/5 p-1 mb-8 rounded-full border border-white/10">
-            {['admin', 'receptionist'].map((r) => (
-              <button 
-                key={r}
-                type="button"
-                onClick={() => setRole(r)}
-                className={`flex-1 py-2 text-[9px] font-black uppercase tracking-widest transition-all rounded-full ${role === r ? 'bg-red-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
-              >
-                {r === 'admin' ? 'Admin' : 'Staff'}
-              </button>
-            ))}
-          </div> */}
-
           {/* ERROR DISPLAY */}
           <AnimatePresence>
             {error && (

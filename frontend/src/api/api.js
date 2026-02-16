@@ -159,16 +159,6 @@ export const deleteMaterial = (id) => api.delete(`/invetory/materials/${id}/`);
 
 export const adjustStock = (id, data) => api.post(`/invetory/materials/${id}/stock/`, data);
 
-export const uploadMaterialImage = async (id, imageFile) => {
-  const formData = new FormData();
-  formData.append('image', imageFile);
-  return api.patch(`/invetory/materials/${id}/`, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
-};
-
 // ============================================
 // ORDERS ENDPOINTS
 // ============================================

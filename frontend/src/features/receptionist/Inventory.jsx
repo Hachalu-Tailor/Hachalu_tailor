@@ -16,7 +16,7 @@ import {
   HiOutlineTrash,
   HiOutlinePencil
 } from "react-icons/hi2";
-import api, { uploadMaterialImage } from "../../api/api";
+import api from "../../api/api";
 
 const Inventory = () => {
   const [inventory, setInventory] = useState([]);
@@ -331,10 +331,16 @@ const Inventory = () => {
                             const file = e.target.files[0];
                             if (file) {
                               try {
-                                const response = await uploadMaterialImage(selectedItem.id, file);
-                                setSelectedItem({ ...selectedItem, image_url: response.data.image_url });
-                                setEditingImage(false);
-                                fetchInventory();
+                                // Read file as data URL and save as image_url
+                                const reader = new FileReader();
+                                reader.onloadend = async () => {
+                                  const dataUrl = reader.result;
+                                  const response = await api.patch(`/invetory/materials/${selectedItem.id}/`, { image_url: dataUrl });
+                                  setSelectedItem({ ...selectedItem, image_url: response.data.image_url });
+                                  setEditingImage(false);
+                                  fetchInventory();
+                                };
+                                reader.readAsDataURL(file);
                               } catch (error) {
                                 console.error("Error uploading image:", error);
                                 alert("Failed to upload image");

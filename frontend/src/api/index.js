@@ -35,7 +35,6 @@ export {
     updateMaterial,
     deleteMaterial,
     adjustStock,
-    uploadMaterialImage,
 
     // Orders
     createOrder,

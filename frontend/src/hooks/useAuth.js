@@ -1,64 +1,171 @@
-import { useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import { useCallback, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth as useAuthContext } from '../context/AuthContext';
+import { ROUTES } from '../utils/routes';
 
 /**
- * Custom hook to access authentication context
- * @returns {Object} Auth context value containing user, loading, error, login, logout, etc.
+ * Base hook that wraps the AuthContext
+ * This is the primary hook for authentication
  */
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-
-  return context;
+  return useAuthContext();
 };
 
 /**
- * Hook to check if user is authenticated
- * @returns {boolean}
+ * Check if user is authenticated
  */
 export const useIsAuthenticated = () => {
-  const { user } = useAuth();
-  return !!user;
+  const { isAuthenticated } = useAuthContext();
+  return isAuthenticated;
 };
 
 /**
- * Hook to get current user role
- * @returns {string|null}
+ * Get user role
  */
 export const useUserRole = () => {
-  const { user } = useAuth();
+  const { user } = useAuthContext();
   return user?.role || null;
 };
 
 /**
- * Hook to check if user has specific role(s)
- * @param {string[]} allowedRoles - Array of allowed roles
- * @returns {boolean}
+ * Check if user has a specific role
  */
-export const useHasRole = (allowedRoles) => {
-  const { user } = useAuth();
-  return user && allowedRoles.includes(user.role);
+export const useHasRole = (roles) => {
+  const { user } = useAuthContext();
+  if (!user) return false;
+  if (Array.isArray(roles)) {
+    return roles.includes(user.role);
+  }
+  return user.role === roles;
 };
 
 /**
- * Hook to check if user is admin
- * @returns {boolean}
+ * Check if user is admin
  */
 export const useIsAdmin = () => {
-  const { user } = useAuth();
-  return user?.role === 'admin';
+  const { user } = useAuthContext();
+  return user?.role === 'ADMIN';
 };
 
 /**
- * Hook to check if user is receptionist
- * @returns {boolean}
+ * Check if user is receptionist
  */
 export const useIsReceptionist = () => {
-  const { user } = useAuth();
-  return user?.role === 'receptionist';
+  const { user } = useAuthContext();
+  return user?.role === 'RECEPTIONIST';
 };
 
+/**
+ * Enhanced authentication hook with additional functionality
+ * Builds on top of the base useAuth context
+ */
+export const useAuthHook = () => {
+  const auth = useAuthContext();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+
+  // Login with redirect
+  const loginWithRedirect = useCallback(async (credentials, redirectTo = null) => {
+    setLoading(true);
+    try {
+      const result = await auth.login(credentials);
+
+      if (result.success) {
+        // Determine redirect path based on user role
+        const defaultRedirect = getDefaultRedirectPath(result.user.role);
+        navigate(redirectTo || defaultRedirect, { replace: true });
+      }
+
+      return result;
+    } catch (error) {
+      return { success: false, error: 'An unexpected error occurred' };
+    } finally {
+      setLoading(false);
+    }
+  }, [auth, navigate]);
+
+  // Logout with redirect
+  const logoutWithRedirect = useCallback(async (redirectTo = '/login') => {
+    setLoading(true);
+    try {
+      await auth.logout();
+      navigate(redirectTo, { replace: true });
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [auth, navigate]);
+
+  // Get default redirect path based on role
+  const getDefaultRedirectPath = (role) => {
+    switch (role) {
+      case 'ADMIN':
+        return '/admin/dashboard';
+      case 'RECEPTIONIST':
+        return '/reception/dashboard';
+      case 'TAILOR':
+        return '/tailor/dashboard';
+      default:
+        return '/';
+    }
+  };
+
+  // Check if user can access admin features
+  const canAccessAdmin = useCallback(() => {
+    return auth.isAdmin();
+  }, [auth]);
+
+  // Check if user can access reception features
+  const canAccessReception = useCallback(() => {
+    return auth.hasAnyRole(['ADMIN', 'RECEPTIONIST']);
+  }, [auth]);
+
+  // Check if user can manage orders
+  const canManageOrders = useCallback(() => {
+    return auth.hasAnyRole(['ADMIN', 'RECEPTIONIST']);
+  }, [auth]);
+
+  // Check if user can manage inventory
+  const canManageInventory = useCallback(() => {
+    return auth.hasAnyRole(['ADMIN', 'RECEPTIONIST']);
+  }, [auth]);
+
+  // Check if user can view all users
+  const canViewAllUsers = useCallback(() => {
+    return auth.isAdmin();
+  }, [auth]);
+
+  // Check if user can manage staff
+  const canManageStaff = useCallback(() => {
+    return auth.isAdmin();
+  }, [auth]);
+
+  // Check if user can process payments
+  const canProcessPayments = useCallback(() => {
+    return auth.hasAnyRole(['ADMIN', 'RECEPTIONIST']);
+  }, [auth]);
+
+  // Check if user can view analytics
+  const canViewAnalytics = useCallback(() => {
+    return auth.isAdmin();
+  }, [auth]);
+
+  return {
+    ...auth,
+    loading: loading || auth.loading,
+    loginWithRedirect,
+    logoutWithRedirect,
+    canAccessAdmin,
+    canAccessReception,
+    canManageOrders,
+    canManageInventory,
+    canViewAllUsers,
+    canManageStaff,
+    canProcessPayments,
+    canViewAnalytics
+  };
+};
+
+// Export both named and default
 export default useAuth;

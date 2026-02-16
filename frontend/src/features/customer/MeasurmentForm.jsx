@@ -1,83 +1,102 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  HiOutlineClipboardDocumentList, 
-  HiOutlineCheck, 
-  HiOutlineXMark,
+import {
   HiOutlineUser,
-  HiOutlineDocumentText
+  HiArrowDownTray,       // Correct replacement for save icon in Heroicons v2
+  HiOutlineXMark,
+  HiOutlinePlus,
+  HiOutlineMinus
 } from 'react-icons/hi2';
-import { MEASUREMENT_LABELS, SUIT_TYPE_LABELS } from '../../utils/constants';
+import { MdOutlineStraighten } from 'react-icons/md'; // Ruler/measurement icon
 
-const MeasurementForm = ({ 
-  initialData = {}, 
-  onSubmit, 
-  onCancel, 
-  suitTypes = [],
-  loading = false 
+import { MEASUREMENT_TYPES, GARMENT_TYPES } from '../../utils/constants';
+
+const MeasurementForm = ({
+  initialData = null,
+  onSubmit,
+  onCancel,
+  garmentType = 'shirt',
+  readOnly = false
 }) => {
-  const [formData, setFormData] = useState({
-    // Customer Info
-    customer_name: initialData.customer_name || '',
-    customer_phone: initialData.customer_phone || '',
-    customer_email: initialData.customer_email || '',
-    
-    // Order Info
-    suit_type: initialData.suit_type || 'two_piece',
-    notes: initialData.notes || '',
-    special_requests: initialData.special_requests || '',
-    
-    // Measurements (in inches/cm)
-    chest: initialData.chest || '',
-    waist: initialData.waist || '',
-    hips: initialData.hips || '',
-    shoulder: initialData.shoulder || '',
-    sleeve_length: initialData.sleeve_length || '',
-    jacket_length: initialData.jacket_length || '',
-    inseam: initialData.inseam || '',
-    outseam: initialData.outseam || '',
-    neck: initialData.neck || '',
-    bicep: initialData.bicep || '',
-    wrist: initialData.wrist || '',
-    
-    // Additional fit preferences
-    fit_preference: initialData.fit_preference || 'regular', // slim, regular, relaxed
-    fabric_preference: initialData.fabric_preference || '',
-    color_preference: initialData.color_preference || '',
+  const [measurements, setMeasurements] = useState(initialData || {
+    // Upper body measurements
+    chest: '',
+    waist: '',
+    shoulder: '',
+    arm_length: '',
+    arm_circumference: '',
+    neck: '',
+    back_width: '',
+    front_length: '',
+    // Lower body measurements
+    hip: '',
+    inseam: '',
+    outseam: '',
+    thigh: '',
+    knee: '',
+    calf: '',
+    ankle: '',
+    // Full body measurements
+    total_height: '',
+    torso_length: '',
+    // Additional info
+    notes: ''
   });
 
+  const [selectedGarment, setSelectedGarment] = useState(garmentType);
   const [errors, setErrors] = useState({});
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    
-    // Clear error when user types
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+  // Get relevant measurements based on garment type
+  const getRelevantMeasurements = () => {
+    const garment = GARMENT_TYPES.find(g => g.id === selectedGarment);
+    if (!garment) return Object.keys(MEASUREMENT_TYPES.UPPER_BODY);
+
+    switch (garment.category) {
+      case 'upper':
+        return Object.keys(MEASUREMENT_TYPES.UPPER_BODY);
+      case 'lower':
+        return Object.keys(MEASUREMENT_TYPES.LOWER_BODY);
+      case 'full':
+        return [
+          ...Object.keys(MEASUREMENT_TYPES.UPPER_BODY),
+          ...Object.keys(MEASUREMENT_TYPES.LOWER_BODY),
+          ...Object.keys(MEASUREMENT_TYPES.FULL_BODY)
+        ];
+      default:
+        return Object.keys(MEASUREMENT_TYPES.UPPER_BODY);
     }
   };
 
-  const validateForm = () => {
+  // Handle input change
+  const handleChange = (field, value) => {
+    // Only allow numbers and decimal points
+    if (value && !/^\d*\.?\d*$/.test(value)) return;
+
+    setMeasurements(prev => ({
+      ...prev,
+      [field]: value
+    }));
+
+    // Clear error when user types
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: null }));
+    }
+  };
+
+  // Validate measurements
+  const validate = () => {
     const newErrors = {};
-    
-    if (!formData.customer_name.trim()) {
-      newErrors.customer_name = 'Customer name is required';
-    }
-    
-    if (!formData.customer_phone.trim()) {
-      newErrors.customer_phone = 'Phone number is required';
-    }
-    
-    // Validate measurements are numbers if provided
-    const measurementFields = [
-      'chest', 'waist', 'hips', 'shoulder', 'sleeve_length',
-      'jacket_length', 'inseam', 'outseam', 'neck', 'bicep', 'wrist'
-    ];
-    
-    measurementFields.forEach(field => {
-      if (formData[field] && isNaN(parseFloat(formData[field]))) {
-        newErrors[field] = 'Must be a valid number';
+    const relevantFields = getRelevantMeasurements();
+
+    relevantFields.forEach(field => {
+      if (!measurements[field] || measurements[field] === '') {
+        // Only validate required fields (customize as needed)
+        const requiredFields = ['chest', 'waist', 'shoulder'];
+        if (requiredFields.includes(field)) {
+          newErrors[field] = 'This measurement is required';
+        }
+      } else if (parseFloat(measurements[field]) <= 0) {
+        newErrors[field] = 'Value must be greater than 0';
       }
     });
 
@@ -85,254 +104,179 @@ const MeasurementForm = ({
     return Object.keys(newErrors).length === 0;
   };
 
+  // Handle form submit
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    if (validateForm()) {
-      // Convert measurement strings to numbers
-      const processedData = { ...formData };
-      const measurementFields = [
-        'chest', 'waist', 'hips', 'shoulder', 'sleeve_length',
-        'jacket_length', 'inseam', 'outseam', 'neck', 'bicep', 'wrist'
-      ];
-      
-      measurementFields.forEach(field => {
-        if (processedData[field]) {
-          processedData[field] = parseFloat(processedData[field]);
+
+    if (validate()) {
+      const numericMeasurements = {};
+      Object.keys(measurements).forEach(key => {
+        if (measurements[key] !== '') {
+          numericMeasurements[key] = parseFloat(measurements[key]);
         }
       });
-      
-      onSubmit?.(processedData);
+
+      onSubmit({
+        garment_type: selectedGarment,
+        measurements: numericMeasurements,
+        notes: measurements.notes
+      });
     }
   };
 
-  const inputClass = (fieldName) => `
-    w-full bg-white/5 border ${errors[fieldName] ? 'border-red-500' : 'border-white/10'} 
-    rounded-lg px-4 py-3 text-white text-sm font-medium
-    focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500
-    placeholder:text-gray-500 transition-all
-  `;
+  // Quick fill with standard sizes (example values — feel free to adjust)
+  const quickFillStandard = (size) => {
+    const standardSizes = {
+      S: { chest: 36, waist: 30, shoulder: 16, arm_length: 24 },
+      M: { chest: 40, waist: 34, shoulder: 18, arm_length: 25 },
+      L: { chest: 44, waist: 38, shoulder: 20, arm_length: 26 },
+      XL: { chest: 48, waist: 42, shoulder: 22, arm_length: 27 }
+    };
 
-  const labelClass = "block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2";
+    if (standardSizes[size]) {
+      setMeasurements(prev => ({
+        ...prev,
+        ...standardSizes[size]
+      }));
+    }
+  };
+
+  // Render a single measurement input field
+  const renderMeasurementInput = (field, label) => (
+    <div key={field} className="relative">
+      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+        {label} <span className="text-gray-400">(cm)</span>
+      </label>
+      <div className="relative">
+        <input
+          type="text"
+          value={measurements[field] || ''}
+          onChange={(e) => handleChange(field, e.target.value)}
+          disabled={readOnly}
+          className={`w-full px-3 py-2.5 bg-white dark:bg-white/5 border ${
+            errors[field] ? 'border-red-500' : 'border-gray-200 dark:border-white/10'
+          } rounded-xl text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
+          placeholder="0"
+        />
+        <MdOutlineStraighten
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+          size={16}
+        />
+      </div>
+      {errors[field] && (
+        <p className="text-red-500 text-[10px] mt-1">{errors[field]}</p>
+      )}
+    </div>
+  );
+
+  const relevantMeasurements = getRelevantMeasurements();
 
   return (
     <motion.form
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       onSubmit={handleSubmit}
-      className="space-y-8"
+      className="space-y-6"
     >
-      {/* Customer Information Section */}
-      <div className="bg-white/5 rounded-xl p-6 border border-white/10">
-        <div className="flex items-center gap-3 mb-6">
-          <HiOutlineUser className="text-red-500" size={20} />
-          <h3 className="text-white font-bold uppercase tracking-wider text-sm">
-            Customer Information
-          </h3>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className={labelClass}>Customer Name *</label>
-            <input
-              type="text"
-              name="customer_name"
-              value={formData.customer_name}
-              onChange={handleInputChange}
-              placeholder="Enter customer name"
-              className={inputClass('customer_name')}
-            />
-            {errors.customer_name && (
-              <p className="text-red-500 text-xs mt-1">{errors.customer_name}</p>
-            )}
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-red-600/10 rounded-xl flex items-center justify-center">
+            <MdOutlineStraighten className="text-red-600" size={20} />
           </div>
-          
           <div>
-            <label className={labelClass}>Phone Number *</label>
-            <input
-              type="tel"
-              name="customer_phone"
-              value={formData.customer_phone}
-              onChange={handleInputChange}
-              placeholder="+251 9XX XXX XXX"
-              className={inputClass('customer_phone')}
-            />
-            {errors.customer_phone && (
-              <p className="text-red-500 text-xs mt-1">{errors.customer_phone}</p>
-            )}
-          </div>
-          
-          <div className="md:col-span-2">
-            <label className={labelClass}>Email (Optional)</label>
-            <input
-              type="email"
-              name="customer_email"
-              value={formData.customer_email}
-              onChange={handleInputChange}
-              placeholder="customer@email.com"
-              className={inputClass('customer_email')}
-            />
+            <h3 className="text-sm font-black dark:text-white uppercase tracking-wider">
+              Measurements
+            </h3>
+            <p className="text-[10px] text-gray-500">Enter customer measurements in centimeters</p>
           </div>
         </div>
-      </div>
 
-      {/* Order Details Section */}
-      <div className="bg-white/5 rounded-xl p-6 border border-white/10">
-        <div className="flex items-center gap-3 mb-6">
-          <HiOutlineClipboardDocumentList className="text-red-500" size={20} />
-          <h3 className="text-white font-bold uppercase tracking-wider text-sm">
-            Order Details
-          </h3>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className={labelClass}>Suit Type</label>
-            <select
-              name="suit_type"
-              value={formData.suit_type}
-              onChange={handleInputChange}
-              className={inputClass('suit_type')}
-            >
-              {Object.entries(SUIT_TYPE_LABELS).map(([value, label]) => (
-                <option key={value} value={value} className="bg-gray-900">
-                  {label}
-                </option>
+        {!readOnly && (
+          <div className="flex gap-2">
+            {/* Quick Fill Buttons */}
+            <div className="flex bg-gray-100 dark:bg-white/5 rounded-lg p-1">
+              {['S', 'M', 'L', 'XL'].map(size => (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => quickFillStandard(size)}
+                  className="px-2 py-1 text-[10px] font-bold text-gray-500 hover:text-red-600 hover:bg-white dark:hover:bg-white/10 rounded transition-all"
+                >
+                  {size}
+                </button>
               ))}
-            </select>
-          </div>
-          
-          <div>
-            <label className={labelClass}>Fit Preference</label>
-            <select
-              name="fit_preference"
-              value={formData.fit_preference}
-              onChange={handleInputChange}
-              className={inputClass('fit_preference')}
-            >
-              <option value="slim" className="bg-gray-900">Slim Fit</option>
-              <option value="regular" className="bg-gray-900">Regular Fit</option>
-              <option value="relaxed" className="bg-gray-900">Relaxed Fit</option>
-            </select>
-          </div>
-          
-          <div>
-            <label className={labelClass}>Fabric Preference</label>
-            <input
-              type="text"
-              name="fabric_preference"
-              value={formData.fabric_preference}
-              onChange={handleInputChange}
-              placeholder="e.g., Wool, Cotton, Linen"
-              className={inputClass('fabric_preference')}
-            />
-          </div>
-          
-          <div>
-            <label className={labelClass}>Color Preference</label>
-            <input
-              type="text"
-              name="color_preference"
-              value={formData.color_preference}
-              onChange={handleInputChange}
-              placeholder="e.g., Navy Blue, Charcoal"
-              className={inputClass('color_preference')}
-            />
-          </div>
-          
-          <div className="md:col-span-2">
-            <label className={labelClass}>Special Requests</label>
-            <textarea
-              name="special_requests"
-              value={formData.special_requests}
-              onChange={handleInputChange}
-              placeholder="Any special requests or customizations..."
-              rows={2}
-              className={inputClass('special_requests')}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Measurements Section */}
-      <div className="bg-white/5 rounded-xl p-6 border border-white/10">
-        <div className="flex items-center gap-3 mb-6">
-          <HiOutlineDocumentText className="text-red-500" size={20} />
-          <h3 className="text-white font-bold uppercase tracking-wider text-sm">
-            Measurements (in inches)
-          </h3>
-        </div>
-        
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {Object.entries(MEASUREMENT_LABELS).map(([key, label]) => (
-            <div key={key}>
-              <label className={labelClass}>{label}</label>
-              <input
-                type="number"
-                step="0.25"
-                name={key}
-                value={formData[key]}
-                onChange={handleInputChange}
-                placeholder="0.00"
-                className={inputClass(key)}
-              />
-              {errors[key] && (
-                <p className="text-red-500 text-xs mt-1">{errors[key]}</p>
-              )}
             </div>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
 
-      {/* Notes Section */}
-      <div className="bg-white/5 rounded-xl p-6 border border-white/10">
-        <label className={labelClass}>Additional Notes</label>
+      {/* Garment Type Selector */}
+      <div>
+        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+          Garment Type
+        </label>
+        <select
+          value={selectedGarment}
+          onChange={(e) => setSelectedGarment(e.target.value)}
+          disabled={readOnly}
+          className="w-full px-3 py-2.5 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all disabled:opacity-50"
+        >
+          {GARMENT_TYPES.map(garment => (
+            <option key={garment.id} value={garment.id}>
+              {garment.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Measurement Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {relevantMeasurements.map(field => {
+          const category = Object.keys(MEASUREMENT_TYPES).find(cat =>
+            MEASUREMENT_TYPES[cat]?.[field]
+          );
+          const label = MEASUREMENT_TYPES[category]?.[field] || field.replace(/_/g, ' ');
+          return renderMeasurementInput(field, label);
+        })}
+      </div>
+
+      {/* Notes */}
+      <div>
+        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+          Additional Notes
+        </label>
         <textarea
-          name="notes"
-          value={formData.notes}
-          onChange={handleInputChange}
-          placeholder="Any additional notes about the order..."
+          value={measurements.notes || ''}
+          onChange={(e) => setMeasurements(prev => ({ ...prev, notes: e.target.value }))}
+          disabled={readOnly}
           rows={3}
-          className={inputClass('notes')}
+          className="w-full px-3 py-2.5 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all disabled:opacity-50 resize-none"
+          placeholder="Any special instructions or notes about the measurements..."
         />
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex justify-end gap-4">
-        {onCancel && (
-          <motion.button
-            type="button"
-            onClick={onCancel}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="px-6 py-3 bg-white/5 border border-white/10 text-white font-bold uppercase tracking-wider text-xs rounded-lg hover:bg-white/10 transition-colors flex items-center gap-2"
-          >
-            <HiOutlineXMark size={16} />
-            Cancel
-          </motion.button>
-        )}
-        
-        <motion.button
-          type="submit"
-          disabled={loading}
-          whileHover={!loading ? { scale: 1.02 } : {}}
-          whileTap={!loading ? { scale: 0.98 } : {}}
-          className={`
-            px-8 py-3 bg-red-600 text-white font-bold uppercase tracking-wider text-xs rounded-lg
-            flex items-center gap-2 transition-all
-            ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-700'}
-          `}
-        >
-          {loading ? (
-            <span className="animate-pulse">Saving...</span>
-          ) : (
-            <>
-              <HiOutlineCheck size={16} />
-              Save Measurements
-            </>
+      {/* Actions */}
+      {!readOnly && (
+        <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-white/10">
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-gray-200 dark:hover:bg-white/10 transition-all"
+            >
+              Cancel
+            </button>
           )}
-        </motion.button>
-      </div>
+          <button
+            type="submit"
+            className="flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
+          >
+            <HiArrowDownTray size={16} />
+            Save Measurements
+          </button>
+        </div>
+      )}
     </motion.form>
   );
 };

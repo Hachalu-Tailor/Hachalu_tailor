@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   HiOutlineCube,
@@ -11,9 +11,12 @@ import {
   HiOutlineMinus,
   HiOutlineExclamationTriangle,
   HiOutlinePhoto,
-  HiOutlineCheckBadge
+  HiOutlineCheckBadge,
+  HiOutlineCloudArrowUp,
+  HiOutlineTrash,
+  HiOutlinePencil
 } from "react-icons/hi2";
-import api from "../../api/api";
+import api, { uploadMaterialImage } from "../../api/api";
 
 const Inventory = () => {
   const [inventory, setInventory] = useState([]);
@@ -26,9 +29,15 @@ const Inventory = () => {
     name: "",
     color: "",
     texture: "",
-    quantity_meters: ""
+    quantity_meters: "",
+    image_url: "",
+    imageFile: null
   });
+  const [imagePreview, setImagePreview] = useState(null);
+  const [showImageInput, setShowImageInput] = useState("url"); // 'url' or 'upload'
+  const fileInputRef = useRef(null);
   const [stockUpdate, setStockUpdate] = useState({ action_type: "add", quantity_meters: 0 });
+  const [editingImage, setEditingImage] = useState(false); // false, 'url', or 'upload'
 
   useEffect(() => {
     fetchInventory();
@@ -49,15 +58,18 @@ const Inventory = () => {
   const handleAddMaterial = async (e) => {
     e.preventDefault();
     try {
-      await api.post("/invetory/materials/", {
+      const materialData = {
         material: {
           name: newMaterial.name,
           color: newMaterial.color,
-          texture: newMaterial.texture
+          texture: newMaterial.texture,
+          image_url: newMaterial.image_url || null
         },
         quantity_meters: parseFloat(newMaterial.quantity_meters) || 0
-      });
-      setNewMaterial({ name: "", color: "", texture: "", quantity_meters: "" });
+      };
+      await api.post("/invetory/materials/", materialData);
+      setNewMaterial({ name: "", color: "", texture: "", quantity_meters: "", image_url: "", imageFile: null });
+      setImagePreview(null);
       setShowAddModal(false);
       fetchInventory();
     } catch (error) {
@@ -165,11 +177,13 @@ const Inventory = () => {
                       >
                         <td className="p-4 md:p-6">
                           <div className="flex items-center gap-4">
-                            <div className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center ${qty === 0 ? 'grayscale' : ''}`}>
+                            <div className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden shrink-0 ${qty === 0 ? 'grayscale' : ''}`}>
                               {item.image_url ? (
-                                <img src={item.image_url} className="w-full h-full object-cover rounded-2xl" alt={item.name} />
+                                <img src={item.image_url} className="w-full h-full object-cover" alt={item.name} />
                               ) : (
-                                <HiOutlinePhoto className="text-zinc-400" size={24} />
+                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-100 to-zinc-200 dark:from-zinc-800 dark:to-zinc-900">
+                                  <span className="text-2xl font-black text-zinc-400 italic">{item.name?.charAt(0) || '?'}</span>
+                                </div>
                               )}
                             </div>
                             <div>
@@ -216,7 +230,7 @@ const Inventory = () => {
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setSelectedItem(null)}
+              onClick={() => { setSelectedItem(null); setEditingImage(false); }}
               className="absolute inset-0 bg-black/80 backdrop-blur-md"
             />
 
@@ -226,11 +240,120 @@ const Inventory = () => {
               exit={{ scale: 0.9, opacity: 0, y: 30 }}
               className="relative w-full max-w-lg bg-white dark:bg-[#0c0c0c] rounded-[3rem] shadow-2xl overflow-hidden border border-zinc-200 dark:border-white/10 p-8"
             >
-              <button onClick={() => setSelectedItem(null)} className="absolute top-6 right-6 p-2 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-red-600 transition-all">
+              <button onClick={() => { setSelectedItem(null); setEditingImage(false); }} className="absolute top-6 right-6 p-2 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-red-600 transition-all">
                 <HiOutlineXMark size={20} />
               </button>
 
+              {/* Material Image Display */}
               <div className="mb-6">
+                <div className="relative w-full h-48 rounded-2xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 mb-4">
+                  {selectedItem.image_url ? (
+                    <img src={selectedItem.image_url} alt={selectedItem.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-100 to-zinc-200 dark:from-zinc-800 dark:to-zinc-900">
+                      <span className="text-6xl font-black text-zinc-300 dark:text-zinc-600 italic">{selectedItem.name?.charAt(0) || '?'}</span>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => setEditingImage(!editingImage)}
+                    className="absolute bottom-3 right-3 p-2 bg-black/50 hover:bg-red-600 text-white rounded-full transition-all"
+                  >
+                    {editingImage ? <HiOutlineXMark size={16} /> : <HiOutlinePencil size={16} />}
+                  </button>
+                </div>
+
+                {/* Inline Image Edit */}
+                {editingImage && (
+                  <div className="bg-zinc-50 dark:bg-zinc-900 p-4 rounded-2xl mb-4">
+                    <p className="text-[9px] font-black text-zinc-500 uppercase tracking-wider mb-2">Choose Image Source</p>
+                    <div className="flex gap-2 mb-3">
+                      <button
+                        type="button"
+                        onClick={() => setEditingImage('url')}
+                        className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${editingImage === 'url' ? 'bg-red-600 text-white' : 'bg-zinc-200 dark:bg-zinc-700'
+                          }`}
+                      >
+                        URL
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingImage('upload')}
+                        className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${editingImage === 'upload' ? 'bg-red-600 text-white' : 'bg-zinc-200 dark:bg-zinc-700'
+                          }`}
+                      >
+                        Upload
+                      </button>
+                    </div>
+
+                    {editingImage === 'url' ? (
+                      <>
+                        <input
+                          type="url"
+                          placeholder="Enter image URL..."
+                          defaultValue={selectedItem.image_url || ''}
+                          id={`edit-image-${selectedItem.id}`}
+                          className="w-full bg-white dark:bg-black rounded-xl px-4 py-2 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mb-2"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={async () => {
+                              const newUrl = document.getElementById(`edit-image-${selectedItem.id}`).value;
+                              try {
+                                await api.patch(`/invetory/materials/${selectedItem.id}/`, { image_url: newUrl });
+                                setSelectedItem({ ...selectedItem, image_url: newUrl });
+                                setEditingImage(false);
+                                fetchInventory();
+                              } catch (error) {
+                                console.error("Error updating image:", error);
+                                alert("Failed to update image");
+                              }
+                            }}
+                            className="flex-1 py-2 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase"
+                          >
+                            Save URL
+                          </button>
+                          <button
+                            onClick={() => setEditingImage(false)}
+                            className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 rounded-xl text-[10px] font-black uppercase"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          id={`edit-image-file-${selectedItem.id}`}
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                              try {
+                                const response = await uploadMaterialImage(selectedItem.id, file);
+                                setSelectedItem({ ...selectedItem, image_url: response.data.image_url });
+                                setEditingImage(false);
+                                fetchInventory();
+                              } catch (error) {
+                                console.error("Error uploading image:", error);
+                                alert("Failed to upload image");
+                              }
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor={`edit-image-file-${selectedItem.id}`}
+                          className="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-zinc-300 dark:border-zinc-600 rounded-xl cursor-pointer hover:border-red-600 transition-all"
+                        >
+                          <HiOutlineCloudArrowUp className="text-zinc-400 mb-1" size={20} />
+                          <span className="text-[9px] font-bold text-zinc-400 uppercase">Click to select file</span>
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <h2 className="text-2xl font-black uppercase italic tracking-tighter">{selectedItem.name}</h2>
                 <p className="text-[10px] text-zinc-400 uppercase font-bold mt-1">{selectedItem.color} • {selectedItem.texture}</p>
               </div>
@@ -294,7 +417,7 @@ const Inventory = () => {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="relative w-full max-w-md bg-white dark:bg-[#0c0c0c] rounded-[2rem] shadow-2xl border border-zinc-200 dark:border-white/10 p-8"
+              className="relative w-full max-w-lg bg-white dark:bg-[#0c0c0c] rounded-[2rem] shadow-2xl border border-zinc-200 dark:border-white/10 p-8 max-h-[90vh] overflow-y-auto"
             >
               <button onClick={() => setShowAddModal(false)} className="absolute top-6 right-6 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all">
                 <HiOutlineXMark size={20} />
@@ -343,6 +466,103 @@ const Inventory = () => {
                     className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2"
                   />
                 </div>
+
+                {/* Image Upload Section */}
+                <div>
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Material Image</label>
+
+                  {/* Toggle between URL and File upload */}
+                  <div className="flex gap-2 mt-2 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowImageInput("url")}
+                      className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${showImageInput === "url"
+                        ? "bg-red-600 text-white"
+                        : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400"
+                        }`}
+                    >
+                      Image URL
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowImageInput("upload")}
+                      className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${showImageInput === "upload"
+                        ? "bg-red-600 text-white"
+                        : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400"
+                        }`}
+                    >
+                      Upload File
+                    </button>
+                  </div>
+
+                  {showImageInput === "url" ? (
+                    <input
+                      type="url"
+                      placeholder="https://example.com/material-image.jpg"
+                      value={newMaterial.image_url}
+                      onChange={(e) => setNewMaterial({ ...newMaterial, image_url: e.target.value })}
+                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20"
+                    />
+                  ) : (
+                    <div className="relative">
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            // Create preview URL
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              setImagePreview(reader.result);
+                              setNewMaterial({ ...newMaterial, image_url: reader.result, imageFile: file });
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="hidden"
+                        id="material-image-upload"
+                      />
+                      <label
+                        htmlFor="material-image-upload"
+                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-2xl cursor-pointer hover:border-red-600 hover:bg-red-50 dark:hover:bg-red-600/5 transition-all"
+                      >
+                        <HiOutlineCloudArrowUp className="text-zinc-400 mb-2" size={32} />
+                        <span className="text-[10px] font-bold text-zinc-400 uppercase">Click to upload image</span>
+                        <span className="text-[8px] text-zinc-500 mt-1">PNG, JPG, WEBP up to 5MB</span>
+                      </label>
+                    </div>
+                  )}
+
+                  {/* Image Preview */}
+                  {(imagePreview || newMaterial.image_url) && (
+                    <div className="mt-3 relative">
+                      <div className="w-full h-32 rounded-2xl overflow-hidden bg-zinc-100 dark:bg-zinc-800">
+                        <img
+                          src={imagePreview || newMaterial.image_url}
+                          alt="Preview"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImagePreview(null);
+                          setNewMaterial({ ...newMaterial, image_url: "", imageFile: null });
+                          if (fileInputRef.current) fileInputRef.current.value = "";
+                        }}
+                        className="absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition-all"
+                      >
+                        <HiOutlineTrash size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <button
                   type="submit"
                   className="w-full py-4 bg-red-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.4em] hover:bg-red-700 transition-all mt-4"

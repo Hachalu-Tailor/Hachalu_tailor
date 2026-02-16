@@ -4,6 +4,10 @@ export {
     // Auth
     login,
     logout,
+    setTokens,
+    clearTokens,
+    getAccessToken,
+    getRefreshToken,
 
     // Staff Management
     addStaff,
@@ -31,6 +35,7 @@ export {
     updateMaterial,
     deleteMaterial,
     adjustStock,
+    uploadMaterialImage,
 
     // Orders
     createOrder,

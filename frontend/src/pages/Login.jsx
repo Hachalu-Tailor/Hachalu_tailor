@@ -1,21 +1,21 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { login } from '../api/api';// Ensure this matches your api.js file
-import { 
-  HiOutlineLockClosed, 
-  HiOutlineUserCircle, 
-  HiOutlineShieldCheck, 
-  HiOutlineEye, 
+import { useAuth } from '../context/AuthContext';
+import {
+  HiOutlineLockClosed,
+  HiOutlineUserCircle,
+  HiOutlineShieldCheck,
+  HiOutlineEye,
   HiOutlineEyeSlash,
-  HiOutlineExclamationTriangle 
+  HiOutlineExclamationTriangle
 } from 'react-icons/hi2';
 
 const Login = () => {
   const navigate = useNavigate();
-  const [role, setRole] = useState('admin'); // Default to receptionist for easier testing
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
-  
+
   // Form State
   const [formData, setFormData] = useState({
     email: '',
@@ -31,55 +31,47 @@ const Login = () => {
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  setError('');
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
-  try {
-    const response = await login(formData);
-    
-    // Log this to your console to see EXACTLY what your backend returns
-    console.log("Backend Response:", response.data);
+    try {
+      const result = await login(formData);
 
-    // 1. Get tokens - handling potential nesting
-    const accessToken = response.data.access || response.data.token;
-    const refreshToken = response.data.refresh;
-    // Use the backend role if available, otherwise fallback to the UI state
-    const backendRole = response.data.role || role; 
+      console.log("Login Result:", result);
 
-    if (!accessToken) {
-      throw new Error("No access token received from server");
+      if (!result.success) {
+        setError(result.error || "Access Denied: Invalid Credentials");
+        return;
+      }
+
+      console.log("Login successful! User:", result.user);
+
+      // Navigate based on role
+      const role = result.user?.role?.toUpperCase();
+      if (role === 'ADMIN') {
+        navigate('/admin');
+      } else if (role === 'RECEPTIONIST') {
+        navigate('/reception');
+      } else {
+        navigate('/');
+      }
+
+    } catch (err) {
+      console.error("Login Error:", err);
+      setError(err.response?.data?.detail || "Access Denied: Invalid Credentials");
+    } finally {
+      setLoading(false);
     }
-
-    // 2. Save to localStorage (MATCH THESE KEYS TO YOUR api.js)
-    localStorage.setItem('access_token', accessToken);
-    localStorage.setItem('refresh_token', refreshToken);
-    localStorage.setItem('user_role', backendRole.toLowerCase());
-
-    console.log("Login successful! Role:", backendRole);
-    
-    // 3. Navigate
-    if (backendRole.toLowerCase() === 'admin') {
-      navigate('/admin');
-    } else {
-      navigate('/reception');
-    }
-
-  } catch (err) {
-    console.error("Login Error:", err);
-    setError(err.response?.data?.detail || "Access Denied: Invalid Credentials");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden font-sans">
-      
+
       {/* 1. CINEMATIC BACKGROUND IMAGE */}
       <div className="absolute inset-0 z-0">
-        <img 
-          src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop" 
+        <img
+          src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop"
           className="w-full h-full object-cover grayscale brightness-[0.2]"
           alt="Luxury Fashion Background"
         />
@@ -87,14 +79,14 @@ const Login = () => {
       </div>
 
       {/* 2. FLOATING LOGIN CARD */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
         className="relative z-10 w-full max-w-[450px] mx-4"
       >
         <div className="bg-white/10 dark:bg-black/40 backdrop-blur-xl border border-white/20 dark:border-white/10 p-10 md:p-12 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]">
-          
+
           {/* HEADER */}
           <div className="text-center mb-10">
             <h1 className="text-white text-3xl font-black uppercase tracking-tighter italic">
@@ -123,7 +115,7 @@ const Login = () => {
           {/* ERROR DISPLAY */}
           <AnimatePresence>
             {error && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
@@ -137,16 +129,16 @@ const Login = () => {
 
           {/* FORM */}
           <form className="space-y-8" onSubmit={handleSubmit}>
-            
+
             {/* EMAIL (Personnel ID) */}
             <div className="relative group">
               <label className="absolute -top-6 left-0 text-[8px] font-black uppercase tracking-widest text-gray-500 group-focus-within:text-red-600 transition-colors">
                 Personnel Email
               </label>
               <HiOutlineUserCircle className="absolute left-0 bottom-3 text-gray-500 group-focus-within:text-red-600 transition-colors" size={18} />
-              <input 
+              <input
                 required
-                type="email" 
+                type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
@@ -161,26 +153,26 @@ const Login = () => {
                 Access Key
               </label>
               <HiOutlineLockClosed className="absolute left-0 bottom-3 text-gray-500 group-focus-within:text-red-600 transition-colors" size={18} />
-              <input 
+              <input
                 required
                 name="password"
-                type={showPassword ? "text" : "password"} 
+                type={showPassword ? "text" : "password"}
                 value={formData.password}
                 onChange={handleInputChange}
                 placeholder="••••••••"
                 className="w-full bg-transparent border-b border-white/20 py-3 pl-8 text-sm font-bold tracking-widest text-white outline-none focus:border-red-600 transition-all placeholder:text-gray-700"
               />
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-0 bottom-3 text-gray-500 hover:text-white transition-colors"
               >
-                {showPassword ? <HiOutlineEyeSlash size={16}/> : <HiOutlineEye size={16}/>}
+                {showPassword ? <HiOutlineEyeSlash size={16} /> : <HiOutlineEye size={16} />}
               </button>
             </div>
 
             {/* LOGIN BUTTON */}
-            <motion.button 
+            <motion.button
               disabled={loading}
               whileHover={!loading ? { scale: 1.02, boxShadow: "0 0 20px rgba(220, 38, 38, 0.4)" } : {}}
               whileTap={!loading ? { scale: 0.98 } : {}}
@@ -208,8 +200,5 @@ const Login = () => {
     </div>
   );
 };
-
-// Helper for animations
-import { AnimatePresence } from 'framer-motion';
 
 export default Login;

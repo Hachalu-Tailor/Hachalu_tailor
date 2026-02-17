@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { HiOutlineShoppingBag, HiChevronRight, HiChevronLeft, HiOutlineArrowLongRight } from 'react-icons/hi2';
 import { products } from '../hooks/productData';
+import Contact from './Contact';
 
 const suits = [
   {
@@ -156,6 +157,8 @@ const Home = () => {
           ))}
         </div>
       </section>
+      <Contact />
+
     </div>
   );
 };

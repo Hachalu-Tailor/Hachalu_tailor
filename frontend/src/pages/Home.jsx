@@ -157,7 +157,10 @@ const Home = () => {
           ))}
         </div>
       </section>
-      <Contact />
+      <section className='px-6'>
+        <Contact />
+      </section>
+      
 
     </div>
   );

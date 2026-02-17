@@ -236,27 +236,21 @@ Body: NONE
     {
         "id": 1,
         "name": "Cotton",
-        "color": "White",
+        "color": "Dark Blue",
         "texture": "Soft",
         "image_url": null,
+        "description": null,
+        "category": null,
         "inventory": {
             "id": 1,
-            "quantity_meters": "10.50",
+            "quantity_meters": "60.50",
             "is_available": true
         }
     },
     {
         "id": 2,
         "name": "Wool",
-        "color": "Black",
-        "texture": "Soft",
-        "image_url": null,
-        "inventory": {
-            "id": 2,
-            "quantity_meters": "10.50",
-            "is_available": true
-        }
-    }
+        .....
 ]
 ```
 #### 3. Update Object Data (only on material)

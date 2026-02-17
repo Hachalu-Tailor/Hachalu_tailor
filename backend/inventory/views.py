@@ -39,6 +39,8 @@ class MaterialListCreateView(APIView):
                         "color": "Black",
                         "texture": "Soft",
                         "image_url": None,
+                        "description": None,
+                        "category": None,
                         "inventory": {
                             "id": 1,
                             "quantity_meters": "5.00",
@@ -82,6 +84,8 @@ class MaterialListCreateView(APIView):
                     "color": "Black",
                     "texture": "Soft",
                     "image_url": None,
+                    "category": None,
+                    "description": None,
                     "inventory": {
                         "id": 1,
                         "quantity_meters": "5.00",

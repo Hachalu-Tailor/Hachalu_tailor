@@ -33,10 +33,13 @@ import MeasurementForm from './features/customer/MeasurmentForm';
 
 // Route Constants
 import { ROUTES, ROLES } from './utils/constants';
+// Scroll to top
+import ScrollToTop from './utils/ScrollToTop';
 
 function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         {/* --- 1. LOGIN --- */}
         <Route path={ROUTES.LOGIN} element={<Login />} />

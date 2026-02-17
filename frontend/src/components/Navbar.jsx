@@ -64,8 +64,8 @@ const Navbar = () => {
       href: '/services',
       subItems: [
         { title: 'we-offer', desc: 'Authorized protocol service suite.', icon: <HiOutlineShieldCheck />, href: '/services' },
-        { title: 'Why Choose-Us', desc: 'Superior neural infrastructure.', icon: <HiOutlineGlobeAlt />, href: '/services/only-we' },
-        { title: 'Discount', desc: 'Exclusive loyalty allocations.', icon: <HiOutlineCpuChip />, href: '/services/discount' }
+        { title: 'Discount', desc: 'Exclusive loyalty allocations.', icon: <HiOutlineCpuChip />, href: '/services/discount' },
+        { title: 'Need Help?', desc: '24/7 customer support.', icon: <HiOutlineGlobeAlt />, href: '/services/contact' },
       ] 
     },
     { 

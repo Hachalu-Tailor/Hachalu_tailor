@@ -173,7 +173,7 @@ export const updateOrder = (id, data) => api.patch(`/orders/${id}/`, data);
 
 export const deleteOrder = (id) => api.delete(`/orders/${id}/`);
 
-export const processOrder = (id, data) => api.post(`/orders/${id}/process/`, data);
+export const processOrder = (id, data) => api.post(`/orders/${id}/process`, data);
 
 export const expireOrders = () => api.post('/orders/expire/');
 
@@ -189,7 +189,7 @@ export const createSuitType = (data) => api.post('/orders/suit-types/create/', d
 // PAYMENTS ENDPOINTS
 // ============================================
 
-export const getPayments = (params) => api.get('/payments/', { params });
+export const getPayments = (params) => api.get('/payments/list', { params });
 
 export const createPayment = (data) => api.post('/payments/', data);
 

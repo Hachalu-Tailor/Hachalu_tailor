@@ -7,4 +7,12 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    port: 5173,
+  },
+  optimizeDeps: {
+    include: ['react-icons/hi2', 'react-icons/hi', 'react-icons/md'],
+    force: true,
+  },
+  clearScreen: false,
 })

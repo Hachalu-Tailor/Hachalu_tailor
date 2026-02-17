@@ -22,14 +22,17 @@ import Inventory from './features/receptionist/Inventory';
 import OrdersManagement from './features/receptionist/Orders';
 import Clients from './features/receptionist/Clients';
 import Announcement from './features/receptionist/Announcement';
-import PaymentReview from './features/receptionist/PaymentReview';
+import PaymentManagement from './features/receptionist/PaymentManagement';
+import Messages from './features/receptionist/Messages';
 
 // Admin Features
 import StaffManagement from './features/admin/StaffManagement';
 import Analytics from './features/admin/Analytics';
+import AuditLogs from './features/admin/AuditLogs';
 
 // Customer Features
 import MeasurementForm from './features/customer/MeasurmentForm';
+import PaymentForm from './features/customer/PaymentForm';
 
 // Route Constants
 import { ROUTES, ROLES } from './utils/constants';
@@ -52,6 +55,7 @@ function App() {
           <Route path="about" element={<About />} />
           <Route path="my-orders" element={<Orders />} />
           <Route path="measurements" element={<MeasurementForm />} />
+          <Route path="submit-payment" element={<PaymentForm />} />
         </Route>
 
         {/* --- 3. STAFF AREA (Shared) --- */}
@@ -63,7 +67,8 @@ function App() {
             <Route path="orders" element={<OrdersManagement />} />
             <Route path="clients" element={<Clients />} />
             <Route path="announcement" element={<Announcement />} />
-            <Route path="payments" element={<PaymentReview />} />
+            <Route path="payments" element={<PaymentManagement />} />
+            <Route path="messages" element={<Messages />} />
             <Route path="profile" element={<Profile />} />
           </Route>
         </Route>
@@ -75,13 +80,14 @@ function App() {
             <Route index element={<AdminDashboard />} />
             <Route path="staff" element={<StaffManagement />} />
             <Route path="analytics" element={<Analytics />} />
+            <Route path="audit-logs" element={<AuditLogs />} />
             <Route path="profile" element={<Profile />} />
           </Route>
         </Route>
 
         {/* --- 5. 404 NOT FOUND --- */}
         <Route path="/not-found" element={<NotFound />} />
-        
+
         {/* --- 6. REDIRECTS --- */}
         <Route path="*" element={<Navigate to="/not-found" replace />} />
       </Routes>

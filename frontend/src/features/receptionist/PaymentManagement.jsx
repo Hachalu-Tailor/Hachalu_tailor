@@ -6,8 +6,7 @@ import {
     HiOutlineXCircle,
     HiOutlineClock,
     HiOutlineDocumentText,
-    HiOutlineSearch,
-    HiOutlineFilter,
+    HiOutlineMagnifyingGlass,
     HiOutlineEye,
     HiOutlineCheck,
     HiOutlineXMark
@@ -142,7 +141,7 @@ const PaymentManagement = () => {
             {/* Filters */}
             <div className="flex flex-col md:flex-row gap-4">
                 <div className="relative flex-1">
-                    <HiOutlineSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <HiOutlineMagnifyingGlass className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input
                         type="text"
                         placeholder="Search by order code or reference..."
@@ -157,8 +156,8 @@ const PaymentManagement = () => {
                             key={filter}
                             onClick={() => setFilterVerified(filter)}
                             className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filterVerified === filter
-                                    ? 'bg-red-600 text-white'
-                                    : 'bg-white dark:bg-[#0c0c0c] border border-gray-100 dark:border-white/5 text-gray-400 hover:text-red-600'
+                                ? 'bg-red-600 text-white'
+                                : 'bg-white dark:bg-[#0c0c0c] border border-gray-100 dark:border-white/5 text-gray-400 hover:text-red-600'
                                 }`}
                         >
                             {filter}

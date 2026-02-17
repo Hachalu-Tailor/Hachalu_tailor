@@ -9,14 +9,21 @@ import {
   HiOutlineBars3BottomLeft,
   HiOutlineChatBubbleLeftEllipsis,
   HiOutlineCheckBadge,
-  HiOutlineArrowRightOnRectangle
+  HiOutlineArrowRightOnRectangle,
+  HiOutlineShoppingBag,
+  HiOutlineCurrencyDollar,
+  HiOutlineCube
 } from 'react-icons/hi2';
+import api from '../api/api';
+import { formatRelativeTime } from '../utils/helpers';
 
 const DashboardLayout = () => {
   const [darkMode, setDarkMode] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [userRole, setUserRole] = useState('');
+  const [notifications, setNotifications] = useState([]);
+  const [pendingCount, setPendingCount] = useState(0);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -43,7 +50,22 @@ const DashboardLayout = () => {
 
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) setDarkMode(savedTheme === 'dark');
+
+    // Fetch notifications
+    fetchNotifications();
   }, [location.pathname]);
+
+  // Fetch notifications
+  const fetchNotifications = async () => {
+    try {
+      const response = await api.get('/accounts/user/notifications/', { params: { limit: 10 } });
+      const notifs = response.data?.results || response.data || [];
+      setNotifications(notifs);
+      setPendingCount(notifs.filter(n => !n.read).length);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
 
   // 2. Dynamic Title Logic: Clean up the URL for the header
   const getPageTitle = () => {
@@ -133,13 +155,23 @@ const DashboardLayout = () => {
                     >
                       <div className="flex items-center justify-between mb-6">
                         <h3 className="text-[10px] font-black uppercase tracking-widest dark:text-white">Central Feed</h3>
-                        <span className="bg-red-600/10 text-red-600 text-[8px] font-black px-2 py-1 rounded-lg uppercase">3 Pending</span>
+                        <span className="bg-red-600/10 text-red-600 text-[8px] font-black px-2 py-1 rounded-lg uppercase">{pendingCount} Pending</span>
                       </div>
 
                       <div className="space-y-2">
-                        <NotificationItem icon={<HiOutlineChatBubbleLeftEllipsis />} text="Msg from Reception Area" time="2m ago" />
-                        <NotificationItem icon={<HiOutlineCheckBadge />} text="System Integrity Check" time="15m ago" />
-                        <NotificationItem icon={<HiOutlineBell />} text="Inventory Level Alert" time="1h ago" />
+                        {notifications.length > 0 ? (
+                          notifications.slice(0, 5).map((notif, idx) => (
+                            <NotificationItem
+                              key={notif.id || idx}
+                              icon={getNotificationIcon(notif.type)}
+                              text={notif.message || notif.title || 'New notification'}
+                              time={formatRelativeTime(notif.created_at)}
+                              isRead={notif.read}
+                            />
+                          ))
+                        ) : (
+                          <NotificationItem icon={<HiOutlineBell />} text="No notifications" time="" />
+                        )}
                       </div>
 
                       <button className="w-full mt-6 py-3 bg-gray-50 dark:bg-white/5 rounded-2xl text-[8px] font-black uppercase tracking-widest text-gray-400 hover:text-white hover:bg-red-600 transition-all">
@@ -187,16 +219,32 @@ const DashboardLayout = () => {
 };
 
 /* --- SUB-COMPONENT: NOTIFICATION ITEM --- */
-const NotificationItem = ({ icon, text, time }) => (
+const NotificationItem = ({ icon, text, time, isRead }) => (
   <div className="flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-white/5 rounded-[1.5rem] transition-all cursor-pointer border border-transparent hover:border-red-600/10 group">
-    <div className="text-red-600 bg-red-600/10 p-2 rounded-xl group-hover:bg-red-600 group-hover:text-white transition-all">
+    <div className={`${isRead ? 'bg-gray-100 dark:bg-white/5 text-gray-400' : 'bg-red-600/10 text-red-600'} p-2 rounded-xl group-hover:bg-red-600 group-hover:text-white transition-all`}>
       {icon}
     </div>
     <div className="flex-1 overflow-hidden">
       <p className="text-[10px] font-black dark:text-gray-200 uppercase truncate tracking-tight">{text}</p>
-      <p className="text-[8px] text-gray-500 font-bold uppercase mt-0.5">{time}</p>
+      {time && <p className="text-[8px] text-gray-500 font-bold uppercase mt-0.5">{time}</p>}
     </div>
   </div>
 );
+
+/* --- HELPER: Get notification icon based on type --- */
+const getNotificationIcon = (type) => {
+  switch (type?.toLowerCase()) {
+    case 'order':
+      return <HiOutlineShoppingBag />;
+    case 'payment':
+      return <HiOutlineCurrencyDollar />;
+    case 'inventory':
+      return <HiOutlineCube />;
+    case 'system':
+      return <HiOutlineCheckBadge />;
+    default:
+      return <HiOutlineBell />;
+  }
+};
 
 export default DashboardLayout;

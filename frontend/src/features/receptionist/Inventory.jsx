@@ -31,7 +31,9 @@ const Inventory = () => {
     texture: "",
     quantity_meters: "",
     image_url: "",
-    imageFile: null
+    imageFile: null,
+    category: "",
+    description: ""
   });
   const [imagePreview, setImagePreview] = useState(null);
   const [showImageInput, setShowImageInput] = useState("url"); // 'url' or 'upload'
@@ -68,7 +70,7 @@ const Inventory = () => {
         quantity_meters: parseFloat(newMaterial.quantity_meters) || 0
       };
       await api.post("/invetory/materials/", materialData);
-      setNewMaterial({ name: "", color: "", texture: "", quantity_meters: "", image_url: "", imageFile: null });
+      setNewMaterial({ name: "", color: "", texture: "", quantity_meters: "", image_url: "", imageFile: null, category: "", description: "" });
       setImagePreview(null);
       setShowAddModal(false);
       fetchInventory();
@@ -460,6 +462,29 @@ const Inventory = () => {
                     onChange={(e) => setNewMaterial({ ...newMaterial, texture: e.target.value })}
                     className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2"
                     required
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Category</label>
+                  <select
+                    value={newMaterial.category}
+                    onChange={(e) => setNewMaterial({ ...newMaterial, category: e.target.value })}
+                    className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 cursor-pointer"
+                  >
+                    <option value="">Select Category</option>
+                    <option value="Child">Child</option>
+                    <option value="Men">Men</option>
+                    <option value="Woman">Woman</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Description</label>
+                  <textarea
+                    value={newMaterial.description}
+                    onChange={(e) => setNewMaterial({ ...newMaterial, description: e.target.value })}
+                    placeholder="Enter material description..."
+                    rows={3}
+                    className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 resize-none"
                   />
                 </div>
                 <div>

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  HiOutlineCube, HiOutlineShoppingBag, HiOutlineChatBubbleLeftRight, 
+import {
+  HiOutlineCube, HiOutlineShoppingBag, HiOutlineChatBubbleLeftRight,
   HiOutlineUserGroup, HiOutlineBanknotes, HiOutlineArrowLeftOnRectangle,
   HiOutlineSun, HiOutlineMoon, HiOutlineMegaphone, HiOutlineSquares2X2,
-  HiOutlineXMark, HiOutlineChartBar, HiOutlineUser, HiOutlineClipboardDocumentList
+  HiOutlineXMark, HiOutlineChartBar, HiOutlineUser, HiOutlineClipboardDocumentList,
+  HiOutlineEnvelope, HiOutlineCurrencyDollar
 } from 'react-icons/hi2';
 
 const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => {
@@ -38,15 +39,18 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
     { path: '/admin', label: 'Dashboard', icon: <HiOutlineSquares2X2 />, roles: ['admin'] },
     { path: '/admin/analytics', label: 'Analytics', icon: <HiOutlineChartBar />, roles: ['admin'] },
     { path: '/admin/staff', label: 'Staff Management', icon: <HiOutlineUserGroup />, roles: ['admin'] },
+    { path: '/admin/audit-logs', label: 'Audit Logs', icon: <HiOutlineClipboardDocumentList />, roles: ['admin'] },
 
-
-    
     // Reception Section
     { path: '/reception', label: 'Dashboard', icon: <HiOutlineSquares2X2 />, roles: ['receptionist'] },
     { path: '/reception/orders', label: 'Orders', icon: <HiOutlineShoppingBag />, roles: ['receptionist'] },
     { path: '/reception/inventory', label: 'Inventory', icon: <HiOutlineCube />, roles: ['receptionist'] },
     { path: '/reception/clients', label: 'Clients', icon: <HiOutlineUserGroup />, roles: ['receptionist'] },
     { path: '/reception/announcement', label: 'Bulletins', icon: <HiOutlineMegaphone />, roles: ['receptionist'] },
+
+    // Shared/Common Sections (Admin & Receptionist)
+    { path: '/reception/payments', label: 'Finance', icon: <HiOutlineBanknotes />, roles: ['admin', 'receptionist'] },
+    { path: '/reception/messages', label: 'Messages', icon: <HiOutlineChatBubbleLeftRight />, roles: ['admin', 'receptionist'] },
   ];
 
   // 2. DEBUG FILTER LOGIC
@@ -65,7 +69,7 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
     <>
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-24 lg:w-72 bg-white dark:bg-[#080808] border-r border-gray-100 dark:border-white/5 flex-col p-6 h-screen sticky top-0 left-0 z-50 transition-colors duration-500">
-        
+
         <div className="mb-12 flex justify-center lg:justify-start items-center gap-4 px-2">
           <div className="h-12 w-12 bg-red-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-red-600/30 shrink-0">
             <span className="font-black text-2xl italic">H</span>
@@ -85,11 +89,11 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
               <NavLink
                 key={item.path}
                 to={item.path}
-                end={item.path === '/admin' || item.path === '/reception'} 
+                end={item.path === '/admin' || item.path === '/reception'}
                 className={({ isActive }) => `
                   w-full flex items-center justify-center lg:justify-start gap-4 p-4 rounded-2xl transition-all group
-                  ${isActive 
-                    ? 'bg-red-600 text-white shadow-xl shadow-red-600/40 ring-1 ring-red-400/20' 
+                  ${isActive
+                    ? 'bg-red-600 text-white shadow-xl shadow-red-600/40 ring-1 ring-red-400/20'
                     : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-black dark:hover:text-white'}
                 `}
               >
@@ -99,9 +103,9 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
             ))
           ) : (
             <div className="py-10 text-center border border-dashed border-gray-200 dark:border-white/10 rounded-2xl">
-               <p className="text-[10px] font-black text-red-500 uppercase tracking-widest">
+              <p className="text-[10px] font-black text-red-500 uppercase tracking-widest">
                 Access Denied
-               </p>
+              </p>
             </div>
           )}
         </nav>
@@ -162,8 +166,8 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
                     onClick={() => setIsOpen(false)}
                     className={({ isActive }) => `
                       w-full flex items-center gap-4 p-4 rounded-2xl transition-all
-                      ${isActive 
-                        ? 'bg-red-600 text-white shadow-xl shadow-red-600/40' 
+                      ${isActive
+                        ? 'bg-red-600 text-white shadow-xl shadow-red-600/40'
                         : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-black dark:hover:text-white'}
                     `}
                   >

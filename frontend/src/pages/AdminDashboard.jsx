@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   HiOutlineBanknotes,
   HiOutlineShoppingBag,
@@ -30,6 +31,7 @@ import { formatCurrency, formatDateTime, formatRelativeTime } from '../utils/hel
 import { CURRENCY, ORDER_STATUS_LABELS } from '../utils/constants';
 
 const AdminDashboard = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [staff, setStaff] = useState([]);

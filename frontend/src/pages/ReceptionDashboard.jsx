@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   HiOutlineShoppingBag, HiOutlineCube, HiOutlineUserGroup,
   HiOutlineClock, HiOutlinePlus, HiOutlineArrowTrendingUp,
@@ -19,6 +20,7 @@ import {
 } from '../utils/constants';
 
 const ReceptionDashboard = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [orders, setOrders] = useState([]);
@@ -39,7 +41,7 @@ const ReceptionDashboard = () => {
       setLoading(true);
       const [ordersRes, materialsRes, paymentsRes] = await Promise.all([
         api.get('/orders/list/', { params: { active_only: true } }),
-        api.get('/invetory/materials/'),
+        api.get('/inventory/materials/'),
         api.get('/payments/list/').catch(() => ({ data: [] }))
       ]);
       setOrders(ordersRes.data || []);

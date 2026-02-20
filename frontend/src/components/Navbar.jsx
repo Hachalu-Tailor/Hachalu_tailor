@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 // Import NavHashLink for smooth scrolling to #contact
 import { NavHashLink } from 'react-router-hash-link';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import {
   HiBars3BottomRight as HiMenuAlt3,
   HiXMark as HiX,
@@ -16,8 +17,10 @@ import {
   HiOutlineArrowRight,
 } from 'react-icons/hi2';
 import logo from '../assets/logo.jpg';
+import LanguageSwitcher from './LanguageSwitcher';
 
 const Navbar = () => {
+  const { t } = useTranslation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [scrolled, setScrolled] = useState(false);
@@ -56,7 +59,7 @@ const Navbar = () => {
     setIsSidebarOpen(false);
     setActiveMenu(null);
     setMobileAccordion(null);
-    
+
     // Only scroll to top if NOT a hash link (like #contact)
     if (href && !href.includes('#')) {
       window.scrollTo(0, 0);
@@ -64,29 +67,28 @@ const Navbar = () => {
   }, []);
 
   const menuItems = [
-    { name: 'Home', href: '/' },
+    { name: t('nav.home'), href: '/' },
     {
-      name: 'Services',
+      name: t('nav.services'),
       href: '/services',
       subItems: [
-        { title: 'we-offer', desc: 'Authorized protocol service suite.', icon: <HiOutlineShieldCheck />, href: '/services' },
-        { title: 'Discount', desc: 'Exclusive loyalty allocations.', icon: <HiOutlineCpuChip />, href: '/services/discount' },
-        // UPDATED HREF TO USE HASH
-        { title: 'Need Help?', desc: '24/7 customer support.', icon: <HiOutlineGlobeAlt />, href: '/#contact' },
+        { title: t('nav.weOffer'), desc: t('nav.authorizedService'), icon: <HiOutlineShieldCheck />, href: '/services' },
+        { title: t('nav.discount'), desc: t('nav.exclusiveLoyalty'), icon: <HiOutlineCpuChip />, href: '/services/discount' },
+        { title: t('nav.needHelp'), desc: t('nav.customerSupport'), icon: <HiOutlineGlobeAlt />, href: '/#contact' },
       ]
     },
     {
-      name: 'Shop',
+      name: t('nav.shop'),
       href: '/items',
       subItems: [
-        { title: 'Womens', desc: 'Premier female collection.', icon: <HiOutlineCpuChip />, href: '/items/women' },
-        { title: 'Mens', desc: 'Advanced male collection.', icon: <HiOutlineCubeTransparent />, href: '/items/men' },
-        { title: 'Children', desc: 'Selected quality children collection.', icon: <HiOutlineArrowRight />, href: '/items/children' }
+        { title: t('nav.womens'), desc: t('nav.premierFemale'), icon: <HiOutlineCpuChip />, href: '/items/women' },
+        { title: t('nav.mens'), desc: t('nav.advancedMale'), icon: <HiOutlineCubeTransparent />, href: '/items/men' },
+        { title: t('nav.children'), desc: t('nav.qualityChildren'), icon: <HiOutlineArrowRight />, href: '/items/children' }
       ]
     },
-    { name: 'About', href: '/about' },
-    { name: 'My Orders', href: '/my-orders' },
-    { name: 'Submit Payment', href: '/submit-payment' }
+    { name: t('nav.about'), href: '/about' },
+    { name: t('nav.myOrders'), href: '/my-orders' },
+    { name: t('nav.submitPayment'), href: '/submit-payment' }
   ];
 
   return (
@@ -95,10 +97,10 @@ const Navbar = () => {
       <div className={`bg-[#0c0c0c] text-white/40 py-1.5 text-[9px] tracking-[0.3em] uppercase transition-all duration-500 hidden md:block ${scrolled ? 'opacity-0 -translate-y-full' : 'opacity-100'}`}>
         <div className="max-w-[1440px] mx-auto px-10 flex justify-between items-center">
           <div className="flex gap-4">
-            <span className="flex items-center gap-2"><span className="w-1 h-1 bg-red-600 rounded-full animate-pulse" /> Global Node: Active</span>
-            <span>Uptime: 99.9%</span>
+            <span className="flex items-center gap-2"><span className="w-1 h-1 bg-red-600 rounded-full animate-pulse" /> {t('nav.globalNode')}</span>
+            <span>{t('nav.uptime')}: 99.9%</span>
           </div>
-          <span className="italic">Hachalu Protocol Suite v2.0.4</span>
+          <span className="italic">Hachalu {t('nav.protocol')} v2.0.4</span>
         </div>
       </div>
 
@@ -152,6 +154,7 @@ const Navbar = () => {
             <button onClick={toggleTheme} className="p-2.5 rounded-xl bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-yellow-500 border border-transparent hover:border-red-600/20 transition-all">
               {isDarkMode ? <HiSun size={18} /> : <HiMoon size={18} />}
             </button>
+            <LanguageSwitcher className="p-2.5 rounded-xl bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-white border border-transparent hover:border-red-600/20 transition-all" />
 
             {isAdminOrReceptionist && (
               <Link to="/login" className="hidden md:block bg-red-600 hover:bg-red-700 text-white text-[10px] font-black px-6 py-2.5 uppercase tracking-widest transition-all hover:shadow-[0_0_20px_rgba(220,38,38,0.3)]">
@@ -192,10 +195,10 @@ const Navbar = () => {
                       transition={{ delay: i * 0.05 }}
                     >
                       {/* USING NavHashLink HERE */}
-                      <NavHashLink 
+                      <NavHashLink
                         smooth
-                        to={sub.href} 
-                        onClick={() => handleLinkClick(sub.href)} 
+                        to={sub.href}
+                        onClick={() => handleLinkClick(sub.href)}
                         className="group/item flex flex-col gap-4 p-5 rounded-2xl hover:bg-red-600/5 dark:hover:bg-white/5 transition-all border border-transparent hover:border-red-600/10"
                       >
                         <div className="w-12 h-12 flex items-center justify-center bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white rounded-xl group-hover/item:bg-red-600 group-hover/item:text-white transition-all duration-300">
@@ -252,11 +255,11 @@ const Navbar = () => {
                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-gray-50 dark:bg-white/5 rounded-xl mt-2">
                           <div className="p-4 grid gap-4">
                             {item.subItems.map((sub) => (
-                              <NavHashLink 
+                              <NavHashLink
                                 smooth
-                                key={sub.title} 
-                                to={sub.href} 
-                                onClick={() => handleLinkClick(sub.href)} 
+                                key={sub.title}
+                                to={sub.href}
+                                onClick={() => handleLinkClick(sub.href)}
                                 className="flex items-center gap-3 group"
                               >
                                 <span className="p-2 bg-white dark:bg-black rounded-lg text-red-600">{sub.icon}</span>

@@ -185,15 +185,24 @@ const DashboardLayout = () => {
               {/* User Identity & Logout */}
               <div className="flex items-center gap-3 pl-3 border-l border-gray-100 dark:border-white/5">
                 <div className="hidden sm:flex flex-col items-end">
-                  <span className="text-[9px] font-black dark:text-white uppercase tracking-wider">{userRole}</span>
+                  <button
+                    onClick={() => navigate(userRole === 'admin' ? '/admin/profile' : '/reception/profile')}
+                    className="text-[9px] font-black dark:text-white uppercase tracking-wider hover:text-red-500 transition-colors"
+                  >
+                    Profile
+                  </button>
                   <button
                     onClick={handleLogout}
                     className="text-[7px] font-bold text-red-500 uppercase tracking-[0.2em] hover:tracking-[0.3em] transition-all flex items-center gap-1"
                   >
-                    Terminate <HiOutlineArrowRightOnRectangle />
+                    Logout <HiOutlineArrowRightOnRectangle />
                   </button>
                 </div>
-                <button className="h-12 w-12 rounded-2xl bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center text-white shadow-xl shadow-red-600/20 group hover:rotate-3 transition-all">
+                <button
+                  onClick={() => navigate(userRole === 'admin' ? '/admin/profile' : '/reception/profile')}
+                  className="h-12 w-12 rounded-2xl bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center text-white shadow-xl shadow-red-600/20 group hover:rotate-3 transition-all cursor-pointer"
+                  title="View Profile"
+                >
                   <HiOutlineUserCircle size={28} className="group-hover:scale-110 transition-transform" />
                 </button>
               </div>

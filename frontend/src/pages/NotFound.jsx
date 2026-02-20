@@ -1,9 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { HiOutlineHome, HiOutlineArrowLeft } from 'react-icons/hi2';
 
 const NotFound = () => {
+  const { t } = useTranslation();
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <motion.div
@@ -24,11 +26,10 @@ const NotFound = () => {
         {/* Content */}
         <div className="relative -mt-20 md:-mt-28">
           <h2 className="text-2xl md:text-3xl font-bold text-white uppercase tracking-tight mb-4">
-            Page Not Found
+            {t('errors.notFound')}
           </h2>
           <p className="text-gray-400 text-sm md:text-base max-w-md mx-auto mb-8">
-            The page you're looking for doesn't exist or has been moved.
-            Let's get you back on track.
+            {t('errors.somethingWentWrong')}
           </p>
 
           {/* Actions */}
@@ -38,15 +39,15 @@ const NotFound = () => {
               className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white font-bold uppercase tracking-wider text-sm rounded-lg hover:bg-red-700 transition-colors"
             >
               <HiOutlineHome size={18} />
-              Go Home
+              {t('errors.goHome')}
             </Link>
-            
+
             <button
               onClick={() => window.history.back()}
               className="flex items-center gap-2 px-6 py-3 bg-white/5 border border-white/10 text-white font-bold uppercase tracking-wider text-sm rounded-lg hover:bg-white/10 transition-colors"
             >
               <HiOutlineArrowLeft size={18} />
-              Go Back
+              {t('common.back')}
             </button>
           </div>
         </div>

@@ -57,7 +57,7 @@ const Inventory = () => {
     }
   };
 
-  const handleAddMaterial = async (e) => {
+   const handleAddMaterial = async (e) => {
     e.preventDefault();
     try {
       const materialData = {
@@ -65,7 +65,9 @@ const Inventory = () => {
           name: newMaterial.name,
           color: newMaterial.color,
           texture: newMaterial.texture,
-          image_url: newMaterial.image_url || null
+          image_url: newMaterial.image_url || null,
+          category: newMaterial.category || null,
+          description: newMaterial.description || null
         },
         quantity_meters: parseFloat(newMaterial.quantity_meters) || 0
       };
@@ -191,6 +193,7 @@ const Inventory = () => {
                             <div>
                               <h3 className="text-sm md:text-base font-black uppercase italic tracking-tight">{item.name}</h3>
                               <p className="text-[10px] text-zinc-400 uppercase font-bold">{item.color} • {item.texture}</p>
+                              {item.description && <p className="text-[9px] text-zinc-500 mt-1 max-w-xs truncate">{item.description}</p>}
                             </div>
                           </div>
                         </td>
@@ -431,7 +434,7 @@ const Inventory = () => {
                 <HiOutlineXMark size={20} />
               </button>
 
-              <h2 className="text-xl font-black uppercase italic tracking-tighter mb-6">Add New Material</h2>
+              <h2 className="text-xl font-black uppercase italic tracking-tighter mb-6">New Material</h2>
 
               <form onSubmit={handleAddMaterial} className="space-y-4">
                 <div>

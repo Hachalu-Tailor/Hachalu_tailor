@@ -165,6 +165,14 @@ class OrderApiTests(APITestCase):
         self.assertEqual(response.data["quantity"], 3)
         self.assertEqual(response.data["status"], "COMPLETED")
 
+    def test_order_detail_by_code_public(self):
+        order = self._create_order(status="INITIATED")
+
+        response = self.client.get(f"/api/orders/code/{order.order_code}/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["order_code"], order.order_code)
+
     def test_order_update_requires_auth(self):
         order = self._create_order(quantity=1)
         response = self.client.patch(

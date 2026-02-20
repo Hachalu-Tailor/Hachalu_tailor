@@ -147,7 +147,7 @@ export const markAllNotificationsRead = () => api.post('/accounts/user/notificat
 // INVENTORY ENDPOINTS
 // ============================================
 
-export const getMaterials = (params) => api.get('/inventory/materials/', { params });
+export const getMaterials = (params) => api.get('/invetory/materials/', { params });
 
 export const createMaterial = (data) => api.post('/inventory/materials/', data);
 

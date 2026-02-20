@@ -205,6 +205,8 @@ Body
     "name": "Silk",
     "color": "Blue",
     "texture": "Soft",
+    "description": "Hellooooooo",
+    "category": "MEN"
   },
   "quantity_meters": 12.5
 }
@@ -212,17 +214,19 @@ Body
 
 ##### Response: 201
 ```
-{
-    "id": 1,
-    "name": "Cotton",
-    "color": "White",
-    "texture": "Soft",
-    "image_url": null,
-    "inventory": {
-        "id": 1,
-        "quantity_meters": "10.50",
-        "is_available": true
-    }
+ {
+        "id": 5,
+        "name": "Silk",
+        "color": "Blue",
+        "texture": "Soft",
+        "image_url": null,
+        "description": "Hellooooooo",
+        "category": "MEN",
+        "inventory": {
+            "id": 5,
+            "quantity_meters": "12.50",
+            "is_available": true
+        }
 }
 ```
 #### 2. List objects

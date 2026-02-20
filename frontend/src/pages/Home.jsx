@@ -157,7 +157,7 @@ const Home = () => {
           ))}
         </div>
       </section>
-      <section className='px-6'>
+      <section id='contact' className='px-6'>
         <Contact />
       </section>
       

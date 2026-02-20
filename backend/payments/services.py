@@ -41,6 +41,7 @@ def create_payment(
     amount,
     bank_ref_number,
     receipt_pdf_url,
+    receipt_screenshot=None,
 ) -> Transaction:
     try:
         order = Order.objects.select_related("customer", "reviewed_by").get(
@@ -57,11 +58,16 @@ def create_payment(
 
     normalized_amount = _normalize_amount(amount)
 
+    normalized_receipt_pdf_url = str(receipt_pdf_url).strip() if receipt_pdf_url else ""
+    if not normalized_receipt_pdf_url and not receipt_screenshot:
+        raise ValidationError("Provide either receipt_pdf_url or receipt_screenshot.")
+
     transaction_obj = Transaction.objects.create(
         order_id=order,
         payment_amount=normalized_amount,
         bank_ref_number=str(bank_ref_number).strip(),
-        receipt_pdf_url=str(receipt_pdf_url).strip(),
+        receipt_pdf_url=normalized_receipt_pdf_url or None,
+        receipt_screenshot=receipt_screenshot,
     )
 
     order.payment_reference = transaction_obj.bank_ref_number

@@ -3,6 +3,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import ValidationError
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from django.core.exceptions import ValidationError as DjangoValidationError
 from drf_spectacular.utils import OpenApiExample, extend_schema
 
@@ -17,6 +18,7 @@ from .services import create_payment, verify_payment
 
 class PaymentCreateView(APIView):
     permission_classes = [AllowAny]
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
 
     @extend_schema(
         tags=["Payments"],
@@ -36,6 +38,7 @@ class PaymentCreateView(APIView):
         ],
         description=(
             "Submit payment details for an order. "
+            "Provide receipt_pdf_url, receipt_screenshot, or both. "
             "Transitions order from AWAITING_PAYMENT to PENDING_APPROVAL."
         ),
     )
@@ -48,16 +51,17 @@ class PaymentCreateView(APIView):
                 order_code=serializer.validated_data["order_code"],
                 amount=serializer.validated_data["amount"],
                 bank_ref_number=serializer.validated_data["bank_ref_number"],
-                receipt_pdf_url=serializer.validated_data["receipt_pdf_url"],
+                receipt_pdf_url=serializer.validated_data.get("receipt_pdf_url"),
+                receipt_screenshot=serializer.validated_data.get("receipt_screenshot"),
             )
         except DjangoValidationError as exc:
             raise ValidationError(str(exc))
-            
+
         return Response(
             TransactionSerializer(transaction_obj).data,
             status=status.HTTP_201_CREATED,
         )
-   
+
 
 class PaymentVerifyView(APIView):
     permission_classes = [IsAuthenticated, IsAdminOrReceptionist]

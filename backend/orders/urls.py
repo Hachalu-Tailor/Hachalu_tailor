@@ -2,17 +2,23 @@ from django.urls import path
 
 from .views import (
     OrderCreateView,
+    OrderDetailByCodeView,
     OrderExpirationView,
     OrderListView,
     OrderProcessingView,
     OrderUpdateView,
-    SuitTypeCreateView, 
-    SuitTypeListView
+    SuitTypeCreateView,
+    SuitTypeListView,
 )
 
 urlpatterns = [
     path("orders/", OrderCreateView.as_view(), name="order-create"),
     path("orders/list/", OrderListView.as_view(), name="order-list"),
+    path(
+        "orders/code/<str:code>/",
+        OrderDetailByCodeView.as_view(),
+        name="order-detail-by-code",
+    ),
     path(
         "orders/<uuid:id>/process/", OrderProcessingView.as_view(), name="order-process"
     ),

@@ -97,6 +97,18 @@ class PaymentApiTests(APITestCase):
         response = self.client.post("/api/payments/", payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_payment_create_requires_receipt(self):
+        order = self._create_order(allow_payment=True, reviewed_by=self.reviewer)
+        payload = {
+            "order_code": order.order_code,
+            "amount": "120.00",
+            "full_name": order.customer.full_name,
+            "phone_number": order.customer.phone_number,
+            "bank_ref_number": "REF123",
+        }
+        response = self.client.post("/api/payments/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_payment_verify_reviewer_only(self):
         order = self._create_order(allow_payment=True, reviewed_by=self.reviewer)
         transaction = Transaction.objects.create(

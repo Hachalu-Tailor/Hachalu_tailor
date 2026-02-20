@@ -137,6 +137,12 @@ def _resolve_order_by_code(order_code):
         raise ValidationError("order not found.")
 
 
+def get_order_by_code(*, order_code) -> Order:
+    if not order_code:
+        raise ValidationError("order_code is required.")
+    return _resolve_order_by_code(str(order_code).strip())
+
+
 def _generate_order_code() -> str:
     for _ in range(5):
         candidate = f"HP-{secrets.randbelow(10**8):08d}"

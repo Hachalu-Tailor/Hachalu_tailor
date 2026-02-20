@@ -3,22 +3,29 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   HiOutlineXMark, 
   HiOutlineQueueList, 
-  HiOutlineChatBubbleBottomCenterText,
   HiOutlineScale,
   HiOutlineInboxStack,
-  HiOutlineClock
+  HiOutlineClock,
+  HiOutlineUser,
+  HiOutlineUserGroup,
+  HiOutlineSparkles,
+  HiOutlineSquares2X2
 } from 'react-icons/hi2';
 import ItemCard from '../components/ItemCard';
 import { createOrder, getMaterials } from '../api/api';
+import { useParams, useNavigate } from 'react-router-dom';
 
-const Items = ({ isHomePage = true }) => {
+const Items = ({ isHomePage = false }) => {
+  const { category: urlCategory } = useParams();
+  const navigate = useNavigate();
+
+  // Initial State Logic
   const [filter, setFilter] = useState('All');
   const [activeIdx, setActiveIdx] = useState(0);
   const [selectedItem, setSelectedItem] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
   const [activeTab, setActiveTab] = useState('details');
   
-  // Backend Materials State
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -29,30 +36,34 @@ const Items = ({ isHomePage = true }) => {
     material: "",  
     quantity: 1,
     measurements: {
-      height: "",
-      chest: "",
-      shoulder: "",
-      waist: "",
-      hips: "",
-      arm_length: ""
+      height: "", chest: "", shoulder: "", waist: "", hips: "", arm_length: ""
     }
   });
 
-  // Fetch Materials from Backend
+  // 1. SYNC FILTER WITH URL (Handles both /items and /items/:category)
+  useEffect(() => {
+    if (urlCategory) {
+      // If a category exists in URL (men, women, children)
+      const formatted = urlCategory.charAt(0).toUpperCase() + urlCategory.slice(1);
+      setFilter(formatted);
+    } else {
+      // If no category in URL (e.g. clicking "Shop" directly), show All
+      setFilter('All');
+    }
+    setActiveIdx(0); 
+  }, [urlCategory]);
+
+  // 2. FETCH DATA
   useEffect(() => {
     const fetchBackendMaterials = async () => {
       try {
         setLoading(true);
         const response = await getMaterials();
         
-        // Mapping backend data to match UI component requirements
         const mappedData = response.data.map(m => ({
           ...m,
-          // Use API category if provided, else default to 'Men' for filtering
           category: m.category || 'Men', 
-          // Fallback image if null
           img: m.image_url || 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?q=80&w=1480',
-          // Generate description from texture/color if description is null
           desc: m.description || `A premium ${m.texture} fabric in a sophisticated ${m.color} finish.`,
           price: m.inventory ? `${m.inventory.quantity_meters}m Available` : "Check Stock"
         }));
@@ -77,7 +88,6 @@ const Items = ({ isHomePage = true }) => {
 
   const activeItem = filteredProducts[activeIdx] || filteredProducts[0];
 
-  // Auto-play Logic
   useEffect(() => {
     if (isPaused || selectedItem || filteredProducts.length <= 1) return;
     const timer = setInterval(() => {
@@ -102,7 +112,6 @@ const Items = ({ isHomePage = true }) => {
       alert("Please complete contact details.");
       return;
     }
-
     const payload = {
       ...formData,
       suit_type: 1, 
@@ -112,7 +121,6 @@ const Items = ({ isHomePage = true }) => {
         Object.entries(formData.measurements).map(([k, v]) => [k, parseFloat(v) || 0])
       )
     };
-
     try {
       const response = await createOrder(payload);
       if (response.status === 201 || response.status === 200) {
@@ -135,28 +143,37 @@ const Items = ({ isHomePage = true }) => {
       <div className="max-w-[1600px] mx-auto">
         
         {/* HEADER SECTION */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 md:mb-12 gap-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6">
           <header>
             <motion.p initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="text-red-600 font-black tracking-[0.4em] uppercase text-[10px] mb-2">
-              Hachalu Atelier • Fabric Inventory
+              Hachalu Atelier • Bespoke Inventory
             </motion.p>
             <h2 className="text-4xl md:text-7xl font-black text-black dark:text-white uppercase tracking-tighter leading-none">
-              Material Gallery
+              {filter === 'All' ? 'Full Archive' : `${filter} Collection`}
             </h2>
           </header>
 
-          <div className="flex gap-2 overflow-x-auto no-scrollbar w-full md:w-auto py-2">
-            {['All', 'Men', 'Women', 'Children'].map((cat) => (
+          {/* CATEGORY RIBBON NAVIGATION */}
+          <div className="flex gap-6 overflow-x-auto no-scrollbar w-full md:w-auto py-2 border-b md:border-none dark:border-white/5">
+            {[
+              { id: 'All', icon: <HiOutlineSquares2X2 /> },
+              { id: 'Men', icon: <HiOutlineUser /> },
+              { id: 'Women', icon: <HiOutlineSparkles /> },
+              { id: 'Children', icon: <HiOutlineUserGroup /> }
+            ].map((cat) => (
               <button
-                key={cat}
-                onClick={() => { setFilter(cat); setActiveIdx(0); }}
-                className={`text-[9px] font-black uppercase tracking-widest px-6 py-3 rounded-full border transition-all shrink-0 ${
-                  filter === cat 
-                  ? 'bg-black text-white dark:bg-white dark:text-black border-transparent shadow-xl' 
-                  : 'border-gray-200 dark:border-white/10 dark:text-white hover:border-red-600'
+                key={cat.id}
+                onClick={() => navigate(cat.id === 'All' ? '/items' : `/items/${cat.id.toLowerCase()}`)}
+                className={`group flex flex-col items-center gap-2 transition-all ${
+                  filter === cat.id ? 'opacity-100' : 'opacity-40 hover:opacity-100'
                 }`}
               >
-                {cat}
+                <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-lg border transition-all ${
+                  filter === cat.id ? 'bg-black dark:bg-white text-white dark:text-black border-transparent shadow-xl' : 'border-gray-200 dark:border-white/10 dark:text-white'
+                }`}>
+                  {cat.icon}
+                </div>
+                <span className="text-[8px] font-black uppercase tracking-[0.2em] dark:text-white">{cat.id}</span>
               </button>
             ))}
           </div>
@@ -174,19 +191,18 @@ const Items = ({ isHomePage = true }) => {
               </motion.div>
             </AnimatePresence>
 
-            {/* Restocking Soon Overlay */}
             {!activeItem?.inventory?.is_available && (
               <div className="absolute inset-0 flex items-center justify-center z-20">
                 <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center bg-black/40 backdrop-blur-xl p-10 border border-white/10 mx-4">
                   <HiOutlineClock className="mx-auto text-red-600 mb-4" size={48} />
                   <h3 className="text-white text-3xl font-black uppercase tracking-tighter">Coming Soon</h3>
-                  <p className="text-white/70 text-[10px] uppercase tracking-[0.2em] mt-2">This {activeItem?.name} fabric is being restocked.</p>
+                  <p className="text-white/70 text-[10px] uppercase tracking-[0.2em] mt-2">Restocking for {filter} gallery.</p>
                 </motion.div>
               </div>
             )}
 
             <div className="absolute bottom-6 left-6 right-6 md:bottom-12 md:left-12 md:right-12 flex flex-col md:flex-row justify-between items-end gap-6 z-10">
-              <div className="max-w-xl">
+              <div className="max-w-xl text-left">
                 <span className="bg-red-600 text-white text-[8px] font-bold px-3 py-1 uppercase tracking-widest mb-4 inline-block">
                   SKU: {activeItem?.id}
                 </span>
@@ -209,26 +225,34 @@ const Items = ({ isHomePage = true }) => {
             </div>
           </div>
 
+          {/* SIDE LIST */}
           <div className="flex-1 w-full lg:max-w-[420px] flex flex-col gap-4">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2 px-1">
-               <HiOutlineQueueList size={16} className="text-red-600"/> Available Inventory
+               <HiOutlineQueueList size={16} className="text-red-600"/> {filter} Stock ({filteredProducts.length})
             </h4>
             
             <div className="flex lg:flex-col gap-3 overflow-x-auto lg:overflow-y-auto no-scrollbar lg:pr-2 h-full">
-              {filteredProducts.map((item, idx) => (
-                <div key={item.id} className="min-w-[280px] lg:min-w-full">
-                  <ItemCard 
-                    item={item} 
-                    isActive={activeIdx === idx} 
-                    onClick={() => setActiveIdx(idx)} 
-                  />
+              {filteredProducts.length > 0 ? (
+                filteredProducts.map((item, idx) => (
+                  <div key={item.id} className="min-w-[280px] lg:min-w-full">
+                    <ItemCard 
+                      item={item} 
+                      isActive={activeIdx === idx} 
+                      onClick={() => setActiveIdx(idx)} 
+                    />
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-20 opacity-30">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] dark:text-white">Empty Collection</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>
       </div>
 
+      {/* MODAL / SLIDE OVER */}
       <AnimatePresence>
         {selectedItem && (
           <div className="fixed inset-0 z-[200] flex justify-end">
@@ -251,7 +275,7 @@ const Items = ({ isHomePage = true }) => {
                        <div className="aspect-[16/9] rounded overflow-hidden">
                           <img src={selectedItem.img} className="w-full h-full object-cover" alt="" />
                        </div>
-                       <div>
+                       <div className="text-left">
                           <h2 className="text-4xl font-black dark:text-white uppercase tracking-tighter">{selectedItem.name}</h2>
                           <p className="text-red-600 font-bold text-lg mt-2 uppercase tracking-widest">{selectedItem.color} • {selectedItem.texture}</p>
                           <p className="text-gray-500 dark:text-gray-400 mt-6 leading-relaxed text-lg italic">{selectedItem.desc}</p>
@@ -262,7 +286,7 @@ const Items = ({ isHomePage = true }) => {
                     </motion.div>
                   ) : (
                     <motion.div key="bespoke" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
-                       <header className="border-b dark:border-white/10 pb-6">
+                       <header className="border-b dark:border-white/10 pb-6 text-left">
                           <h3 className="text-2xl font-black dark:text-white uppercase">Client Brief</h3>
                           <p className="text-gray-500 text-xs uppercase tracking-widest mt-2">Custom order for material: {selectedItem.name}</p>
                        </header>
@@ -300,7 +324,7 @@ const TabBtn = ({ active, onClick, label, icon }) => (
 );
 
 const Input = ({ label, placeholder, type = "number", value, onChange }) => (
-  <div className="flex flex-col gap-2">
+  <div className="flex flex-col gap-2 text-left">
     <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{label}</label>
     <input type={type} value={value} onChange={onChange} placeholder={placeholder} className="bg-transparent border-b border-gray-200 dark:border-white/10 py-3 text-lg font-bold dark:text-white outline-none focus:border-red-600 transition-all" />
   </div>

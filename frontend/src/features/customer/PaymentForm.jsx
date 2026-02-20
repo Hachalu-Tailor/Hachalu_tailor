@@ -35,6 +35,7 @@ const PaymentForm = () => {
   const [bankRefNumber, setBankRefNumber] = useState('');
   const [receiptFile, setReceiptFile] = useState(null);
   const [receiptPreview, setReceiptPreview] = useState(null);
+  const [receiptUrl, setReceiptUrl] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
@@ -472,6 +473,7 @@ const PaymentForm = () => {
                       </p>
                     </div>
                   )}
+                  
                 </div>
 
                 {/* Instructions */}

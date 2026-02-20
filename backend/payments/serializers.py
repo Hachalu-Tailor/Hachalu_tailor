@@ -19,6 +19,7 @@ class TransactionSerializer(serializers.ModelSerializer):
             "payment_amount",
             "bank_ref_number",
             "receipt_pdf_url",
+            "receipt_screenshot",
             "is_verified",
             "created_at",
         ]
@@ -44,7 +45,23 @@ class PaymentCreateSerializer(serializers.Serializer):
     order_code = serializers.CharField()
     amount = serializers.DecimalField(max_digits=12, decimal_places=2)
     bank_ref_number = serializers.CharField()
-    receipt_pdf_url = serializers.URLField()
+    receipt_pdf_url = serializers.URLField(
+        required=False, allow_null=True, allow_blank=True
+    )
+    receipt_screenshot = serializers.FileField(required=False, allow_null=True)
+
+    def validate(self, attrs):
+        receipt_pdf_url = (attrs.get("receipt_pdf_url") or "").strip()
+        receipt_screenshot = attrs.get("receipt_screenshot")
+
+        if not receipt_pdf_url and not receipt_screenshot:
+            raise serializers.ValidationError(
+                "Provide either receipt_pdf_url or receipt_screenshot."
+            )
+
+        if receipt_pdf_url:
+            attrs["receipt_pdf_url"] = receipt_pdf_url
+        return attrs
 
 
 class PaymentVerifySerializer(serializers.Serializer):

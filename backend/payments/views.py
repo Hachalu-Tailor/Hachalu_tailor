@@ -3,8 +3,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import ValidationError
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from django.core.exceptions import ValidationError as DjangoValidationError
-from drf_spectacular.utils import OpenApiExample, extend_schema
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
 
 from accounts.permissions import IsAdminOrReceptionist
 from .serializers import (
@@ -12,13 +13,15 @@ from .serializers import (
     PaymentVerifySerializer,
     TransactionSerializer,
 )
-from .services import create_payment, verify_payment
+from .services import create_payment, verify_payment,get_payment_by_id, get_payment_by_code, get_payment_by_order_code
 from rest_framework.generics import ListAPIView
 from .models import Transaction
 
 
+
 class PaymentCreateView(APIView):
     permission_classes = [AllowAny]
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
 
     @extend_schema(
         tags=["Payments"],
@@ -38,6 +41,7 @@ class PaymentCreateView(APIView):
         ],
         description=(
             "Submit payment details for an order. "
+            "Provide receipt_pdf_url, receipt_screenshot, or both. "
             "Transitions order from AWAITING_PAYMENT to PENDING_APPROVAL."
         ),
     )
@@ -50,16 +54,17 @@ class PaymentCreateView(APIView):
                 order_code=serializer.validated_data["order_code"],
                 amount=serializer.validated_data["amount"],
                 bank_ref_number=serializer.validated_data["bank_ref_number"],
-                receipt_pdf_url=serializer.validated_data["receipt_pdf_url"],
+                receipt_pdf_url=serializer.validated_data.get("receipt_pdf_url"),
+                receipt_screenshot=serializer.validated_data.get("receipt_screenshot"),
             )
         except DjangoValidationError as exc:
             raise ValidationError(str(exc))
-            
+
         return Response(
             TransactionSerializer(transaction_obj).data,
             status=status.HTTP_201_CREATED,
         )
-   
+
 
 class PaymentVerifyView(APIView):
     permission_classes = [IsAuthenticated, IsAdminOrReceptionist]
@@ -95,6 +100,7 @@ class PaymentVerifyView(APIView):
         return Response(TransactionSerializer(transaction_obj).data)
 
 
+<<<<<<< HEAD
 class PaymentListView(ListAPIView):
     permission_classes = [IsAuthenticated, IsAdminOrReceptionist]
     serializer_class = TransactionSerializer
@@ -115,3 +121,69 @@ class PaymentListView(ListAPIView):
             queryset = queryset.filter(is_verified=is_verified.lower() == "true")
 
         return queryset
+=======
+class PaymentDetailView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        tags=["Payments"],
+        responses={200: TransactionSerializer, 400: dict},
+        description="Get payment detail by payment id.",
+    )
+    def get(self, request, id):
+        try:
+            transaction_obj = get_payment_by_id(transaction_id=id)
+        except DjangoValidationError as exc:
+            raise ValidationError(str(exc))
+        return Response(TransactionSerializer(transaction_obj).data)
+
+
+class PaymentDetailByCodeView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        tags=["Payments"],
+        parameters=[
+            OpenApiParameter(
+                name="code",
+                required=True,
+                description="Payment code (bank reference number).",
+                type=str,
+                location=OpenApiParameter.PATH,
+            )
+        ],
+        responses={200: TransactionSerializer, 400: dict},
+        description="Get payment detail by payment code.",
+    )
+    def get(self, request, code):
+        try:
+            transaction_obj = get_payment_by_code(payment_code=code)
+        except DjangoValidationError as exc:
+            raise ValidationError(str(exc))
+        return Response(TransactionSerializer(transaction_obj).data)
+
+
+class PaymentDetailByOrderCodeView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        tags=["Payments"],
+        parameters=[
+            OpenApiParameter(
+                name="order_code",
+                required=True,
+                description="Order code assigned at creation (e.g., HP-00000001).",
+                type=str,
+                location=OpenApiParameter.PATH,
+            )
+        ],
+        responses={200: TransactionSerializer, 400: dict},
+        description="Get payment detail by order code.",
+    )
+    def get(self, request, order_code):
+        try:
+            transaction_obj = get_payment_by_order_code(order_code=order_code)
+        except DjangoValidationError as exc:
+            raise ValidationError(str(exc))
+        return Response(TransactionSerializer(transaction_obj).data)
+>>>>>>> 54d7eb31e9e1d09a37a919f28098579a18ec2d4b

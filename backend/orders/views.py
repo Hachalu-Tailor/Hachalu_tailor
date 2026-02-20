@@ -23,6 +23,7 @@ from .services import (
     approve_order,
     create_order,
     expire_orders,
+    get_order_by_code,
     list_orders,
     receive_order_for_processing,
     record_payment_info,
@@ -163,6 +164,38 @@ class OrderListView(APIView):
 
         serializer = OrderSerializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class OrderDetailByCodeView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        tags=["Orders"],
+        parameters=[
+            OpenApiParameter(
+                name="code",
+                required=True,
+                description="Order code assigned at creation (e.g., HP-00000001).",
+                type=str,
+                location=OpenApiParameter.PATH,
+            )
+        ],
+        responses={200: OrderSerializer, 400: dict},
+        examples=[
+            OpenApiExample(
+                "Order detail by code",
+                value={"order_code": "HP-00000001", "status": "INITIATED"},
+                response_only=True,
+            )
+        ],
+        description="Get order details by order code (public).",
+    )
+    def get(self, request, code):
+        try:
+            order = get_order_by_code(order_code=code)
+        except DjangoValidationError as exc:
+            raise ValidationError(str(exc))
+        return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
 
 
 class OrderProcessingView(APIView):

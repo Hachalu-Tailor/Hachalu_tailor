@@ -14,8 +14,11 @@ import {
 import ItemCard from '../components/ItemCard';
 import { createOrder, getMaterials } from '../api/api';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import '../i18n';
 
 const Items = ({ isHomePage = false }) => {
+  const { t, i18n } = useTranslation();
   const { category: urlCategory } = useParams();
   const navigate = useNavigate();
 
@@ -109,7 +112,7 @@ const Items = ({ isHomePage = false }) => {
 
   const handleSubmit = async () => {
     if (!formData.customer_name || !formData.customer_phone) {
-      alert("Please complete contact details.");
+      alert(t('items.pleaseCompleteContact'));
       return;
     }
     const payload = {
@@ -124,17 +127,17 @@ const Items = ({ isHomePage = false }) => {
     try {
       const response = await createOrder(payload);
       if (response.status === 201 || response.status === 200) {
-        alert(`Order Placed! Code: ${response.data.order_code}`);
+        alert(`${t('items.orderPlaced')}: ${response.data.order_code}`);
         setSelectedItem(null); 
       }
     } catch (error) {
-      alert(error.response?.data?.message || "Order failed.");
+      alert(error.response?.data?.message || t('items.orderFailed'));
     }
   };
 
   if (loading) return (
     <div className="h-screen flex items-center justify-center bg-white dark:bg-[#080808]">
-      <div className="text-red-600 font-black uppercase tracking-[0.5em] animate-pulse">Loading Inventory...</div>
+      <div className="text-red-600 font-black uppercase tracking-[0.5em] animate-pulse">{t('common.loading')}...</div>
     </div>
   );
 
@@ -146,20 +149,20 @@ const Items = ({ isHomePage = false }) => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6">
           <header>
             <motion.p initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="text-red-600 font-black tracking-[0.4em] uppercase text-[10px] mb-2">
-              Hachalu Atelier • Bespoke Inventory
+              {t('items.subtitle')}
             </motion.p>
             <h2 className="text-4xl md:text-7xl font-black text-black dark:text-white uppercase tracking-tighter leading-none">
-              {filter === 'All' ? 'Full Archive' : `${filter} Collection`}
+              {filter === 'All' ? t('items.allCollection') : `${filter} ${t('items.collection')}`}
             </h2>
           </header>
 
           {/* CATEGORY RIBBON NAVIGATION */}
           <div className="flex gap-6 overflow-x-auto no-scrollbar w-full md:w-auto py-2 border-b md:border-none dark:border-white/5">
             {[
-              { id: 'All', icon: <HiOutlineSquares2X2 /> },
-              { id: 'Men', icon: <HiOutlineUser /> },
-              { id: 'Women', icon: <HiOutlineSparkles /> },
-              { id: 'Children', icon: <HiOutlineUserGroup /> }
+              { id: 'All', label: t('common.all'), icon: <HiOutlineSquares2X2 /> },
+              { id: 'Men', label: t('common.men'), icon: <HiOutlineUser /> },
+              { id: 'Women', label: t('common.women'), icon: <HiOutlineSparkles /> },
+              { id: 'Children', label: t('common.children'), icon: <HiOutlineUserGroup /> }
             ].map((cat) => (
               <button
                 key={cat.id}
@@ -173,7 +176,7 @@ const Items = ({ isHomePage = false }) => {
                 }`}>
                   {cat.icon}
                 </div>
-                <span className="text-[8px] font-black uppercase tracking-[0.2em] dark:text-white">{cat.id}</span>
+                <span className="text-[8px] font-black uppercase tracking-[0.2em] dark:text-white">{cat.label}</span>
               </button>
             ))}
           </div>
@@ -195,8 +198,8 @@ const Items = ({ isHomePage = false }) => {
               <div className="absolute inset-0 flex items-center justify-center z-20">
                 <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center bg-black/40 backdrop-blur-xl p-10 border border-white/10 mx-4">
                   <HiOutlineClock className="mx-auto text-red-600 mb-4" size={48} />
-                  <h3 className="text-white text-3xl font-black uppercase tracking-tighter">Coming Soon</h3>
-                  <p className="text-white/70 text-[10px] uppercase tracking-[0.2em] mt-2">Restocking for {filter} gallery.</p>
+                  <h3 className="text-white text-3xl font-black uppercase tracking-tighter">{t('items.comingSoon')}</h3>
+                  <p className="text-white/70 text-[10px] uppercase tracking-[0.2em] mt-2">{t('items.restocking')}</p>
                 </motion.div>
               </div>
             )}
@@ -219,7 +222,7 @@ const Items = ({ isHomePage = false }) => {
                   onClick={() => setSelectedItem(activeItem)}
                   className="w-full md:w-auto bg-white text-black px-10 py-5 text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-2xl"
                 >
-                  Request Bespoke Build
+                  {t('items.requestBespoke')}
                 </button>
               )}
             </div>
@@ -228,7 +231,7 @@ const Items = ({ isHomePage = false }) => {
           {/* SIDE LIST */}
           <div className="flex-1 w-full lg:max-w-[420px] flex flex-col gap-4">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2 px-1">
-               <HiOutlineQueueList size={16} className="text-red-600"/> {filter} Stock ({filteredProducts.length})
+               <HiOutlineQueueList size={16} className="text-red-600"/> {filter} {t('items.stock')} ({filteredProducts.length})
             </h4>
             
             <div className="flex lg:flex-col gap-3 overflow-x-auto lg:overflow-y-auto no-scrollbar lg:pr-2 h-full">
@@ -244,7 +247,7 @@ const Items = ({ isHomePage = false }) => {
                 ))
               ) : (
                 <div className="text-center py-20 opacity-30">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] dark:text-white">Empty Collection</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] dark:text-white">{t('items.emptyCollection')}</p>
                 </div>
               )}
             </div>
@@ -260,8 +263,8 @@ const Items = ({ isHomePage = false }) => {
             <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: 'spring', damping: 30, stiffness: 200 }} className="relative w-full max-w-2xl h-full bg-white dark:bg-[#0c0c0c] flex flex-col shadow-2xl">
               <div className="p-6 md:p-8 border-b border-gray-100 dark:border-white/5 flex justify-between items-center bg-zinc-50 dark:bg-zinc-900/50">
                 <div className="flex gap-4">
-                  <TabBtn active={activeTab === 'details'} onClick={() => setActiveTab('details')} label="Fabric Overview" icon={<HiOutlineInboxStack/>} />
-                  <TabBtn active={activeTab === 'bespoke'} onClick={() => setActiveTab('bespoke')} label="Measurements" icon={<HiOutlineScale/>} />
+                  <TabBtn active={activeTab === 'details'} onClick={() => setActiveTab('details')} label={t('items.fabricOverview')} icon={<HiOutlineInboxStack/>} />
+                  <TabBtn active={activeTab === 'bespoke'} onClick={() => setActiveTab('bespoke')} label={t('items.measurements')} icon={<HiOutlineScale/>} />
                 </div>
                 <button onClick={() => setSelectedItem(null)} className="dark:text-white hover:text-red-600 transition-colors">
                   <HiOutlineXMark size={28}/>
@@ -281,24 +284,24 @@ const Items = ({ isHomePage = false }) => {
                           <p className="text-gray-500 dark:text-gray-400 mt-6 leading-relaxed text-lg italic">{selectedItem.desc}</p>
                        </div>
                        <button onClick={() => setActiveTab('bespoke')} className="w-full py-6 bg-black dark:bg-white text-white dark:text-black font-black uppercase text-xs tracking-widest hover:bg-red-600 transition-all">
-                         Enter Measurements
+                         {t('items.enterMeasurements')}
                        </button>
                     </motion.div>
                   ) : (
                     <motion.div key="bespoke" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
                        <header className="border-b dark:border-white/10 pb-6 text-left">
-                          <h3 className="text-2xl font-black dark:text-white uppercase">Client Brief</h3>
-                          <p className="text-gray-500 text-xs uppercase tracking-widest mt-2">Custom order for material: {selectedItem.name}</p>
+                          <h3 className="text-2xl font-black dark:text-white uppercase">{t('items.clientBrief')}</h3>
+                          <p className="text-gray-500 text-xs uppercase tracking-widest mt-2">{t('items.customOrderFor')} {selectedItem.name}</p>
                        </header>
 
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 dark:bg-white/5 p-6 rounded-sm">
-                          <Input label="Full Name" type="text" placeholder="John Doe" value={formData.customer_name} onChange={(e) => handleInputChange('customer_name', e.target.value)} />
-                          <Input label="Phone Number" type="text" placeholder="+251..." value={formData.customer_phone} onChange={(e) => handleInputChange('customer_phone', e.target.value)} />
+                          <Input label={t('items.fullName')} type="text" placeholder={t('items.namePlaceholder')} value={formData.customer_name} onChange={(e) => handleInputChange('customer_name', e.target.value)} />
+                          <Input label={t('items.phoneNumber')} type="text" placeholder={t('items.phonePlaceholder')} value={formData.customer_phone} onChange={(e) => handleInputChange('customer_phone', e.target.value)} />
                        </div>
 
                        <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                           {Object.keys(formData.measurements).map((key) => (
-                            <Input key={key} label={key.replace('_', ' ')} placeholder="0.0" value={formData.measurements[key]} onChange={(e) => handleInputChange(key, e.target.value, true)} />
+                            <Input key={key} label={t(`items.measurement.${key}`)} placeholder="0.0" value={formData.measurements[key]} onChange={(e) => handleInputChange(key, e.target.value, true)} />
                           ))}
                        </div>
 

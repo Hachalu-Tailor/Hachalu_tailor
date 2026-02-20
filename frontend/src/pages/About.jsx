@@ -1,8 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { HiOutlineUserGroup, HiOutlineGlobeEuropeAfrica, HiOutlineHandRaised, HiOutlineCheckBadge } from 'react-icons/hi2';
 
 const About = () => {
+  const { t } = useTranslation();
   return (
     <div className="min-h-screen bg-white dark:bg-brand-dark transition-colors duration-500 overflow-x-hidden">
       
@@ -23,7 +25,7 @@ const About = () => {
             animate={{ opacity: 1, letterSpacing: "0.6em" }}
             className="text-red-600 font-black uppercase text-xs mb-6"
           >
-            Established 2026
+            {t('about.established')}
           </motion.p>
           <motion.h1 
             initial={{ opacity: 0, scale: 0.9 }}
@@ -31,7 +33,7 @@ const About = () => {
             transition={{ duration: 1 }}
             className="text-7xl md:text-[10rem] font-black text-black dark:text-white uppercase leading-none tracking-tighter"
           >
-            THE HOUSE.
+            {t('about.theHouse')}
           </motion.h1>
         </div>
       </section>

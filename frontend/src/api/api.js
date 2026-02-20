@@ -149,15 +149,15 @@ export const markAllNotificationsRead = () => api.post('/accounts/user/notificat
 
 export const getMaterials = (params) => api.get('/invetory/materials/', { params });
 
-export const createMaterial = (data) => api.post('/inventory/materials/', data);
+export const createMaterial = (data) => api.post('/invetory/materials/', data);
 
-export const getMaterialDetail = (id) => api.get(`/inventory/materials/${id}/`);
+export const getMaterialDetail = (id) => api.get(`/invetory/materials/${id}/`);
 
-export const updateMaterial = (id, data) => api.patch(`/inventory/materials/${id}/`, data);
+export const updateMaterial = (id, data) => api.patch(`/invetory/materials/${id}/`, data);
 
-export const deleteMaterial = (id) => api.delete(`/inventory/materials/${id}/`);
+export const deleteMaterial = (id) => api.delete(`/invetory/materials/${id}/`);
 
-export const adjustStock = (id, data) => api.post(`/inventory/materials/${id}/stock/`, data);
+export const adjustStock = (id, data) => api.post(`/invetory/materials/${id}/stock/`, data);
 
 // ============================================
 // ORDERS ENDPOINTS

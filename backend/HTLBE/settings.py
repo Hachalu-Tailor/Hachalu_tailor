@@ -44,7 +44,6 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "drf_spectacular",
     ## custom
-
     "accounts",
     "inventory",
     "orders",
@@ -115,7 +114,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 
 # user model
-AUTH_USER_MODEL = 'accounts.User'
+AUTH_USER_MODEL = "accounts.User"
 
 
 # Internationalization
@@ -134,6 +133,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "static/"
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -145,9 +146,7 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
-    "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.AllowAny",
-    ),
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.AllowAny",),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
     "DEFAULT_THROTTLE_CLASSES": ("rest_framework.throttling.ScopedRateThrottle",),
@@ -184,7 +183,6 @@ SPECTACULAR_SETTINGS = {
 }
 
 
-
 # That Lidetu added
 # Add this at the bottom of settings.py
 CORS_ALLOWED_ORIGINS = [
@@ -195,3 +193,4 @@ CORS_ALLOWED_ORIGINS = [
 
 # To allow the login to send tokens/cookies back and forth
 CORS_ALLOW_CREDENTIALS = True
+

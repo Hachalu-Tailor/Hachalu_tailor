@@ -6,8 +6,9 @@ from orders.models import Order
 
 class Transaction(models.Model):
     """
-        Transaction data linked to an order
+    Transaction data linked to an order
     """
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     order_id = models.OneToOneField(
         Order, on_delete=models.CASCADE, related_name="transaction"
@@ -17,6 +18,9 @@ class Transaction(models.Model):
     )
     bank_ref_number = models.CharField(max_length=255, blank=True, null=True, unique=True)
     receipt_pdf_url = models.URLField(max_length=500, blank=True, null=True)
+    receipt_screenshot = models.FileField(
+        upload_to="receipts/screenshots/", blank=True, null=True
+    )
     is_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 

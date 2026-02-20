@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from 'react-i18next';
 import {
   HiOutlineLockClosed,
   HiOutlineUserCircle,
@@ -14,6 +15,7 @@ import {
 const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { t } = useTranslation();
   const [showPassword, setShowPassword] = useState(false);
 
   // Form State
@@ -94,7 +96,7 @@ const Login = () => {
             </h1>
             <div className="h-[2px] w-12 bg-red-600 mx-auto mt-4" />
             <p className="text-gray-400 text-[9px] font-black uppercase tracking-[0.4em] mt-6">
-              Authorized Personnel Terminal
+              {t('auth.loginSubtitle')}
             </p>
           </div>
 
@@ -133,7 +135,7 @@ const Login = () => {
             {/* EMAIL (Personnel ID) */}
             <div className="relative group">
               <label className="absolute -top-6 left-0 text-[8px] font-black uppercase tracking-widest text-gray-500 group-focus-within:text-red-600 transition-colors">
-                Personnel Email
+                {t('auth.email')}
               </label>
               <HiOutlineUserCircle className="absolute left-0 bottom-3 text-gray-500 group-focus-within:text-red-600 transition-colors" size={18} />
               <input
@@ -150,7 +152,7 @@ const Login = () => {
             {/* PASSWORD */}
             <div className="relative group">
               <label className="absolute -top-6 left-0 text-[8px] font-black uppercase tracking-widest text-gray-500 group-focus-within:text-red-600 transition-colors">
-                Access Key
+                {t('auth.password')}
               </label>
               <HiOutlineLockClosed className="absolute left-0 bottom-3 text-gray-500 group-focus-within:text-red-600 transition-colors" size={18} />
               <input
@@ -179,9 +181,9 @@ const Login = () => {
               className={`w-full bg-red-600 text-white py-5 font-black uppercase tracking-[0.5em] text-[10px] flex items-center justify-center gap-3 transition-all mt-4 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {loading ? (
-                <span className="animate-pulse">Verifying...</span>
+                <span className="animate-pulse">{t('common.loading')}</span>
               ) : (
-                <>Verify Identity <HiOutlineShieldCheck size={18} /></>
+                <>{t('auth.login')} <HiOutlineShieldCheck size={18} /></>
               )}
             </motion.button>
           </form>

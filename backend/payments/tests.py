@@ -97,6 +97,18 @@ class PaymentApiTests(APITestCase):
         response = self.client.post("/api/payments/", payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_payment_create_requires_receipt(self):
+        order = self._create_order(allow_payment=True, reviewed_by=self.reviewer)
+        payload = {
+            "order_code": order.order_code,
+            "amount": "120.00",
+            "full_name": order.customer.full_name,
+            "phone_number": order.customer.phone_number,
+            "bank_ref_number": "REF123",
+        }
+        response = self.client.post("/api/payments/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_payment_verify_reviewer_only(self):
         order = self._create_order(allow_payment=True, reviewed_by=self.reviewer)
         transaction = Transaction.objects.create(
@@ -123,6 +135,48 @@ class PaymentApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         order.refresh_from_db()
         self.assertEqual(order.status, "IN_PROGRESS")
+
+    def test_payment_detail_by_id(self):
+        order = self._create_order(allow_payment=True, reviewed_by=self.reviewer)
+        transaction = Transaction.objects.create(
+            order_id=order,
+            payment_amount="120.00",
+            bank_ref_number="REF123",
+            receipt_pdf_url="https://example.com/receipt.pdf",
+        )
+
+        response = self.client.get(f"/api/payments/{transaction.id}/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["id"], str(transaction.id))
+
+    def test_payment_detail_by_code(self):
+        order = self._create_order(allow_payment=True, reviewed_by=self.reviewer)
+        transaction = Transaction.objects.create(
+            order_id=order,
+            payment_amount="120.00",
+            bank_ref_number="REF123",
+            receipt_pdf_url="https://example.com/receipt.pdf",
+        )
+
+        response = self.client.get("/api/payments/code/REF123/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["id"], str(transaction.id))
+
+    def test_payment_detail_by_order_code(self):
+        order = self._create_order(allow_payment=True, reviewed_by=self.reviewer)
+        transaction = Transaction.objects.create(
+            order_id=order,
+            payment_amount="120.00",
+            bank_ref_number="REF123",
+            receipt_pdf_url="https://example.com/receipt.pdf",
+        )
+
+        response = self.client.get(f"/api/payments/order/{order.order_code}/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["id"], str(transaction.id))
 
 
 class PaymentServiceTests(APITestCase):

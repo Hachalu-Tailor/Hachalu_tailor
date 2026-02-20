@@ -41,6 +41,7 @@ def create_payment(
     amount,
     bank_ref_number,
     receipt_pdf_url,
+    receipt_screenshot=None,
 ) -> Transaction:
     try:
         order = Order.objects.select_related("customer", "reviewed_by").get(
@@ -57,11 +58,16 @@ def create_payment(
 
     normalized_amount = _normalize_amount(amount)
 
+    normalized_receipt_pdf_url = str(receipt_pdf_url).strip() if receipt_pdf_url else ""
+    if not normalized_receipt_pdf_url and not receipt_screenshot:
+        raise ValidationError("Provide either receipt_pdf_url or receipt_screenshot.")
+
     transaction_obj = Transaction.objects.create(
         order_id=order,
         payment_amount=normalized_amount,
         bank_ref_number=str(bank_ref_number).strip(),
-        receipt_pdf_url=str(receipt_pdf_url).strip(),
+        receipt_pdf_url=normalized_receipt_pdf_url or None,
+        receipt_screenshot=receipt_screenshot,
     )
 
     order.payment_reference = transaction_obj.bank_ref_number
@@ -133,3 +139,34 @@ def verify_payment(*, transaction_id, reviewer) -> Transaction:
     )
 
     return transaction_obj
+
+
+def get_payment_by_id(*, transaction_id) -> Transaction:
+    if not transaction_id:
+        raise ValidationError("transaction_id is required.")
+    try:
+        return Transaction.objects.select_related("order_id").get(id=transaction_id)
+    except Transaction.DoesNotExist:
+        raise ValidationError("payment not found.")
+
+
+def get_payment_by_code(*, payment_code) -> Transaction:
+    if not payment_code:
+        raise ValidationError("payment_code is required.")
+    try:
+        return Transaction.objects.select_related("order_id").get(
+            bank_ref_number=str(payment_code).strip()
+        )
+    except Transaction.DoesNotExist:
+        raise ValidationError("payment not found.")
+
+
+def get_payment_by_order_code(*, order_code) -> Transaction:
+    if not order_code:
+        raise ValidationError("order_code is required.")
+    try:
+        return Transaction.objects.select_related("order_id").get(
+            order_id__order_code=str(order_code).strip()
+        )
+    except Transaction.DoesNotExist:
+        raise ValidationError("payment not found.")

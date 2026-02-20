@@ -10,6 +10,7 @@ import About from './pages/About';
 import Login from './pages/Login';
 import Orders from './pages/Orders'; // Public tracking
 import NotFound from './pages/NotFound';
+import DiscountPage from './pages/DiscountPage';
 
 // Staff/Admin Pages
 import ReceptionDashboard from './pages/ReceptionDashboard';
@@ -51,11 +52,13 @@ function App() {
         <Route path="/" element={<MainLayout />}>
           <Route index element={<Home />} />
           <Route path="items" element={<Items />} />
+          <Route path="items/:category" element={<Items />} />
           <Route path="services" element={<Services />} />
           <Route path="about" element={<About />} />
           <Route path="my-orders" element={<Orders />} />
           <Route path="measurements" element={<MeasurementForm />} />
           <Route path="submit-payment" element={<PaymentForm />} />
+          <Route path="services/discount" element={<DiscountPage />} />
         </Route>
 
         {/* --- 3. STAFF AREA (Shared) --- */}

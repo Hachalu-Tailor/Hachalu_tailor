@@ -139,3 +139,34 @@ def verify_payment(*, transaction_id, reviewer) -> Transaction:
     )
 
     return transaction_obj
+
+
+def get_payment_by_id(*, transaction_id) -> Transaction:
+    if not transaction_id:
+        raise ValidationError("transaction_id is required.")
+    try:
+        return Transaction.objects.select_related("order_id").get(id=transaction_id)
+    except Transaction.DoesNotExist:
+        raise ValidationError("payment not found.")
+
+
+def get_payment_by_code(*, payment_code) -> Transaction:
+    if not payment_code:
+        raise ValidationError("payment_code is required.")
+    try:
+        return Transaction.objects.select_related("order_id").get(
+            bank_ref_number=str(payment_code).strip()
+        )
+    except Transaction.DoesNotExist:
+        raise ValidationError("payment not found.")
+
+
+def get_payment_by_order_code(*, order_code) -> Transaction:
+    if not order_code:
+        raise ValidationError("order_code is required.")
+    try:
+        return Transaction.objects.select_related("order_id").get(
+            order_id__order_code=str(order_code).strip()
+        )
+    except Transaction.DoesNotExist:
+        raise ValidationError("payment not found.")

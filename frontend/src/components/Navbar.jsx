@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+// Import NavHashLink for smooth scrolling to #contact
+import { NavHashLink } from 'react-router-hash-link';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   HiBars3BottomRight as HiMenuAlt3,
@@ -50,11 +52,15 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const handleLinkClick = useCallback(() => {
+  const handleLinkClick = useCallback((href) => {
     setIsSidebarOpen(false);
     setActiveMenu(null);
     setMobileAccordion(null);
-    window.scrollTo(0, 0);
+    
+    // Only scroll to top if NOT a hash link (like #contact)
+    if (href && !href.includes('#')) {
+      window.scrollTo(0, 0);
+    }
   }, []);
 
   const menuItems = [
@@ -65,16 +71,17 @@ const Navbar = () => {
       subItems: [
         { title: 'we-offer', desc: 'Authorized protocol service suite.', icon: <HiOutlineShieldCheck />, href: '/services' },
         { title: 'Discount', desc: 'Exclusive loyalty allocations.', icon: <HiOutlineCpuChip />, href: '/services/discount' },
-        { title: 'Need Help?', desc: '24/7 customer support.', icon: <HiOutlineGlobeAlt />, href: '/services/contact' },
+        // UPDATED HREF TO USE HASH
+        { title: 'Need Help?', desc: '24/7 customer support.', icon: <HiOutlineGlobeAlt />, href: '/#contact' },
       ]
     },
     {
-      name: 'Items',
+      name: 'Shop',
       href: '/items',
       subItems: [
-        { title: 'Womens', desc: 'Premier female collection.', icon: <HiOutlineCpuChip />, href: '/products/womens' },
-        { title: 'Mens', desc: 'Advanced male collection.', icon: <HiOutlineCubeTransparent />, href: '/items/mens' },
-        { title: 'All-in-one', desc: 'Unified sector solutions.', icon: <HiOutlineArrowRight />, href: '/items/edge' }
+        { title: 'Womens', desc: 'Premier female collection.', icon: <HiOutlineCpuChip />, href: '/items/women' },
+        { title: 'Mens', desc: 'Advanced male collection.', icon: <HiOutlineCubeTransparent />, href: '/items/men' },
+        { title: 'Children', desc: 'Selected quality children collection.', icon: <HiOutlineArrowRight />, href: '/items/children' }
       ]
     },
     { name: 'About', href: '/about' },
@@ -105,12 +112,12 @@ const Navbar = () => {
       >
         <div className="max-w-[1440px] mx-auto px-10 flex items-center justify-between">
 
-          <Link to="/" onClick={handleLinkClick} className="flex items-center gap-3 group">
+          <Link to="/" onClick={() => handleLinkClick('/')} className="flex items-center gap-3 group">
             <motion.div whileHover={{ scale: 1.05 }} className="relative">
               <img src={logo} alt="Logo" className="w-10 h-10 rounded-lg shadow-lg group-hover:shadow-red-600/20 transition-all" />
               <div className="absolute -inset-1 bg-red-600/20 blur opacity-0 group-hover:opacity-100 transition-opacity rounded-lg" />
             </motion.div>
-            <div className="flex flex-col">
+            <div className="flex flex-col text-left">
               <span className="text-black dark:text-white font-black text-2xl tracking-tighter uppercase leading-none">Hachalu</span>
               <span className="text-red-600 font-bold text-[8px] tracking-[0.5em] uppercase">Protocol</span>
             </div>
@@ -126,7 +133,7 @@ const Navbar = () => {
               >
                 <Link
                   to={item.href}
-                  onClick={handleLinkClick}
+                  onClick={() => handleLinkClick(item.href)}
                   className={`flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.15em] transition-all ${location.pathname === item.href ? 'text-red-600' : 'text-gray-500 dark:text-gray-400 hover:text-red-600'
                     }`}
                 >
@@ -158,7 +165,7 @@ const Navbar = () => {
           </div>
         </div>
 
-        {/* MEGA MENU */}
+        {/* MEGA MENU (DESKTOP) */}
         <AnimatePresence>
           {activeMenu && menuItems.find(m => m.name === activeMenu)?.subItems && (
             <motion.div
@@ -168,7 +175,7 @@ const Navbar = () => {
               transition={{ type: 'spring', damping: 30, stiffness: 200 }}
               className="absolute left-0 w-full bg-white dark:bg-[#0c0c0c] border-b border-red-600/10 shadow-[0_20px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_40px_rgba(0,0,0,0.4)] z-50 overflow-hidden"
             >
-              <div className="max-w-[1440px] mx-auto px-10 py-12 grid grid-cols-4 gap-12">
+              <div className="max-w-[1440px] mx-auto px-10 py-12 grid grid-cols-4 gap-12 text-left">
                 <div className="col-span-1 border-r border-gray-100 dark:border-white/5">
                   <h3 className="text-red-600 font-black text-3xl uppercase italic tracking-tighter mb-4">{activeMenu}</h3>
                   <p className="text-[11px] text-gray-400 uppercase tracking-widest leading-loose max-w-[200px]">
@@ -184,7 +191,13 @@ const Navbar = () => {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.05 }}
                     >
-                      <Link to={sub.href} onClick={handleLinkClick} className="group/item flex flex-col gap-4 p-5 rounded-2xl hover:bg-red-600/5 dark:hover:bg-white/5 transition-all border border-transparent hover:border-red-600/10">
+                      {/* USING NavHashLink HERE */}
+                      <NavHashLink 
+                        smooth
+                        to={sub.href} 
+                        onClick={() => handleLinkClick(sub.href)} 
+                        className="group/item flex flex-col gap-4 p-5 rounded-2xl hover:bg-red-600/5 dark:hover:bg-white/5 transition-all border border-transparent hover:border-red-600/10"
+                      >
                         <div className="w-12 h-12 flex items-center justify-center bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white rounded-xl group-hover/item:bg-red-600 group-hover/item:text-white transition-all duration-300">
                           {sub.icon}
                         </div>
@@ -193,9 +206,9 @@ const Navbar = () => {
                             {sub.title}
                             <HiOutlineArrowRight size={14} className="opacity-0 group-hover/item:opacity-100 -translate-x-2 group-hover/item:translate-x-0 transition-all text-red-600" />
                           </h4>
-                          <p className="text-gray-400 text-[10px] mt-2 leading-relaxed">{sub.desc}</p>
+                          <p className="text-gray-400 text-[10px] mt-2 leading-relaxed text-left">{sub.desc}</p>
                         </div>
-                      </Link>
+                      </NavHashLink>
                     </motion.div>
                   ))}
                 </div>
@@ -209,28 +222,28 @@ const Navbar = () => {
       <AnimatePresence>
         {isSidebarOpen && (
           <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-200" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200]" />
             <motion.aside
               initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed right-0 top-0 h-full w-[85%] bg-white dark:bg-brand-dark z-210 p-10 flex flex-col shadow-[-20px_0_50px_rgba(0,0,0,0.2)]"
+              className="fixed right-0 top-0 h-full w-[85%] bg-white dark:bg-[#0c0c0c] z-[210] p-10 flex flex-col shadow-[-20px_0_50px_rgba(0,0,0,0.2)]"
             >
               <div className="flex justify-between items-center mb-16">
-                <div className="flex flex-col">
+                <div className="flex flex-col text-left">
                   <span className="text-black dark:text-white font-black text-2xl uppercase tracking-tighter leading-none">Hachalu</span>
                   <span className="text-red-600 font-bold text-[8px] tracking-[0.5em] uppercase">Protocol</span>
                 </div>
                 <button onClick={() => setIsSidebarOpen(false)} className="p-2 bg-gray-100 dark:bg-white/5 rounded-full dark:text-white"><HiX size={24} /></button>
               </div>
 
-              <div className="flex-1 space-y-6 overflow-y-auto">
+              <div className="flex-1 space-y-6 overflow-y-auto text-left">
                 {menuItems.map((item) => (
                   <div key={item.name} className="border-b border-gray-100 dark:border-white/5 pb-4">
                     <div className="flex justify-between items-center py-2" onClick={() => item.subItems && setMobileAccordion(mobileAccordion === item.name ? null : item.name)}>
                       {item.subItems ? (
                         <span className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">{item.name}</span>
                       ) : (
-                        <Link to={item.href} onClick={handleLinkClick} className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">{item.name}</Link>
+                        <Link to={item.href} onClick={() => handleLinkClick(item.href)} className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">{item.name}</Link>
                       )}
                       {item.subItems && <HiChevronDown className={`transition-transform duration-300 dark:text-white ${mobileAccordion === item.name ? 'rotate-180' : ''}`} />}
                     </div>
@@ -239,10 +252,16 @@ const Navbar = () => {
                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-gray-50 dark:bg-white/5 rounded-xl mt-2">
                           <div className="p-4 grid gap-4">
                             {item.subItems.map((sub) => (
-                              <Link key={sub.title} to={sub.href} onClick={handleLinkClick} className="flex items-center gap-3 group">
+                              <NavHashLink 
+                                smooth
+                                key={sub.title} 
+                                to={sub.href} 
+                                onClick={() => handleLinkClick(sub.href)} 
+                                className="flex items-center gap-3 group"
+                              >
                                 <span className="p-2 bg-white dark:bg-black rounded-lg text-red-600">{sub.icon}</span>
                                 <span className="text-xs font-bold dark:text-white uppercase tracking-widest">{sub.title}</span>
-                              </Link>
+                              </NavHashLink>
                             ))}
                           </div>
                         </motion.div>
@@ -253,7 +272,7 @@ const Navbar = () => {
               </div>
 
               <div className="pt-8">
-                <Link to="/login" onClick={handleLinkClick} className="block w-full py-4 bg-red-600 text-white font-black text-center uppercase text-xs tracking-[.2em]">Hub Authentication</Link>
+                <Link to="/login" onClick={() => handleLinkClick('/login')} className="block w-full py-4 bg-red-600 text-white font-black text-center uppercase text-xs tracking-[.2em]">Hub Authentication</Link>
               </div>
             </motion.aside>
           </>

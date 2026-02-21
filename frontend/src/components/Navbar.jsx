@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-// Import NavHashLink for smooth scrolling to #contact
-import { NavHashLink } from 'react-router-hash-link';
+import { Link, useLocation, NavLink } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   HiBars3BottomRight as HiMenuAlt3,
@@ -194,9 +192,8 @@ const Navbar = () => {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.05 }}
                     >
-                      {/* USING NavHashLink HERE */}
-                      <NavHashLink
-                        smooth
+                      {/* USING Link HERE */}
+                      <Link
                         to={sub.href}
                         onClick={() => handleLinkClick(sub.href)}
                         className="group/item flex flex-col gap-4 p-5 rounded-2xl hover:bg-red-600/5 dark:hover:bg-white/5 transition-all border border-transparent hover:border-red-600/10"
@@ -211,7 +208,7 @@ const Navbar = () => {
                           </h4>
                           <p className="text-gray-400 text-[10px] mt-2 leading-relaxed text-left">{sub.desc}</p>
                         </div>
-                      </NavHashLink>
+                      </Link>
                     </motion.div>
                   ))}
                 </div>
@@ -255,8 +252,7 @@ const Navbar = () => {
                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-gray-50 dark:bg-white/5 rounded-xl mt-2">
                           <div className="p-4 grid gap-4">
                             {item.subItems.map((sub) => (
-                              <NavHashLink
-                                smooth
+                              <Link
                                 key={sub.title}
                                 to={sub.href}
                                 onClick={() => handleLinkClick(sub.href)}
@@ -264,7 +260,7 @@ const Navbar = () => {
                               >
                                 <span className="p-2 bg-white dark:bg-black rounded-lg text-red-600">{sub.icon}</span>
                                 <span className="text-xs font-bold dark:text-white uppercase tracking-widest">{sub.title}</span>
-                              </NavHashLink>
+                              </Link>
                             ))}
                           </div>
                         </motion.div>

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useTranslation } from 'react-i18next';
 import { 
   HiOutlineTicket, 
   HiOutlineCheckCircle, 
@@ -13,6 +12,7 @@ import {
   HiOutlineEye
 } from 'react-icons/hi2';
 import { createPayment, getPayments, getOrderDetail } from '../api/api';
+import { useTranslation } from 'react-i18next';
 
 const Orders = () => {
   const { t } = useTranslation();

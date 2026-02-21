@@ -3,7 +3,6 @@ import { Link, useLocation } from 'react-router-dom';
 // Import NavHashLink for smooth scrolling to #contact
 import { NavHashLink } from 'react-router-hash-link';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useTranslation } from 'react-i18next';
 import {
   HiBars3BottomRight as HiMenuAlt3,
   HiXMark as HiX,
@@ -18,9 +17,9 @@ import {
 } from 'react-icons/hi2';
 import logo from '../assets/logo.jpg';
 import LanguageSwitcher from './LanguageSwitcher';
+// Using Google Translate in index.html
 
 const Navbar = () => {
-  const { t } = useTranslation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [scrolled, setScrolled] = useState(false);
@@ -67,28 +66,27 @@ const Navbar = () => {
   }, []);
 
   const menuItems = [
-    { name: t('nav.home'), href: '/' },
+    { name: 'Home', href: '/' },
     {
-      name: t('nav.services'),
+      name: 'Services',
       href: '/services',
       subItems: [
-        { title: t('nav.weOffer'), desc: t('nav.authorizedService'), icon: <HiOutlineShieldCheck />, href: '/services' },
-        { title: t('nav.discount'), desc: t('nav.exclusiveLoyalty'), icon: <HiOutlineCpuChip />, href: '/services/discount' },
-        { title: t('nav.needHelp'), desc: t('nav.customerSupport'), icon: <HiOutlineGlobeAlt />, href: '/#contact' },
+        { title: 'We Offer', desc: 'Authorized Service', icon: <HiOutlineShieldCheck />, href: '/services' },
+        { title: 'Discount', desc: 'Exclusive Loyalty', icon: <HiOutlineCpuChip />, href: '/services/discount' },
+        { title: 'Need Help', desc: 'Customer Support', icon: <HiOutlineGlobeAlt />, href: '/#contact' },
       ]
     },
     {
-      name: t('nav.shop'),
+      name: 'Shop',
       href: '/items',
       subItems: [
-        { title: t('nav.womens'), desc: t('nav.premierFemale'), icon: <HiOutlineCpuChip />, href: '/items/women' },
-        { title: t('nav.mens'), desc: t('nav.advancedMale'), icon: <HiOutlineCubeTransparent />, href: '/items/men' },
-        { title: t('nav.children'), desc: t('nav.qualityChildren'), icon: <HiOutlineArrowRight />, href: '/items/children' }
+        { title: "Women's", desc: 'Premier Female', icon: <HiOutlineCpuChip />, href: '/items/women' },
+        { title: "Men's", desc: 'Advanced Male', icon: <HiOutlineCubeTransparent />, href: '/items/men' },
+        { title: "Children's", desc: 'Quality Children', icon: <HiOutlineArrowRight />, href: '/items/children' }
       ]
     },
-    { name: t('nav.about'), href: '/about' },
-    // { name: t('nav.myOrders'), href: '/my-orders' },
-    { name: t('nav.submitPayment'), href: '/submit-payment' }
+    { name: 'About', href: '/about' },
+    { name: 'Submit Payment Proof', href: '/submit-payment' }
   ];
 
   return (
@@ -97,10 +95,10 @@ const Navbar = () => {
       <div className={`bg-[#0c0c0c] text-white/40 py-1.5 text-[9px] tracking-[0.3em] uppercase transition-all duration-500 hidden md:block ${scrolled ? 'opacity-0 -translate-y-full' : 'opacity-100'}`}>
         <div className="max-w-[1440px] mx-auto px-10 flex justify-between items-center">
           <div className="flex gap-4">
-            <span className="flex items-center gap-2"><span className="w-1 h-1 bg-red-600 rounded-full animate-pulse" /> {t('nav.globalNode')}</span>
-            <span>{t('nav.uptime')}: 99.9%</span>
+            <span className="flex items-center gap-2"><span className="w-1 h-1 bg-red-600 rounded-full animate-pulse" /> Global Node</span>
+            <span>Uptime: 99.9%</span>
           </div>
-          <span className="italic">Hachalu {t('nav.protocol')} v2.0.4</span>
+          <span className="italic">Hachalu Protocol v2.0.4</span>
         </div>
       </div>
 
@@ -151,10 +149,12 @@ const Navbar = () => {
 
           {/* ACTIONS */}
           <div className="flex items-center gap-4">
+            {/* Language Switcher */}
+            <LanguageSwitcher className="p-2.5 rounded-xl bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-white border border-transparent hover:border-red-600/20 transition-all" />
+
             <button onClick={toggleTheme} className="p-2.5 rounded-xl bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-yellow-500 border border-transparent hover:border-red-600/20 transition-all">
               {isDarkMode ? <HiSun size={18} /> : <HiMoon size={18} />}
             </button>
-            <LanguageSwitcher className="p-2.5 rounded-xl bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-white border border-transparent hover:border-red-600/20 transition-all" />
 
             {isAdminOrReceptionist && (
               <Link to="/login" className="hidden md:block bg-red-600 hover:bg-red-700 text-white text-[10px] font-black px-6 py-2.5 uppercase tracking-widest transition-all hover:shadow-[0_0_20px_rgba(220,38,38,0.3)]">

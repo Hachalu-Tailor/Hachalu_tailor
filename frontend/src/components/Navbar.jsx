@@ -14,7 +14,6 @@ import {
   HiOutlineArrowRight,
 } from 'react-icons/hi2';
 import logo from '../assets/logo.jpg';
-import LanguageSwitcher from './LanguageSwitcher';
 // Using Google Translate in index.html
 
 const Navbar = () => {
@@ -147,9 +146,6 @@ const Navbar = () => {
 
           {/* ACTIONS */}
           <div className="flex items-center gap-4">
-            {/* Language Switcher */}
-            <LanguageSwitcher className="p-2.5 rounded-xl bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-white border border-transparent hover:border-red-600/20 transition-all" />
-
             <button onClick={toggleTheme} className="p-2.5 rounded-xl bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-yellow-500 border border-transparent hover:border-red-600/20 transition-all">
               {isDarkMode ? <HiSun size={18} /> : <HiMoon size={18} />}
             </button>

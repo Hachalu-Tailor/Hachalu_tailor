@@ -110,7 +110,7 @@ const Footer = () => {
 
           {/* Copyright */}
           <p className="text-[9px] text-gray-400 font-bold uppercase tracking-[0.5em] text-center">
-            © {currentYear} HACHALU PROTOCOL. CRAFTED IN ADAMA.
+            © {currentYear} HACHALU PROTOCOL. CRAFTED IN SHASHEMENE.
           </p>
 
           {/* Legal */}

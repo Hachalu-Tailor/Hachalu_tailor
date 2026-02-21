@@ -173,7 +173,7 @@ export const updateOrder = (id, data) => api.patch(`/orders/${id}/`, data);
 
 export const deleteOrder = (id) => api.delete(`/orders/${id}/`);
 
-export const processOrder = (id, data) => api.post(`/orders/${id}/process`, data);
+export const processOrder = (id, data) => api.post(`/orders/${id}/process/`, data);
 
 export const expireOrders = () => api.post('/orders/expire/');
 

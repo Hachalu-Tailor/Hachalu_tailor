@@ -198,7 +198,7 @@ const About = () => {
         className="bg-red-600 p-8 text-white rounded-sm md:ml-auto w-full max-w-sm shadow-2xl"
       >
         <p className="text-[10px] font-black tracking-widest uppercase mb-4 opacity-80">Workshop Location</p>
-        <p className="text-lg font-bold">Adama, Oromia, Ethiopia</p>
+        <p className="text-lg font-bold">Shashemene 01 Biftu, Ethiopia</p>
         <p className="text-sm opacity-90 mt-2 font-medium">Available for private fittings and consultation by appointment.</p>
       </motion.div>
 

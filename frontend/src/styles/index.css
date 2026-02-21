@@ -7,6 +7,19 @@
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
+
 html {
   scroll-behavior: smooth;
+}
+
+/* Reset body margin/padding to remove top gap */
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* Ensure navbar touches top of viewport */
+#root {
+  margin: 0;
+  padding: 0;
 }

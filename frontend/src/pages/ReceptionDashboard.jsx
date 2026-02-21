@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import {
   HiOutlineShoppingBag, HiOutlineCube, HiOutlineUserGroup,
   HiOutlineClock, HiOutlinePlus, HiOutlineArrowTrendingUp,
@@ -20,7 +19,6 @@ import {
 } from '../utils/constants';
 
 const ReceptionDashboard = () => {
-  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [orders, setOrders] = useState([]);

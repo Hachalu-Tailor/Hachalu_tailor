@@ -96,7 +96,8 @@ const Inventory = () => {
 
   const filteredData = inventory.filter((item) => {
     const matchSearch = item.name?.toLowerCase().includes(search.toLowerCase()) ||
-      item.color?.toLowerCase().includes(search.toLowerCase());
+      item.color?.toLowerCase().includes(search.toLowerCase()) ||
+      item.category?.toLowerCase().includes(search.toLowerCase());
     const qty = parseFloat(item.inventory?.quantity_meters || 0);
     const matchStatus =
       stockStatus === "all" ? true :
@@ -193,6 +194,7 @@ const Inventory = () => {
                             <div>
                               <h3 className="text-sm md:text-base font-black uppercase italic tracking-tight">{item.name}</h3>
                               <p className="text-[10px] text-zinc-400 uppercase font-bold">{item.color} • {item.texture}</p>
+                              {item.category && <p className="text-[9px] text-red-500 uppercase font-bold mt-1">{item.category}</p>}
                               {item.description && <p className="text-[9px] text-zinc-500 mt-1 max-w-xs truncate">{item.description}</p>}
                             </div>
                           </div>

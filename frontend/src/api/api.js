@@ -177,6 +177,8 @@ export const processOrder = (id, data) => api.post(`/orders/${id}/process/`, dat
 
 export const expireOrders = () => api.post('/orders/expire/');
 
+export const getOrderByCode = (code) => api.get(`/orders/code/${code}/`);
+
 // ============================================
 // SUIT TYPES ENDPOINTS
 // ============================================

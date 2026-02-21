@@ -13,13 +13,12 @@ export const products = [
   },
   { 
     id: 2, 
-    category: "Women", 
-    name: "Signature Power Suit", 
-    price: "ETB 11,000", 
-    desc: "Sculpted shoulders for a commanding silhouette.", 
-    // img: "https://images.unsplash.com/photo-1617113930975-f9c7243ae527?q=80&w=1374",
-    img: IMAGES.STATIC.STATIC1,
-    suit_type_id: 2
+    category: "Men", 
+    name: "Ivory Dinner Jacket", 
+    price: "ETB 9,500", 
+    desc: "Double-breasted excellence.", 
+    img: "https://image.kgstores.com/is/image/marketing/25-4666887-mens-suits-desktop.jpg",
+    suit_type_id: 4
   },
   { 
     id: 3, 
@@ -34,19 +33,11 @@ export const products = [
   { 
     id: 4, 
     category: "Men", 
-    name: "Ivory Dinner Jacket", 
-    price: "ETB 9,500", 
-    desc: "Double-breasted excellence.", 
-    img: "https://image.kgstores.com/is/image/marketing/25-4666887-mens-suits-desktop.jpg",
-    suit_type_id: 4
+    name: "Signature Power Suit", 
+    price: "ETB 11,000",
+    desc: "Sculpted shoulders for a commanding silhouette.", 
+    // img: "https://images.unsplash.com/photo-1617113930975-f9c7243ae527?q=80&w=1374",
+    img: IMAGES.STATIC.STATIC1,
+    suit_type_id: 2
   },
-  // { 
-  //   id: 5, 
-  //   category: "Women", 
-  //   name: "Executive Blazer", 
-  //   price: "ETB 12,500", 
-  //   desc: "Premium silk-lined interior.", 
-  //   img: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?q=80&w=1480",
-  //   suit_type_id: 5
-  // },
 ];

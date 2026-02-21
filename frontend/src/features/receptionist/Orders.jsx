@@ -43,7 +43,7 @@ const Orders = () => {
 
   const fetchSuitTypes = async () => {
     try {
-      const response = await api.get('/orders/suit-types/');
+      const response = await api.get('/suit-types/');
       setSuitTypes(response.data || []);
     } catch (error) {
       console.error('Error fetching suit types:', error);

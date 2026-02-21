@@ -89,8 +89,8 @@ const Contact = () => {
               <div className="absolute bottom-6 left-6 right-6 bg-white dark:bg-zinc-950 p-6 shadow-2xl border-l-4 border-red-600 translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
                 <h4 className="font-black uppercase text-xs tracking-widest mb-1 dark:text-white">Headquarters</h4>
                 <p className="text-gray-500 text-[11px] leading-relaxed">
-                  Shashamane City, Arsi Zone, <br />
-                  Oromia State, Ethiopia
+                  Shashamane City, 01 / Biftu, <br />
+                  Ethiopia
                 </p>
                 <div className="mt-4 flex gap-3">
                   <a href="#" className="text-red-600 text-[10px] font-black uppercase tracking-tighter hover:underline">Get Directions</a>
@@ -156,7 +156,11 @@ const Contact = () => {
 
             {/* QUICK CONTACT INFO CARDS */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <ContactMethod icon={<HiOutlinePhone/>} label="Call Us" detail="+251 9xx xxx xxx" />
+              <div className=''>
+                <ContactMethod icon={<HiOutlinePhone/>} label="" detail="+251900000095" />
+                <ContactMethod icon={<HiOutlinePhone/>} label="" detail="+251900000095" />
+              </div>
+              
               <ContactMethod icon={<HiOutlineEnvelope/>} label="Email" detail="info@ndm.com" />
             </div>
           </motion.div>

@@ -110,6 +110,7 @@ const Orders = () => {
       'PENDING_APPROVAL': 'bg-orange-500/10 text-orange-500',
       'IN_PROGRESS': 'bg-blue-500/10 text-blue-500',
       'COMPLETED': 'bg-green-500/10 text-green-500',
+      'REJECTED': 'bg-red-500/10 text-red-500',
       'CANCELLED': 'bg-red-500/10 text-red-500',
     };
     return colors[status] || 'bg-gray-500/10 text-gray-400';
@@ -238,28 +239,52 @@ const Orders = () => {
 
               <div className="flex gap-3">
                 {selectedOrder.status === 'INITIATED' && (
-                  <button
-                    onClick={() => handleProcessOrder('receive', { total_price: 100, due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] })}
-                    className="flex-1 py-4 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all"
-                  >
-                    Receive Order
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => handleProcessOrder('reject', { reason: 'Order cancelled by staff' })}
+                      className="flex-1 py-4 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => handleProcessOrder('receive', { total_price: 100, due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] })}
+                      className="flex-1 py-4 bg-green-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-green-700 transition-all"
+                    >
+                      Receive Order
+                    </button>
+                  </div>
                 )}
                 {selectedOrder.status === 'AWAITING_PAYMENT' && (
-                  <button
-                    onClick={() => handleProcessOrder('record_payment', { payment_reference: 'CASH', payment_amount: selectedOrder.total_price })}
-                    className="flex-1 py-4 bg-green-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-green-700 transition-all"
-                  >
-                    Record Payment
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => handleProcessOrder('reject', { reason: 'Payment not received' })}
+                      className="flex-1 py-4 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => handleProcessOrder('record_payment', { payment_reference: 'CASH', payment_amount: selectedOrder.total_price })}
+                      className="flex-1 py-4 bg-green-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-green-700 transition-all"
+                    >
+                      Record Payment
+                    </button>
+                  </div>
                 )}
                 {selectedOrder.status === 'PENDING_APPROVAL' && (
-                  <button
-                    onClick={() => handleProcessOrder('approve')}
-                    className="flex-1 py-4 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all"
-                  >
-                    Approve Order
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => handleProcessOrder('reject', { reason: 'Payment verification failed' })}
+                      className="flex-1 py-4 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all"
+                    >
+                      Reject Order
+                    </button>
+                    <button
+                      onClick={() => handleProcessOrder('approve')}
+                      className="flex-1 py-4 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all"
+                    >
+                      Approve Order
+                    </button>
+                  </div>
                 )}
                 {selectedOrder.status === 'IN_PROGRESS' && (
                   <button

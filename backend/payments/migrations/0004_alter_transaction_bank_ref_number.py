@@ -15,4 +15,11 @@ class Migration(migrations.Migration):
             name="bank_ref_number",
             field=models.CharField(blank=True, max_length=255, null=True, unique=True),
         ),
+        migrations.AddField(
+            model_name="transaction",
+            name="receipt_screenshot",
+            field=models.FileField(
+                blank=True, null=True, upload_to="receipts/screenshots/"
+            ),
+        ),
     ]

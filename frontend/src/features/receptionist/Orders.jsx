@@ -13,8 +13,6 @@ const Orders = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [receiveData, setReceiveData] = useState({ total_price: '', due_date: '' });
-  const [editPrice, setEditPrice] = useState('');
-  const [editDueDate, setEditDueDate] = useState('');
   const [suitTypes, setSuitTypes] = useState([]);
   const [materials, setMaterials] = useState([]);
   const [newOrder, setNewOrder] = useState({
@@ -132,14 +130,6 @@ const Orders = () => {
   const inProgressCount = orders.filter(o => o.status === 'IN_PROGRESS').length;
   const completedCount = orders.filter(o => o.status === 'COMPLETED').length;
 
-  // Initialize edit state when order is selected
-  useEffect(() => {
-    if (selectedOrder) {
-      setEditPrice(selectedOrder.total_price || '');
-      setEditDueDate(selectedOrder.due_date || '');
-    }
-  }, [selectedOrder]);
-
   const getStatusColor = (status) => {
     const colors = {
       'INITIATED': 'bg-gray-500/10 text-gray-400',
@@ -252,31 +242,13 @@ const Orders = () => {
                 </div>
                 <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4">
                   <p className="text-[9px] font-black text-zinc-400 uppercase">Total Price (ETB)</p>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={editPrice}
-                    onChange={(e) => setEditPrice(e.target.value)}
-                    className="w-full bg-transparent border-b border-zinc-300 dark:border-zinc-700 py-1 text-sm font-bold dark:text-white outline-none focus:border-red-600"
-                  />
+                  <p className="text-sm font-bold dark:text-white">${selectedOrder.total_price}</p>
                 </div>
                 <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4">
                   <p className="text-[9px] font-black text-zinc-400 uppercase">Due Date</p>
-                  <input
-                    type="date"
-                    value={editDueDate}
-                    onChange={(e) => setEditDueDate(e.target.value)}
-                    className="w-full bg-transparent border-b border-zinc-300 dark:border-zinc-700 py-1 text-sm font-bold dark:text-white outline-none focus:border-red-600"
-                  />
+                  <p className="text-sm font-bold dark:text-white">{selectedOrder.due_date}</p>
                 </div>
               </div>
-
-              <button
-                onClick={handleUpdatePriceAndDate}
-                className="w-full py-3 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all mb-4"
-              >
-                Update Price & Date
-              </button>
 
               {selectedOrder.measurements && (
                 <div className="mb-6">

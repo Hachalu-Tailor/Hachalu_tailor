@@ -98,7 +98,7 @@ const Home = () => {
             >
               <img
                 src={suits[index].image}
-                className="w-full h-full object-cover grayscale-[15%] group-hover:grayscale-0 transition-all duration-1000"
+                className="w-ful h-full object-cover grayscale-[15%] group-hover:grayscale-0 transition-all duration-1000"
                 alt={suits[index].title}
               />
               <div className="absolute inset-0 bg-gradient-to-l from-white/10 dark:from-black/10 via-transparent to-transparent" />
@@ -172,7 +172,7 @@ const Home = () => {
       {/* FEATURE STRIP */}
       <section className="bg-zinc-50 dark:bg-[#0c0c0c] border-y border-gray-100 dark:border-white/5 py-10">
         <div className="max-w-[1600px] mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8">
-            <FeatureCard title="Ethiopian Craft" desc="Hand-stitched precision in Adama." />
+            <FeatureCard title="Ethiopian Craft" desc="Hand-stitched precision in Shashemene." />
             <FeatureCard title="Bespoke Fit" desc="32 Unique body measurements per suit." />
             <FeatureCard title="Global Logistics" desc="Luxury delivery to your doorstep." />
         </div>
@@ -229,18 +229,49 @@ const ProductCard = ({ product, navigate }) => (
     onClick={() => navigate('/items')}
     className="group cursor-pointer w-full"
   >
-    <div className="aspect-[3/4] overflow-hidden bg-zinc-100 dark:bg-zinc-900 mb-6 relative">
-      <img src={product.img} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" alt={product.name} />
-      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center backdrop-blur-[2px]">
-        <span className="bg-white text-black px-6 py-3 text-[10px] font-black uppercase tracking-widest transform translate-y-4 group-hover:translate-y-0 transition-transform">Quick View</span>
+    {/* 1. Changed object-cover to object-contain to show the full image.
+      2. Added p-4 (padding) so the full image doesn't touch the very edges, looking more like a gallery.
+      3. Kept aspect-[3/4] for a consistent grid, but the image will now fit entirely inside it.
+    */}
+    <div className="aspect-[3/4] overflow-hidden bg-zinc-50 dark:bg-zinc-900/50 mb-6 relative border border-transparent group-hover:border-gray-100 dark:group-hover:border-white/5 transition-all duration-500 rounded-sm">
+      <img 
+        src={product.img} 
+        className="w-full h-full object-contain p-2 transition-all duration-700" 
+        alt={product.name} 
+      />
+      
+      {/* Interactive Overlay */}
+      <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-end pb-8 backdrop-blur-[1px]">
+        <motion.span 
+          initial={{ y: 10, opacity: 0 }}
+          whileHover={{ scale: 1.05 }}
+          className="bg-white text-black px-8 py-3 text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl"
+        >
+          View Details
+        </motion.span>
+      </div>
+
+      {/* Availability indicator if needed */}
+      <div className="absolute top-4 left-4">
+         <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
       </div>
     </div>
+
+    {/* Text Details */}
     <div className="flex justify-between items-start px-1">
-      <div>
-        <h3 className="text-black dark:text-white font-black uppercase text-sm tracking-tight">{product.name}</h3>
-        <p className="text-gray-400 text-[9px] uppercase font-bold tracking-widest mt-1">{product.category}</p>
+      <div className="max-w-[80%]">
+        <h3 className="text-black dark:text-white font-black uppercase text-xs tracking-tight truncate">
+          {product.name}
+        </h3>
+        <p className="text-gray-400 text-[9px] uppercase font-bold tracking-[0.2em] mt-1.5">
+          {product.category}
+        </p>
       </div>
-      <span className="text-red-600 font-black text-xs uppercase tracking-tighter">New</span>
+      <div className="flex flex-col items-end">
+        <span className="text-red-600 font-black text-[10px] uppercase tracking-tighter">
+          Exclusive
+        </span>
+      </div>
     </div>
   </motion.div>
 );

@@ -48,37 +48,43 @@ const PaymentForm = () => {
     document.querySelector('input[placeholder="e.g., HP-00000001"]')?.focus();
   }, []);
 
-  const handleSearchOrder = async () => {
-    if (!orderCode.trim()) return;
+const handleSearchOrder = async () => {
+  if (!orderCode.trim()) return;
 
-    setIsSearching(true);
-    setError(null);
-    setOrder(null);
+  setIsSearching(true);
+  setError(null);
+  setOrder(null);
 
-    try {
-      const response = await api.get(`/orders/list/?order_code=${orderCode.trim().toUpperCase()}`);
-      const orders = response.data.results || response.data || [];
+  try {
+    // 1. Fetch the data
+    const response = await api.get(`/orders/code/${orderCode.trim()}/`);
+    
+    // 2. Direct Access: The backend returns the object directly
+    const foundOrder = response.data;
 
-      if (orders.length === 0) {
-        setError('Order not found. Please check the code.');
-        return;
-      }
-
-      const foundOrder = orders[0];
-
-      if (!['AWAITING_PAYMENT', 'PENDING_APPROVAL'].includes(foundOrder.status)) {
-        setError(`Order is not payable (status: ${foundOrder.status})`);
-        return;
-      }
-
-      setOrder(foundOrder);
-      setPaymentAmount(foundOrder.total_price?.toString() || '');
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Could not fetch order. Try again.');
-    } finally {
-      setIsSearching(false);
+    // 3. Validation: Check if the object actually has data (like an ID)
+    if (!foundOrder || !foundOrder.id) {
+      setError('Order not found. Please check the code.');
+      return;
     }
-  };
+
+    // 4. Status Check
+    if (!['AWAITING_PAYMENT', 'PENDING_APPROVAL'].includes(foundOrder.status)) {
+      setError(`Order is not payable (status: ${foundOrder.status})`);
+      return;
+    }
+
+    // 5. Success: Set the order
+    setOrder(foundOrder);
+    setPaymentAmount(foundOrder.total_price?.toString() || '');
+
+  } catch (err) {
+    console.error("Search Error:", err);
+    setError(err.response?.data?.detail || 'Could not fetch order. Try again.');
+  } finally {
+    setIsSearching(false);
+  }
+};
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];

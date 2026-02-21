@@ -87,7 +87,7 @@ const Navbar = () => {
       ]
     },
     { name: t('nav.about'), href: '/about' },
-    { name: t('nav.myOrders'), href: '/my-orders' },
+    // { name: t('nav.myOrders'), href: '/my-orders' },
     { name: t('nav.submitPayment'), href: '/submit-payment' }
   ];
 

@@ -61,6 +61,12 @@ api.interceptors.request.use(
     } else {
       console.warn("No access_token found in localStorage!");
     }
+
+    // Don't set Content-Type for FormData - let axios set it with boundary
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+
     return config;
   },
   (error) => Promise.reject(error)
@@ -173,7 +179,7 @@ export const updateOrder = (id, data) => api.patch(`/orders/${id}/`, data);
 
 export const deleteOrder = (id) => api.delete(`/orders/${id}/`);
 
-export const processOrder = (id, data) => api.post(`/orders/${id}/process/`, data);
+export const processOrder = (id, data) => api.post(`/orders/${id}/process`, data);
 
 export const expireOrders = () => api.post('/orders/expire/');
 

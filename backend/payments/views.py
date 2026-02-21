@@ -100,7 +100,6 @@ class PaymentVerifyView(APIView):
         return Response(TransactionSerializer(transaction_obj).data)
 
 
-<<<<<<< HEAD
 class PaymentListView(ListAPIView):
     permission_classes = [IsAuthenticated, IsAdminOrReceptionist]
     serializer_class = TransactionSerializer
@@ -121,7 +120,6 @@ class PaymentListView(ListAPIView):
             queryset = queryset.filter(is_verified=is_verified.lower() == "true")
 
         return queryset
-=======
 class PaymentDetailView(APIView):
     permission_classes = [AllowAny]
 
@@ -186,4 +184,3 @@ class PaymentDetailByOrderCodeView(APIView):
         except DjangoValidationError as exc:
             raise ValidationError(str(exc))
         return Response(TransactionSerializer(transaction_obj).data)
->>>>>>> 54d7eb31e9e1d09a37a919f28098579a18ec2d4b

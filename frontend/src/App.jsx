@@ -55,7 +55,7 @@ function App() {
           <Route path="items/:category" element={<Items />} />
           <Route path="services" element={<Services />} />
           <Route path="about" element={<About />} />
-          <Route path="my-orders" element={<Orders />} />
+          {/* <Route path="my-orders" element={<Orders />} /> */}
           <Route path="measurements" element={<MeasurementForm />} />
           <Route path="submit-payment" element={<PaymentForm />} />
           <Route path="services/discount" element={<DiscountPage />} />

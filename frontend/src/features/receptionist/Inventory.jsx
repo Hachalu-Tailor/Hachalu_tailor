@@ -396,13 +396,9 @@ const Inventory = () => {
                           className="w-full bg-white dark:bg-black rounded-xl px-3 py-2 text-sm font-bold outline-none border border-zinc-200 dark:border-zinc-700 focus:ring-2 ring-red-600/20"
                         >
                           <option value="">Select Category</option>
-                          {[...new Set(inventory.filter(i => i.category).map(i => i.category))].map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
-                          ))}
                           <option value="Child">Child</option>
                           <option value="Men">Men</option>
                           <option value="Woman">Woman</option>
-                          <option value="Other">Other</option>
                         </select>
                         <div className="flex gap-2">
                           <button
@@ -606,13 +602,9 @@ const Inventory = () => {
                     className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 cursor-pointer"
                   >
                     <option value="">Select Category</option>
-                    {[...new Set(inventory.filter(i => i.category).map(i => i.category))].map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
                     <option value="Child">Child</option>
                     <option value="Men">Men</option>
                     <option value="Woman">Woman</option>
-                    <option value="Other">Other</option>
                   </select>
                 </div>
                 <div>

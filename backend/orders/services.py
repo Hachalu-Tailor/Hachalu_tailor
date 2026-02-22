@@ -295,6 +295,7 @@ def create_order(
         status="INITIATED",
         quantity=normalized_quantity,
         total_price=Decimal("0.00"),
+        expected_price=Decimal("0.00"),
         due_date=PLACEHOLDER_DUE_DATE,
     )
 
@@ -325,13 +326,14 @@ def create_order(
 
 @transaction.atomic
 def receive_order_for_processing(
-    *, order_id, total_price, due_date, requester=None
+    *, order_id, total_price, due_date, expected_price, requester=None
 ) -> Order:
     order = _resolve_order(order_id)
     if order.status != "INITIATED":
         raise ValidationError("Only initiated orders can be processed.")
 
     order.total_price = _normalize_decimal(total_price, "total_price")
+    order.expected_price = _normalize_decimal(expected_price, "expected_price")
     order.due_date = _normalize_date(due_date, "due_date")
     order.status = "AWAITING_PAYMENT"
     order.payment_allowed = True
@@ -340,6 +342,7 @@ def receive_order_for_processing(
     order.save(
         update_fields=[
             "total_price",
+            "expected_price",
             "due_date",
             "status",
             "payment_allowed",
@@ -357,6 +360,7 @@ def receive_order_for_processing(
             "order_id": str(order.id),
             "order_code": order.order_code,
             "total_price": str(order.total_price),
+            "expected_price": str(order.expected_price),
             "due_date": order.due_date.isoformat(),
         },
     )
@@ -533,6 +537,7 @@ def update_order(*, order_id, updates: dict, requester=None) -> Order:
         "payment_amount",
         "payment_received_at",
         "payment_notes",
+        "expected_price",
     }
     unexpected = set(updates.keys()) - allowed_fields
     if unexpected:
@@ -562,6 +567,11 @@ def update_order(*, order_id, updates: dict, requester=None) -> Order:
         order.payment_notes = str(updates["payment_notes"]).strip()
     if "status" in updates:
         order.status = updates["status"]
+
+    if "expected_price" in updates:
+        order.expected_price = _normalize_decimal(
+            updates["expected_price"], "expected_price"
+        )
 
     order.save()
 

@@ -37,6 +37,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "payment_received_at",
             "payment_notes",
             "payment_allowed",
+            "expected_price",
             "created_at",
             "updated_at",
             "customer_name",
@@ -91,6 +92,9 @@ class OrderProcessingSerializer(serializers.Serializer):
         choices=["receive", "record_payment", "approve", "reject"]
     )
     total_price = serializers.DecimalField(
+        max_digits=12, decimal_places=2, required=False
+    )
+    expected_price = serializers.DecimalField(
         max_digits=12, decimal_places=2, required=False
     )
     due_date = serializers.DateField(required=False)

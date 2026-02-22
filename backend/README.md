@@ -442,7 +442,8 @@ Body
 {
 "action": "receive",
 "total_price": 2500,
-"due_date": "2026-03-01"
+"due_date": "2026-03-01",
+"expected_price":1250
 }
 ```
 

@@ -212,6 +212,7 @@ class OrderProcessingView(APIView):
                     "action": "receive",
                     "total_price": "120.00",
                     "due_date": "2030-01-01",
+                    "expected_price": "60.0",
                 },
                 request_only=True,
             ),
@@ -236,6 +237,7 @@ class OrderProcessingView(APIView):
                 order = receive_order_for_processing(
                     order_id=id,
                     total_price=serializer.validated_data.get("total_price"),
+                    expected_price=serializer.validated_data.get("expected_price"),
                     due_date=serializer.validated_data.get("due_date"),
                     requester=request.user,
                 )

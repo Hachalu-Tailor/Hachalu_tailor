@@ -46,7 +46,7 @@ const Footer = () => {
                 Headquarters
               </p>
               <p className="text-[11px] text-black dark:text-white font-black uppercase tracking-widest mt-1">
-                Adama (Nazerit), Ethiopia
+                Shashemene, Ethiopia
               </p>
             </div>
           </div>
@@ -85,8 +85,8 @@ const Footer = () => {
             <h4 className="text-black dark:text-white font-black text-[11px] uppercase tracking-[0.3em]">Direct Contact</h4>
             <div className="space-y-4">
               <p className="text-gray-500 text-[10px] uppercase font-bold tracking-widest leading-loose">
-                Posta Road, Ward 03<br />
-                Adama, Oromia, Ethiopia
+                01, Biftu<br />
+                Shashemene, Ethiopia
               </p>
               <a href="mailto:support@hachalu.com" className="block text-red-600 text-[10px] font-black uppercase tracking-widest hover:underline">
                 support@hachalu.com
@@ -101,12 +101,12 @@ const Footer = () => {
         {/* BOTTOM SECTION: BASEMENT */}
         <div className="py-12 border-t border-gray-100 dark:border-white/5 flex flex-col md:flex-row justify-between items-center gap-8">
           {/* Payment Icons */}
-          <div className="flex gap-6 opacity-30 hover:opacity-100 transition-opacity duration-500">
+          {/* <div className="flex gap-6 opacity-30 hover:opacity-100 transition-opacity duration-500">
             <FaCcVisa size={22} className="dark:text-white" />
             <FaCcMastercard size={22} className="dark:text-white" />
             <FaCcApplePay size={22} className="dark:text-white" />
             <FaCcPaypal size={22} className="dark:text-white" />
-          </div>
+          </div> */}
 
           {/* Copyright */}
           <p className="text-[9px] text-gray-400 font-bold uppercase tracking-[0.5em] text-center">

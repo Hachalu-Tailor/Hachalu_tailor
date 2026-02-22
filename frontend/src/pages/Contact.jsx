@@ -92,9 +92,9 @@ const Contact = () => {
                   Shashamane City, 01 / Biftu, <br />
                   Ethiopia
                 </p>
-                <div className="mt-4 flex gap-3">
-                  <a href="#" className="text-red-600 text-[10px] font-black uppercase tracking-tighter hover:underline">Get Directions</a>
-                </div>
+                {/* <div className="mt-4 flex gap-3">
+                  <a href="" className="text-red-600 text-[10px] font-black uppercase tracking-tighter hover:underline">Get Directions</a>
+                </div> */}
               </div>
             </div>
           </motion.div>
@@ -158,7 +158,7 @@ const Contact = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className=''>
                 <ContactMethod icon={<HiOutlinePhone/>} label="" detail="+251900000095" />
-                <ContactMethod icon={<HiOutlinePhone/>} label="" detail="+251900000095" />
+                <ContactMethod icon={<HiOutlinePhone/>} label="" detail="+251912345678" />
               </div>
               
               <ContactMethod icon={<HiOutlineEnvelope/>} label="Email" detail="info@ndm.com" />

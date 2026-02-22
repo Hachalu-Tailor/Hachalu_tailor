@@ -130,7 +130,7 @@ const Orders = () => {
         due_date: editDueDate
       });
       fetchOrders();
-      setSelectedOrder({...selectedOrder, total_price: price, due_date: editDueDate});
+      setSelectedOrder({ ...selectedOrder, total_price: price, due_date: editDueDate });
     } catch (error) {
       console.error('Error updating order:', error);
       alert(error.response?.data?.error || 'Failed to update order');

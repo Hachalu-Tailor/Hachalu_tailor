@@ -40,6 +40,7 @@ const Inventory = () => {
   const fileInputRef = useRef(null);
   const [stockUpdate, setStockUpdate] = useState({ action_type: "add", quantity_meters: 0 });
   const [editingImage, setEditingImage] = useState(false); // false, 'url', or 'upload'
+  const [editingField, setEditingField] = useState(null); // 'category', 'description', or null
 
   useEffect(() => {
     fetchInventory();
@@ -57,7 +58,7 @@ const Inventory = () => {
     }
   };
 
-   const handleAddMaterial = async (e) => {
+  const handleAddMaterial = async (e) => {
     e.preventDefault();
     try {
       const materialData = {
@@ -369,6 +370,92 @@ const Inventory = () => {
 
                 <h2 className="text-2xl font-black uppercase italic tracking-tighter">{selectedItem.name}</h2>
                 <p className="text-[10px] text-zinc-400 uppercase font-bold mt-1">{selectedItem.color} • {selectedItem.texture}</p>
+
+                {/* Category Edit */}
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="text-[10px] font-black text-zinc-500 uppercase">Category:</span>
+                  {editingField === 'category' ? (
+                    <input
+                      type="text"
+                      defaultValue={selectedItem.category || ''}
+                      id={`edit-category-${selectedItem.id}`}
+                      className="bg-zinc-100 dark:bg-zinc-800 rounded-lg px-2 py-1 text-xs font-bold outline-none focus:ring-2 ring-red-600/20"
+                      placeholder="Enter category..."
+                    />
+                  ) : (
+                    <span
+                      onClick={() => setEditingField('category')}
+                      className="text-[10px] font-bold text-red-600 cursor-pointer hover:underline"
+                    >
+                      {selectedItem.category || 'Not set'} ✏️
+                    </span>
+                  )}
+                  {editingField === 'category' && (
+                    <div className="flex gap-1">
+                      <button
+                        onClick={async () => {
+                          const newValue = document.getElementById(`edit-category-${selectedItem.id}`).value;
+                          try {
+                            await api.patch(`/invetory/materials/${selectedItem.id}/`, { category: newValue || null });
+                            setSelectedItem({ ...selectedItem, category: newValue });
+                            setEditingField(null);
+                            fetchInventory();
+                          } catch (error) {
+                            console.error('Error updating category:', error);
+                            alert('Failed to update category');
+                          }
+                        }}
+                        className="text-[10px] font-black text-green-600 hover:underline"
+                      >
+                        Save
+                      </button>
+                      <button onClick={() => setEditingField(null)} className="text-[10px] font-black text-red-600 hover:underline">Cancel</button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Description Edit */}
+                <div className="mt-2 flex items-start gap-2">
+                  <span className="text-[10px] font-black text-zinc-500 uppercase">Description:</span>
+                  {editingField === 'description' ? (
+                    <textarea
+                      defaultValue={selectedItem.description || ''}
+                      id={`edit-description-${selectedItem.id}`}
+                      className="bg-zinc-100 dark:bg-zinc-800 rounded-lg px-2 py-1 text-xs font-bold outline-none focus:ring-2 ring-red-600/20 w-full"
+                      placeholder="Enter description..."
+                      rows={2}
+                    />
+                  ) : (
+                    <span
+                      onClick={() => setEditingField('description')}
+                      className="text-[10px] font-bold text-red-600 cursor-pointer hover:underline"
+                    >
+                      {selectedItem.description || 'Not set'} ✏️
+                    </span>
+                  )}
+                  {editingField === 'description' && (
+                    <div className="flex gap-1">
+                      <button
+                        onClick={async () => {
+                          const newValue = document.getElementById(`edit-description-${selectedItem.id}`).value;
+                          try {
+                            await api.patch(`/invetory/materials/${selectedItem.id}/`, { description: newValue || null });
+                            setSelectedItem({ ...selectedItem, description: newValue });
+                            setEditingField(null);
+                            fetchInventory();
+                          } catch (error) {
+                            console.error('Error updating description:', error);
+                            alert('Failed to update description');
+                          }
+                        }}
+                        className="text-[10px] font-black text-green-600 hover:underline"
+                      >
+                        Save
+                      </button>
+                      <button onClick={() => setEditingField(null)} className="text-[10px] font-black text-red-600 hover:underline">Cancel</button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="flex justify-between items-center mb-6 pb-4 border-b dark:border-white/5">
@@ -477,9 +564,13 @@ const Inventory = () => {
                     className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 cursor-pointer"
                   >
                     <option value="">Select Category</option>
+                    {[...new Set(inventory.filter(i => i.category).map(i => i.category))].map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
                     <option value="Child">Child</option>
                     <option value="Men">Men</option>
                     <option value="Woman">Woman</option>
+                    <option value="Other">Other</option>
                   </select>
                 </div>
                 <div>

@@ -429,38 +429,6 @@ const AdminDashboard = () => {
               </div>
             </div>
           </motion.div>
-
-          {/* Notifications */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-3xl p-6"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-black dark:text-white uppercase tracking-widest">Recent Notifications</h3>
-              <HiOutlineBell className="text-gray-400" size={18} />
-            </div>
-
-            <div className="space-y-2">
-              {notifications.length > 0 ? notifications.map((notif, idx) => (
-                <div
-                  key={notif.id || idx}
-                  className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-white/5 rounded-xl"
-                >
-                  <div className={`h-2 w-2 rounded-full mt-1.5 ${notif.read ? 'bg-gray-300' : 'bg-red-500'}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium dark:text-white truncate">{notif.message || notif.title || 'New notification'}</p>
-                    <p className="text-[9px] text-gray-400 mt-0.5">{formatRelativeTime(notif.created_at)}</p>
-                  </div>
-                </div>
-              )) : (
-                <div className="text-center py-6">
-                  <HiOutlineBell className="mx-auto text-gray-600 mb-2" size={24} />
-                  <p className="text-gray-400 text-xs">No notifications</p>
-                </div>
-              )}
-            </div>
-          </motion.div>
         </div>
       </div>
 

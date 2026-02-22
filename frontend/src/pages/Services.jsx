@@ -7,6 +7,7 @@ import {
   HiOutlineShieldCheck,
   HiArrowLongRight 
 } from 'react-icons/hi2';
+import { IMAGES } from '../constants/images';
 
 const services = [
   {
@@ -15,7 +16,8 @@ const services = [
     desc: "The pinnacle of the Hachalu experience. A garment crafted from a unique pattern, hand-cut and sewn to your exact anatomical specifications by our Master Tailors.",
     features: ["40+ Hand-stitched hours", "Infinite fabric selection", "Lifetime adjustments"],
     icon: <HiOutlineScissors size={32} />,
-    img: "https://images.unsplash.com/photo-1593032465175-481ac7f401a0?q=80&w=1480"
+    // img: "https://images.unsplash.com/photo-1593032465175-481ac7f401a0?q=80&w=1480"
+    img: IMAGES.SERVICES.HERO1,
   },
   {
     id: "02",
@@ -23,7 +25,8 @@ const services = [
     desc: "Experience global luxury from your home. Our AI-driven measurement suite and virtual stylists ensure a flawless fit, no matter where you are in the world.",
     features: ["AI Body Scanning", "1-on-1 Stylist Call", "Digital Fabric Swatches"],
     icon: <HiOutlineGlobeAlt size={32} />,
-    img: "https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?q=80&w=1470"
+    // img: "https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?q=80&w=1470"
+    img: IMAGES.SERVICES.HERO2,
   },
   {
     id: "03",
@@ -31,7 +34,7 @@ const services = [
     desc: "A garment from Hachalu is a lifetime investment. We provide full restoration, lining replacement, and structural reinforcement services for all our historical pieces.",
     features: ["Original Thread Match", "Structural Cleaning", "Archival Storage"],
     icon: <HiOutlineShieldCheck size={32} />,
-    img: "https://images.unsplash.com/photo-1520923179278-ee25e25e09e4?q=80&w=1471"
+    img: IMAGES.SERVICES.HERO4
   }
 ];
 
@@ -43,8 +46,8 @@ const Services = () => {
       <section className="relative h-[70vh] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img 
-            src="https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=1471" 
-            className="w-full h-full object-cover opacity-20 dark:opacity-10 grayscale"
+            src={IMAGES.SERVICES.HERO3}
+            className="w-full h-full object-cover opacity-20 dark:opacity-10"
             alt="Atelier"
           />
         </div>
@@ -82,7 +85,7 @@ const Services = () => {
                 viewport={{ once: true }}
                 className="relative aspect-[4/5] overflow-hidden"
               >
-                <img src={service.img} className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-1000" alt="" />
+                <img src={service.img} className="w-full h-full object-cover hover:grayscale-0 transition-all duration-1000" alt="" />
                 <div className="absolute top-0 left-0 bg-red-600 text-white p-6 font-black text-2xl">
                   {service.id}
                 </div>

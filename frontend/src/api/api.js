@@ -46,7 +46,7 @@ export const clearTokens = () => {
   localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
   localStorage.removeItem(STORAGE_KEYS.USER_DATA);
 };
-
+  
 /**
  * REQUEST INTERCEPTOR
  * We use a "fresh" get from localStorage every time to avoid stale tokens.
@@ -61,6 +61,12 @@ api.interceptors.request.use(
     } else {
       console.warn("No access_token found in localStorage!");
     }
+
+    // Don't set Content-Type for FormData - let axios set it with boundary
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+
     return config;
   },
   (error) => Promise.reject(error)
@@ -149,15 +155,15 @@ export const markAllNotificationsRead = () => api.post('/accounts/user/notificat
 
 export const getMaterials = (params) => api.get('/invetory/materials/', { params });
 
-export const createMaterial = (data) => api.post('/inventory/materials/', data);
+export const createMaterial = (data) => api.post('/invetory/materials/', data);
 
-export const getMaterialDetail = (id) => api.get(`/inventory/materials/${id}/`);
+export const getMaterialDetail = (id) => api.get(`/invetory/materials/${id}/`);
 
-export const updateMaterial = (id, data) => api.patch(`/inventory/materials/${id}/`, data);
+export const updateMaterial = (id, data) => api.patch(`/invetory/materials/${id}/`, data);
 
-export const deleteMaterial = (id) => api.delete(`/inventory/materials/${id}/`);
+export const deleteMaterial = (id) => api.delete(`/invetory/materials/${id}/`);
 
-export const adjustStock = (id, data) => api.post(`/inventory/materials/${id}/stock/`, data);
+export const adjustStock = (id, data) => api.post(`/invetory/materials/${id}/stock/`, data);
 
 // ============================================
 // ORDERS ENDPOINTS
@@ -176,6 +182,8 @@ export const deleteOrder = (id) => api.delete(`/orders/${id}/`);
 export const processOrder = (id, data) => api.post(`/orders/${id}/process`, data);
 
 export const expireOrders = () => api.post('/orders/expire/');
+
+export const getOrderByCode = (code) => api.get(`/orders/code/${code}/`);
 
 // ============================================
 // SUIT TYPES ENDPOINTS

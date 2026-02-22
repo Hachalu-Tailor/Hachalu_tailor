@@ -40,6 +40,7 @@ const Inventory = () => {
   const fileInputRef = useRef(null);
   const [stockUpdate, setStockUpdate] = useState({ action_type: "add", quantity_meters: 0 });
   const [editingImage, setEditingImage] = useState(false); // false, 'url', or 'upload'
+  const [editingField, setEditingField] = useState(null); // 'category', 'description', or null
 
   useEffect(() => {
     fetchInventory();
@@ -65,7 +66,9 @@ const Inventory = () => {
           name: newMaterial.name,
           color: newMaterial.color,
           texture: newMaterial.texture,
-          image_url: newMaterial.image_url || null
+          image_url: newMaterial.image_url || null,
+          category: newMaterial.category || null,
+          description: newMaterial.description || null
         },
         quantity_meters: parseFloat(newMaterial.quantity_meters) || 0
       };
@@ -94,7 +97,8 @@ const Inventory = () => {
 
   const filteredData = inventory.filter((item) => {
     const matchSearch = item.name?.toLowerCase().includes(search.toLowerCase()) ||
-      item.color?.toLowerCase().includes(search.toLowerCase());
+      item.color?.toLowerCase().includes(search.toLowerCase()) ||
+      item.category?.toLowerCase().includes(search.toLowerCase());
     const qty = parseFloat(item.inventory?.quantity_meters || 0);
     const matchStatus =
       stockStatus === "all" ? true :
@@ -191,6 +195,8 @@ const Inventory = () => {
                             <div>
                               <h3 className="text-sm md:text-base font-black uppercase italic tracking-tight">{item.name}</h3>
                               <p className="text-[10px] text-zinc-400 uppercase font-bold">{item.color} • {item.texture}</p>
+                              {item.category && <p className="text-[9px] text-red-500 uppercase font-bold mt-1">{item.category}</p>}
+                              {item.description && <p className="text-[9px] text-zinc-500 mt-1 max-w-xs truncate">{item.description}</p>}
                             </div>
                           </div>
                         </td>
@@ -364,6 +370,130 @@ const Inventory = () => {
 
                 <h2 className="text-2xl font-black uppercase italic tracking-tighter">{selectedItem.name}</h2>
                 <p className="text-[10px] text-zinc-400 uppercase font-bold mt-1">{selectedItem.color} • {selectedItem.texture}</p>
+
+                {/* Category and Description Section - Improved Design */}
+                <div className="mt-4 space-y-3">
+                  {/* Category Edit */}
+                  <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest bg-zinc-200 dark:bg-zinc-700 px-2 py-1 rounded-lg">Category</span>
+                      </div>
+                      {editingField !== 'category' && (
+                        <button
+                          onClick={() => setEditingField('category')}
+                          className="p-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all"
+                        >
+                          <HiOutlinePencil size={12} />
+                        </button>
+                      )}
+                    </div>
+                    {editingField === 'category' ? (
+                      <div className="mt-3 space-y-2">
+                        <select
+                          id={`edit-category-${selectedItem.id}`}
+                          defaultValue={selectedItem.category || ''}
+                          className="w-full bg-white dark:bg-black rounded-xl px-3 py-2 text-sm font-bold outline-none border border-zinc-200 dark:border-zinc-700 focus:ring-2 ring-red-600/20"
+                        >
+                          <option value="">Select Category</option>
+                          <option value="Child">Child</option>
+                          <option value="Men">Men</option>
+                          <option value="Woman">Woman</option>
+                        </select>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={async () => {
+                              const newValue = document.getElementById(`edit-category-${selectedItem.id}`).value;
+                              try {
+                                await api.patch(`/invetory/materials/${selectedItem.id}/`, { category: newValue || null });
+                                setSelectedItem({ ...selectedItem, category: newValue });
+                                setEditingField(null);
+                                fetchInventory();
+                              } catch (error) {
+                                console.error('Error updating category:', error);
+                                alert('Failed to update category');
+                              }
+                            }}
+                            className="flex-1 py-2 bg-green-600 text-white rounded-xl text-[10px] font-black uppercase"
+                          >
+                            Save
+                          </button>
+                          <button 
+                            onClick={() => setEditingField(null)} 
+                            className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 rounded-xl text-[10px] font-black uppercase"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p 
+                        className="mt-2 text-sm font-bold text-zinc-700 dark:text-zinc-300"
+                      >
+                        {selectedItem.category || <span className="text-zinc-400 italic">Not set</span>}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Description Edit */}
+                  <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest bg-zinc-200 dark:bg-zinc-700 px-2 py-1 rounded-lg">Description</span>
+                      </div>
+                      {editingField !== 'description' && (
+                        <button
+                          onClick={() => setEditingField('description')}
+                          className="p-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all"
+                        >
+                          <HiOutlinePencil size={12} />
+                        </button>
+                      )}
+                    </div>
+                    {editingField === 'description' ? (
+                      <div className="mt-3 space-y-2">
+                        <textarea
+                          defaultValue={selectedItem.description || ''}
+                          id={`edit-description-${selectedItem.id}`}
+                          placeholder="Enter material description..."
+                          rows={3}
+                          className="w-full bg-white dark:bg-black rounded-xl px-3 py-2 text-sm font-bold outline-none border border-zinc-200 dark:border-zinc-700 focus:ring-2 ring-red-600/20 resize-none"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={async () => {
+                              const newValue = document.getElementById(`edit-description-${selectedItem.id}`).value;
+                              try {
+                                await api.patch(`/invetory/materials/${selectedItem.id}/`, { description: newValue || null });
+                                setSelectedItem({ ...selectedItem, description: newValue });
+                                setEditingField(null);
+                                fetchInventory();
+                              } catch (error) {
+                                console.error('Error updating description:', error);
+                                alert('Failed to update description');
+                              }
+                            }}
+                            className="flex-1 py-2 bg-green-600 text-white rounded-xl text-[10px] font-black uppercase"
+                          >
+                            Save
+                          </button>
+                          <button 
+                            onClick={() => setEditingField(null)} 
+                            className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 rounded-xl text-[10px] font-black uppercase"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p 
+                        className="mt-2 text-sm font-medium text-zinc-600 dark:text-zinc-400"
+                      >
+                        {selectedItem.description || <span className="text-zinc-400 italic">No description provided</span>}
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="flex justify-between items-center mb-6 pb-4 border-b dark:border-white/5">
@@ -431,7 +561,7 @@ const Inventory = () => {
                 <HiOutlineXMark size={20} />
               </button>
 
-              <h2 className="text-xl font-black uppercase italic tracking-tighter mb-6">Add New Material</h2>
+              <h2 className="text-xl font-black uppercase italic tracking-tighter mb-6">New Material</h2>
 
               <form onSubmit={handleAddMaterial} className="space-y-4">
                 <div>

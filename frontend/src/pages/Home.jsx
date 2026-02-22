@@ -4,29 +4,44 @@ import { Link, useNavigate } from 'react-router-dom';
 import { HiOutlineShoppingBag, HiChevronRight, HiChevronLeft, HiOutlineArrowLongRight } from 'react-icons/hi2';
 import { products } from '../hooks/productData';
 import Contact from './Contact';
+import { IMAGES } from '../constants/images';
 
 const suits = [
   {
     id: 1,
-    title: "Midnight Peak Lapel",
-    price: "ETB 18,500",
-    image: "https://i.ebayimg.com/images/g/5RcAAOSwZc5k2eQ4/s-l1600.webp",
-    desc: "Precision cut tailored wool for the modern executive."
+    title: "Executive Navy Classic",
+    collection: "Men's Collection",
+    image: IMAGES.UI.HERO01,
+    desc: "Precision-cut premium wool suit designed for modern professionals. Perfect for office wear, business meetings, and formal occasions."
   },
   {
     id: 2,
-    title: "Charcoal 3-Piece",
-    price: "ETB 21,000",
-    image: "https://images.unsplash.com/photo-1593032465175-481ac7f401a0?q=80&w=1480&auto=format&fit=crop",
-    desc: "Heritage weaving meets contemporary architectural fit."
-  },
+    title: "Prestige Charcoal Set",
+    collection: "Men's Premium",
+    image: IMAGES.UI.HERO02,
+    desc: "A luxury three-piece suit crafted with heritage weaving and a contemporary fit. Ideal for executives, grooms, and high-level events."
+  },  
   {
     id: 3,
-    title: "Arctic White Tuxedo",
-    price: "ETB 24,500",
-    image: "https://image.made-in-china.com/2f0j00kKQlobaGJcqp/OEM-Suits-Suits-Work-Clothes-Company-Formal-Suits-for-Men-and-Women.webp",
-    desc: "A bold statement piece for the most exclusive evening events."
-  }
+    title: "Family Ceremony Set",
+    collection: "Group Package",
+    image: IMAGES.UI.HERO03,
+    desc: "Matching tailored suits for family members. Custom measurements, coordinated colors, and exclusive package discounts."
+  },    
+  {
+    id: 4,
+    title: "Arctic White Wedding",
+    collection: "Ceremony 2026",
+    image: IMAGES.UI.HERO04,
+    desc: "A bold and refined tuxedo tailored for weddings and exclusive celebrations. Designed to make you stand out with confidence."
+  },
+  {
+    id: 5,
+    title: "University Classic",
+    collection: "Student Edition",
+    image: IMAGES.UI.HERO05, // Added fallback image logic
+    desc: "Specially tailored for university students. Affordable, stylish, and professionally fitted with budget-friendly pricing."
+  },
 ];
 
 const Home = () => {
@@ -34,12 +49,11 @@ const Home = () => {
   const [isPaused, setIsPaused] = useState(false);
   const navigate = useNavigate();
 
-  // Integrated Auto-play with Pause on Hover
   useEffect(() => {
     if (isPaused) return;
     const interval = setInterval(() => {
       setIndex((prev) => (prev + 1) % suits.length);
-    }, 5000);
+    }, 6000);
     return () => clearInterval(interval);
   }, [isPaused]);
 
@@ -51,103 +65,128 @@ const Home = () => {
       
       {/* HERO SECTION */}
       <section 
-        className="relative h-screen flex flex-col lg:flex-row items-center"
+        className="relative min-h-[90vh] lg:h-screen flex flex-col lg:flex-row-reverse items-stretch overflow-hidden"
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
       >
-        {/* TEXT CONTENT */}
-        <div className="w-full lg:w-1/2 px-6 md:px-10 lg:px-24 z-10 flex flex-col justify-center h-full pt-20">
-          <div className="relative h-80 lg:h-96">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, x: -50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 50 }}
-                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                className="absolute w-full"
-              >
-                <span className="text-red-600 font-black tracking-[0.4em] uppercase text-[10px] md:text-xs">New Collection 2026</span>
-                <h3 className="text-5xl md:text-7xl lg:text-8xl font-black text-black dark:text-white mt-4 leading-[0.9] uppercase tracking-tighter">
-                  {suits[index].title.split(' ')[0]} <br /> 
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-orange-500">
-                    {suits[index].title.split(' ').slice(1).join(' ')}
-                  </span>
-                </h3>
-                <p className="text-gray-500 dark:text-gray-400 mt-6 max-w-sm text-sm md:text-lg italic leading-relaxed">
-                  "{suits[index].desc}"
-                </p>
-              </motion.div>
-            </AnimatePresence>
-          </div>
-
-          <div className="mt-8 md:mt-12 flex flex-wrap gap-4 items-center">
-            <button 
-              onClick={() => navigate('/items')}
-              className="bg-black dark:bg-white dark:text-black text-white px-8 py-4 md:px-10 md:py-5 font-black uppercase tracking-widest text-[10px] md:text-xs flex items-center gap-3 hover:bg-red-600 dark:hover:bg-red-600 dark:hover:text-white transition-all shadow-2xl active:scale-95"
+        {/* LARGE BACKGROUND GHOST TEXT - OVERFLOW EFFECT */}
+        <div className="absolute top-1/2 left-0 -translate-y-1/2 w-full pointer-events-none z-0 hidden lg:block">
+          <AnimatePresence mode="wait">
+            <motion.h2
+              key={index}
+              initial={{ opacity: 0, x: 100 }}
+              animate={{ opacity: 0.03, x: 0 }}
+              exit={{ opacity: 0, x: -100 }}
+              transition={{ duration: 1 }}
+              className="text-[25vw] font-black uppercase whitespace-nowrap dark:text-white leading-none"
             >
-              Shop Collection <HiOutlineShoppingBag size={18} />
-            </button>
-            <div className="flex gap-2">
-              <button onClick={prevSlide} className="p-4 border border-gray-200 dark:border-white/10 dark:text-white hover:bg-red-600 hover:border-red-600 hover:text-white transition-all"><HiChevronLeft /></button>
-              <button onClick={nextSlide} className="p-4 border border-gray-200 dark:border-white/10 dark:text-white hover:bg-red-600 hover:border-red-600 hover:text-white transition-all"><HiChevronRight /></button>
-            </div>
-          </div>
+              {suits[index].title.split(' ')[0]}
+            </motion.h2>
+          </AnimatePresence>
         </div>
 
         {/* IMAGE AREA */}
-        <div className="w-full lg:w-1/2 h-[50vh] lg:h-full relative overflow-hidden bg-gray-100 dark:bg-zinc-900 group cursor-pointer" onClick={() => navigate('/items')}>
+        <div className="w-full lg:w-1/2 h-[50vh] lg:h-full relative overflow-hidden bg-zinc-100 dark:bg-zinc-900 group cursor-pointer" onClick={() => navigate('/items')}>
           <AnimatePresence mode="wait">
             <motion.div
               key={suits[index].id}
-              initial={{ scale: 1.2, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 1.1, opacity: 0 }}
-              transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
+              initial={{ opacity: 0, scale: 1.1 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.05 }}
+              transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
               className="absolute inset-0"
             >
               <img
                 src={suits[index].image}
-                className="w-full h-full object-cover grayscale-[30%] group-hover:grayscale-0 transition-all duration-1000"
-                alt="Luxury Suit"
+                className="w-full h-full object-cover grayscale-[15%] group-hover:grayscale-0 transition-all duration-1000"
+                alt={suits[index].title}
               />
-              {/* Dynamic Bottom Description Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex flex-col justify-end p-10">
-                <p className="text-white font-black uppercase tracking-[0.2em] text-xs mb-2">Exclusive Piece</p>
-                <p className="text-gray-300 text-sm italic max-w-sm">{suits[index].desc}</p>
-              </div>
+              <div className="absolute inset-0 bg-gradient-to-l from-white/10 dark:from-black/10 via-transparent to-transparent" />
             </motion.div>
           </AnimatePresence>
 
-          {/* PROGRESS DOTS */}
-          <div className="absolute bottom-6 left-6 md:bottom-10 md:left-10 flex gap-3 z-30">
-            {suits.map((_, i) => (
-              <button key={i} onClick={(e) => { e.stopPropagation(); setIndex(i); }} 
-                className={`h-1 transition-all duration-700 rounded-full ${index === i ? "w-16 md:w-24 bg-red-600" : "w-4 md:w-8 bg-white/30"}`} 
-              />
-            ))}
+          {/* PROGRESS INDICATOR */}
+          <div className="absolute bottom-6 left-6 lg:left-12 flex items-center gap-4 z-30">
+            <span className="text-[10px] font-black dark:text-white transition-all">0{index + 1}</span>
+            <div className="w-32 h-[2px] bg-black/10 dark:bg-white/10 relative">
+               <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${((index + 1) / suits.length) * 100}%` }}
+                className="absolute top-0 left-0 h-full bg-red-600"
+               />
+            </div>
+            <span className="text-[10px] font-black text-gray-400">0{suits.length}</span>
+          </div>
+        </div>
+
+        {/* TEXT CONTENT */}
+        <div className="w-full lg:w-1/2 flex flex-col justify-center px-6 md:px-12 lg:px-20 py-12 relative z-10 bg-white dark:bg-[#080808]">
+          <div className="max-w-xl">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, x: -30 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 30 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+              >
+                <div className="flex items-center gap-3 mb-6">
+                   <div className="w-8 h-[2px] bg-red-600" />
+                   <span className="text-red-600 font-black tracking-[0.4em] uppercase text-[10px]">
+                    {suits[index].collection}
+                   </span>
+                </div>
+
+                <h1 className="text-[clamp(2.5rem,8vw,6rem)] font-black text-black dark:text-white leading-[0.9] uppercase tracking-tighter mb-8">
+                  {suits[index].title.split(' ').slice(0, 2).join(' ')} <br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-red-400">
+                    {suits[index].title.split(' ').slice(2).join(' ')}
+                  </span>
+                </h1>
+
+                <p className="text-gray-500 dark:text-gray-400 max-w-sm text-sm md:text-base font-medium leading-relaxed border-l-2 border-gray-100 dark:border-white/5 pl-6">
+                  {suits[index].desc}
+                </p>
+              </motion.div>
+            </AnimatePresence>
+
+            <div className="mt-12 flex flex-wrap gap-6 items-center">
+              <button 
+                onClick={() => navigate('/items')}
+                className="group relative overflow-hidden bg-black dark:bg-white text-white dark:text-black px-10 py-5 font-black uppercase tracking-widest text-[10px] flex items-center gap-4 hover:text-white transition-colors"
+              >
+                <span className="relative z-10">Explore Atelier</span>
+                <HiOutlineShoppingBag size={18} className="relative z-10" />
+                <div className="absolute inset-0 bg-red-600 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+              </button>
+              
+              <div className="flex items-center gap-2">
+                <NavBtn onClick={prevSlide} icon={<HiChevronLeft size={20}/>} />
+                <NavBtn onClick={nextSlide} icon={<HiChevronRight size={20}/>} />
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* FEATURE STRIP */}
-      <section className="py-20 bg-gray-50 dark:bg-[#0c0c0c] border-y border-gray-100 dark:border-white/5">
-        <div className="w-full px-6 lg:px-16 grid grid-cols-1 md:grid-cols-3 gap-12">
-           <FeatureCard title="Ethiopian Craft" desc="Hand-stitched excellence from the heart of Addis." />
-           <FeatureCard title="Bespoke Fit" desc="Custom measurements for a truly personal silhouette." />
-           <FeatureCard title="Global Shipping" desc="Luxury delivery to major fashion capitals." />
+      <section className="bg-zinc-50 dark:bg-[#0c0c0c] border-y border-gray-100 dark:border-white/5 py-10">
+        <div className="max-w-[1600px] mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8">
+            <FeatureCard title="Ethiopian Craft" desc="Hand-stitched precision in Adama." />
+            <FeatureCard title="Bespoke Fit" desc="32 Unique body measurements per suit." />
+            <FeatureCard title="Global Logistics" desc="Luxury delivery to your doorstep." />
         </div>
       </section>
 
       {/* PRODUCT GRID PREVIEW */}
-      <section className="py-24 px-6 md:px-10 lg:px-24">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-4">
-          <div>
-            <span className="text-red-600 font-black tracking-[0.3em] uppercase text-[10px]">Ready to Wear</span>
-            <h2 className="text-4xl md:text-5xl font-black dark:text-white uppercase tracking-tighter mt-2">New Arrivals</h2>
+      <section className="pt-24 px-6 md:px-12 lg:px-24 max-w-[1600px] mx-auto">
+        <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
+          <div className="w-full">
+            <span className="text-red-600 font-black tracking-[0.3em] uppercase text-[10px]">The Collection</span>
+            <h2 className="text-4xl md:text-6xl font-black dark:text-white uppercase tracking-tighter mt-2">Signature Pieces</h2>
           </div>
-          <Link to="/items" className="text-black dark:text-white font-black uppercase text-[10px] tracking-widest flex items-center gap-2 hover:text-red-600 transition-colors">
-            View All Collection <HiOutlineArrowLongRight size={20} />
+          <Link to="/items" className="group whitespace-nowrap text-black dark:text-white font-black uppercase text-[10px] tracking-widest flex items-center gap-3">
+            View All <HiOutlineArrowLongRight size={22} className="group-hover:translate-x-2 transition-transform" />
           </Link>
         </div>
 
@@ -157,22 +196,30 @@ const Home = () => {
           ))}
         </div>
       </section>
-      <section id='contact' className='px-6'>
+
+      <section id='contact'>
         <Contact />
       </section>
-      
-
     </div>
   );
 };
 
+/* --- MINI COMPONENTS --- */
+
+const NavBtn = ({ onClick, icon }) => (
+  <button 
+    onClick={onClick} 
+    className="w-14 h-14 flex items-center justify-center border border-gray-200 dark:border-white/10 dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all active:scale-90"
+  >
+    {icon}
+  </button>
+);
+
 const FeatureCard = ({ title, desc }) => (
-  <div className="group">
-    <div className="h-[2px] w-full bg-gray-200 dark:bg-white/10 mb-6 overflow-hidden">
-        <div className="h-full bg-red-600 w-0 group-hover:w-full transition-all duration-700" />
-    </div>
-    <h3 className="text-black dark:text-white font-black uppercase text-xs tracking-[0.2em] mb-3">{title}</h3>
-    <p className="text-gray-500 dark:text-gray-400 text-[11px] leading-relaxed uppercase tracking-widest">{desc}</p>
+  <div className="group flex flex-col items-center md:items-start text-center md:text-left">
+    <div className="h-[1px] w-8 bg-red-600 mb-4 group-hover:w-16 transition-all duration-500" />
+    <h3 className="text-black dark:text-white font-black uppercase text-[11px] tracking-widest">{title}</h3>
+    <p className="text-gray-400 text-[10px] mt-2 uppercase tracking-tight">{desc}</p>
   </div>
 );
 
@@ -180,20 +227,20 @@ const ProductCard = ({ product, navigate }) => (
   <motion.div 
     whileHover={{ y: -10 }}
     onClick={() => navigate('/items')}
-    className="group cursor-pointer"
+    className="group cursor-pointer w-full"
   >
-    <div className="aspect-[3/4] overflow-hidden bg-gray-100 dark:bg-zinc-900 mb-6 relative rounded-sm">
-      <img src={product.img} className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-110 transition-all duration-1000" alt={product.name} />
-      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
-        <span className="bg-white text-black px-6 py-3 text-[10px] font-black uppercase tracking-widest shadow-2xl">View Details</span>
+    <div className="aspect-[3/4] overflow-hidden bg-zinc-100 dark:bg-zinc-900 mb-6 relative">
+      <img src={product.img} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" alt={product.name} />
+      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center backdrop-blur-[2px]">
+        <span className="bg-white text-black px-6 py-3 text-[10px] font-black uppercase tracking-widest transform translate-y-4 group-hover:translate-y-0 transition-transform">Quick View</span>
       </div>
     </div>
     <div className="flex justify-between items-start px-1">
       <div>
-        <h3 className="text-black dark:text-white font-black uppercase text-xs tracking-tighter">{product.name}</h3>
-        <p className="text-gray-400 text-[9px] mt-1 uppercase font-bold tracking-widest">{product.category}</p>
+        <h3 className="text-black dark:text-white font-black uppercase text-sm tracking-tight">{product.name}</h3>
+        <p className="text-gray-400 text-[9px] uppercase font-bold tracking-widest mt-1">{product.category}</p>
       </div>
-      <p className="text-red-600 font-black text-sm">{product.price}</p>
+      <span className="text-red-600 font-black text-xs uppercase tracking-tighter">New</span>
     </div>
   </motion.div>
 );

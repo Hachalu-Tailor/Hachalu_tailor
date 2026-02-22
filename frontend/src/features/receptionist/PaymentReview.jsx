@@ -26,7 +26,7 @@ const PaymentReview = ({ isOpen, onClose, payment, onApprove, onReject }) => {
     const fetchOrderDetails = async (orderId) => {
         try {
             setLoading(true);
-            const response = await api.get(`/orders/list/${orderId}/`);
+            const response = await api.get(`/orders/${orderId}/`);
             setOrderDetails(response.data);
         } catch (err) {
             console.error('Error fetching order details:', err);
@@ -42,8 +42,8 @@ const PaymentReview = ({ isOpen, onClose, payment, onApprove, onReject }) => {
 
         try {
             setLoading(true);
-            await api.post(`/payments/${payment.id}/approve/`, {
-                notes: notes
+            await api.post(`/payments/${payment.id}/verify/`, {
+                is_verified: true
             });
 
             if (onApprove) {

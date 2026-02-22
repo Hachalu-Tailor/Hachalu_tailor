@@ -94,7 +94,7 @@ const Login = () => {
             </h1>
             <div className="h-[2px] w-12 bg-red-600 mx-auto mt-4" />
             <p className="text-gray-400 text-[9px] font-black uppercase tracking-[0.4em] mt-6">
-              Authorized Personnel Terminal
+              Authorized Access
             </p>
           </div>
 
@@ -133,7 +133,7 @@ const Login = () => {
             {/* EMAIL (Personnel ID) */}
             <div className="relative group">
               <label className="absolute -top-6 left-0 text-[8px] font-black uppercase tracking-widest text-gray-500 group-focus-within:text-red-600 transition-colors">
-                Personnel Email
+                Email / Personnel ID
               </label>
               <HiOutlineUserCircle className="absolute left-0 bottom-3 text-gray-500 group-focus-within:text-red-600 transition-colors" size={18} />
               <input
@@ -142,7 +142,7 @@ const Login = () => {
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                placeholder="admin@example.com"
+                placeholder="Enter your email"
                 className="w-full bg-transparent border-b border-white/20 py-3 pl-8 text-sm font-bold tracking-widest text-white outline-none focus:border-red-600 transition-all placeholder:text-gray-700"
               />
             </div>
@@ -150,7 +150,7 @@ const Login = () => {
             {/* PASSWORD */}
             <div className="relative group">
               <label className="absolute -top-6 left-0 text-[8px] font-black uppercase tracking-widest text-gray-500 group-focus-within:text-red-600 transition-colors">
-                Access Key
+                Password
               </label>
               <HiOutlineLockClosed className="absolute left-0 bottom-3 text-gray-500 group-focus-within:text-red-600 transition-colors" size={18} />
               <input
@@ -179,9 +179,9 @@ const Login = () => {
               className={`w-full bg-red-600 text-white py-5 font-black uppercase tracking-[0.5em] text-[10px] flex items-center justify-center gap-3 transition-all mt-4 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {loading ? (
-                <span className="animate-pulse">Verifying...</span>
+                <span className="animate-pulse">AUTHENTICATING...</span>
               ) : (
-                <>Verify Identity <HiOutlineShieldCheck size={18} /></>
+                <><span>Login</span> <HiOutlineShieldCheck size={18} /></>
               )}
             </motion.button>
           </form>

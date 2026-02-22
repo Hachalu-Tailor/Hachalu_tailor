@@ -116,6 +116,17 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Update user state
+  const updateUser = useCallback((data) => {
+    setUser(prev => ({ ...prev, ...data }));
+    // Also update localStorage
+    const userData = localStorage.getItem('user_data');
+    if (userData) {
+      const parsedUser = JSON.parse(userData);
+      localStorage.setItem('user_data', JSON.stringify({ ...parsedUser, ...data }));
+    }
+  }, []);
+
   // Change password
   const changePassword = async (data) => {
     try {
@@ -157,6 +168,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     updateProfile,
     changePassword,
+    updateUser,
     hasRole,
     hasAnyRole,
     isAdmin,

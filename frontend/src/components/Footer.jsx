@@ -9,7 +9,7 @@ const Footer = () => {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="bg-white dark:bg-brand-dark pt-20 border-t border-gray-100 dark:border-white/5">
+    <footer className="bg-white dark:bg-brand-dark border-t border-gray-100 dark:border-white/5">
       <div className="max-w-360 mx-auto px-6 lg:px-16">
         
         {/* TOP SECTION: NEWSLETTER & BRAND */}
@@ -21,18 +21,7 @@ const Footer = () => {
             <p className="text-gray-500 dark:text-gray-400 text-xs tracking-widest uppercase max-w-sm leading-relaxed">
               Subscribe for exclusive collection updates and tailoring discount events.
             </p>
-            <div className="relative max-w-md">
-              <input 
-                type="email" 
-                placeholder="YOUR EMAIL" 
-                className="w-full bg-transparent border-b border-gray-300 dark:border-white/10 py-3 text-[10px] font-bold tracking-widest focus:border-red-600 outline-none transition-all dark:text-white"
-              />
-              <button className="absolute right-0 bottom-3 text-black dark:text-white hover:text-red-600 transition-colors">
-                <HiOutlineArrowRight size={20} />
-              </button>
-            </div>
           </div>
-
           <div className="flex flex-col lg:items-end justify-end space-y-6">
             <div className="flex gap-4">
               <SocialLink Icon={FaInstagram} />

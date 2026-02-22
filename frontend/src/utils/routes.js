@@ -59,20 +59,22 @@ export const ROUTE_PATTERNS = {
 
 // Navigation items for sidebar
 export const NAV_ITEMS = {
-  ADMIN: [
+   ADMIN: [
     { path: '/admin/dashboard', label: 'Dashboard', icon: 'HiOutlineHome' },
     { path: '/admin/users', label: 'User Management', icon: 'HiOutlineUsers' },
     { path: '/admin/staff', label: 'Staff Management', icon: 'HiOutlineUserGroup' },
     { path: '/admin/analytics', label: 'Analytics', icon: 'HiOutlineChartBar' },
     { path: '/admin/reception', label: 'Reception', icon: 'HiOutlineBuildingOffice2' },
-    { path: '/admin/audit-logs', label: 'Audit Logs', icon: 'HiOutlineClipboardDocumentList' }
+    { path: '/admin/audit-logs', label: 'Audit Logs', icon: 'HiOutlineClipboardDocumentList' },
+    { path: '/admin/profile', label: 'Profile', icon: 'HiOutlineUserCircle' }
   ],
-  RECEPTIONIST: [
+   RECEPTIONIST: [
     { path: '/reception/dashboard', label: 'Dashboard', icon: 'HiOutlineHome' },
     { path: '/reception/orders', label: 'Orders', icon: 'HiOutlineShoppingBag' },
     { path: '/reception/clients', label: 'Clients', icon: 'HiOutlineUserGroup' },
     { path: '/reception/inventory', label: 'Inventory', icon: 'HiOutlineCube' },
-    { path: '/reception/payments', label: 'Payments', icon: 'HiOutlineCurrencyDollar' }
+    { path: '/reception/payments', label: 'Payments', icon: 'HiOutlineCurrencyDollar' },
+    { path: '/reception/profile', label: 'Profile', icon: 'HiOutlineUserCircle' }
   ],
   TAILOR: [
     { path: '/tailor/dashboard', label: 'Dashboard', icon: 'HiOutlineHome' },

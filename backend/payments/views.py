@@ -100,7 +100,6 @@ class PaymentVerifyView(APIView):
         return Response(TransactionSerializer(transaction_obj).data)
 
 
-
 class PaymentListView(ListAPIView):
     permission_classes = [IsAuthenticated, IsAdminOrReceptionist]
     serializer_class = TransactionSerializer
@@ -121,7 +120,7 @@ class PaymentListView(ListAPIView):
             queryset = queryset.filter(is_verified=is_verified.lower() == "true")
 
         return queryset
-
+    
 
 class PaymentDetailView(APIView):
     permission_classes = [AllowAny]

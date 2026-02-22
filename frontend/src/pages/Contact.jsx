@@ -74,7 +74,7 @@ const Contact = () => {
             className="space-y-8"
           >
             <div className="relative group overflow-hidden bg-zinc-100 dark:bg-zinc-900 aspect-square md:aspect-video lg:aspect-square">
-              <div className="absolute inset-0 grayscale group-hover:grayscale-0 transition-all duration-1000">
+              <div className="absolute inset-0 group-hover:grayscale-0 transition-all duration-1000">
                 <iframe 
                   src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d15848.33089422033!2d38.5874251!3d7.197063!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x17b3d34484081efb%3A0xc0f69915c2670e34!2sShashamane!5e0!3m2!1sen!2set!4v1700000000000" 
                   width="100%" 

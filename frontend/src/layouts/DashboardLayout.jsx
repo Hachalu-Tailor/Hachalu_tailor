@@ -67,6 +67,23 @@ const DashboardLayout = () => {
     }
   };
 
+  // Auto-refresh notifications every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Mark notification as read
+  const handleMarkAsRead = async (notifId) => {
+    try {
+      await api.patch(`/accounts/user/notifications/${notifId}/`, { read: true });
+      setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, read: true } : n));
+      setPendingCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
   // 2. Dynamic Title Logic: Clean up the URL for the header
   const getPageTitle = () => {
     const path = location.pathname.split('/').filter(Boolean).pop();
@@ -140,8 +157,10 @@ const DashboardLayout = () => {
                   className={`p-3 rounded-2xl transition-all ${showNotifications ? 'bg-red-600 text-white shadow-xl shadow-red-600/40' : 'bg-gray-100 dark:bg-white/5 text-gray-500 hover:text-red-600 hover:bg-gray-200 dark:hover:bg-white/10'}`}
                 >
                   <HiOutlineBell size={20} />
-                  {!showNotifications && (
-                    <span className="absolute top-3 right-3 w-2 h-2 bg-red-600 rounded-full border-2 border-white dark:border-[#080808]" />
+                  {pendingCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white text-[8px] font-black rounded-full flex items-center justify-center animate-pulse">
+                      {pendingCount > 9 ? '9+' : pendingCount}
+                    </span>
                   )}
                 </button>
 
@@ -161,13 +180,18 @@ const DashboardLayout = () => {
                       <div className="space-y-2">
                         {notifications.length > 0 ? (
                           notifications.slice(0, 5).map((notif, idx) => (
-                            <NotificationItem
+                            <div
                               key={notif.id || idx}
-                              icon={getNotificationIcon(notif.type)}
-                              text={notif.message || notif.title || 'New notification'}
-                              time={formatRelativeTime(notif.created_at)}
-                              isRead={notif.read}
-                            />
+                              onClick={() => !notif.read && handleMarkAsRead(notif.id)}
+                              className={`cursor-pointer ${!notif.read ? 'bg-red-50 dark:bg-red-900/10' : ''}`}
+                            >
+                              <NotificationItem
+                                icon={getNotificationIcon(notif.type)}
+                                text={notif.message || notif.title || 'New notification'}
+                                time={formatRelativeTime(notif.created_at)}
+                                isRead={notif.read}
+                              />
+                            </div>
                           ))
                         ) : (
                           <NotificationItem icon={<HiOutlineBell />} text="No notifications" time="" />
@@ -185,15 +209,24 @@ const DashboardLayout = () => {
               {/* User Identity & Logout */}
               <div className="flex items-center gap-3 pl-3 border-l border-gray-100 dark:border-white/5">
                 <div className="hidden sm:flex flex-col items-end">
-                  <span className="text-[9px] font-black dark:text-white uppercase tracking-wider">{userRole}</span>
+                  <button
+                    onClick={() => navigate(userRole === 'admin' ? '/admin/profile' : '/reception/profile')}
+                    className="text-[9px] font-black dark:text-white uppercase tracking-wider hover:text-red-500 transition-colors"
+                  >
+                    Profile
+                  </button>
                   <button
                     onClick={handleLogout}
                     className="text-[7px] font-bold text-red-500 uppercase tracking-[0.2em] hover:tracking-[0.3em] transition-all flex items-center gap-1"
                   >
-                    Terminate <HiOutlineArrowRightOnRectangle />
+                    Logout <HiOutlineArrowRightOnRectangle />
                   </button>
                 </div>
-                <button className="h-12 w-12 rounded-2xl bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center text-white shadow-xl shadow-red-600/20 group hover:rotate-3 transition-all">
+                <button
+                  onClick={() => navigate(userRole === 'admin' ? '/admin/profile' : '/reception/profile')}
+                  className="h-12 w-12 rounded-2xl bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center text-white shadow-xl shadow-red-600/20 group hover:rotate-3 transition-all cursor-pointer"
+                  title="View Profile"
+                >
                   <HiOutlineUserCircle size={28} className="group-hover:scale-110 transition-transform" />
                 </button>
               </div>

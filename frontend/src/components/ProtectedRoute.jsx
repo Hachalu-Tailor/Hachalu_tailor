@@ -5,36 +5,50 @@ import { ROUTES } from '../utils/routes';
 const ProtectedRoute = ({ allowedRoles }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
+  const token = localStorage.getItem('access_token');
 
-  // Show loading state while checking authentication
+  // 1. If the AuthProvider is still fetching the user data, STAY HERE.
+  // This prevents the "flicker" that sends you to the login page.
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-white dark:bg-[#0a0a0a] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin w-12 h-12 border-2 border-red-500 border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-gray-400 text-sm uppercase tracking-wider">Verifying access...</p>
+          <div className="animate-spin w-10 h-10 border-2 border-red-600 border-t-transparent rounded-full mx-auto mb-4" />
+          <p className="text-gray-400 text-[10px] font-black uppercase tracking-[0.3em]">
+            Securing Protocol...
+          </p>
         </div>
       </div>
     );
   }
 
-  // Check if user is authenticated
-  const token = localStorage.getItem('access_token');
-  if (!token || !user) {
-    // Redirect to login, saving the attempted location
+  // 2. STAGE ONE: Authentication Check
+  // If there is no token at all, they are definitely not logged in.
+  if (!token) {
     return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />;
   }
 
-  // Normalize user role to uppercase for comparison
+  // 3. STAGE TWO: Data Integrity Check
+  // If we have a token but 'user' is null, it means the API call failed 
+  // or the token is invalid. 
+  if (!user) {
+    return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />;
+  }
+
+  // 4. STAGE THREE: Authorization (Role) Check
   const userRole = user.role?.toUpperCase();
 
-  // Check if the user's role is included in the allowed list for this route
   if (allowedRoles && !allowedRoles.includes(userRole)) {
-    // Redirect to appropriate dashboard based on role
-    const redirectPath = userRole === 'ADMIN' ? ROUTES.ADMIN.DASHBOARD : ROUTES.RECEPTION.DASHBOARD;
+    // If they are logged in but don't have permission for this specific page,
+    // send them to their specific dashboard instead of the login page.
+    const redirectPath = userRole === 'ADMIN' 
+      ? '/admin' 
+      : '/reception';
+      
     return <Navigate to={redirectPath} replace />;
   }
 
+  // 5. SUCCESS: Render the requested page
   return <Outlet />;
 };
 

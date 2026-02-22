@@ -11,6 +11,10 @@ const Orders = () => {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const [receiveData, setReceiveData] = useState({ total_price: '', due_date: '' });
+  const [editPrice, setEditPrice] = useState('0');
+  const [editDueDate, setEditDueDate] = useState('');
   const [suitTypes, setSuitTypes] = useState([]);
   const [materials, setMaterials] = useState([]);
   const [newOrder, setNewOrder] = useState({
@@ -43,7 +47,7 @@ const Orders = () => {
 
   const fetchSuitTypes = async () => {
     try {
-      const response = await api.get('/orders/suit-types/');
+      const response = await api.get('/suit-types/');
       setSuitTypes(response.data || []);
     } catch (error) {
       console.error('Error fetching suit types:', error);
@@ -92,6 +96,8 @@ const Orders = () => {
     try {
       await api.post(`/orders/${selectedOrder.id}/process`, { action, ...data });
       setSelectedOrder(null);
+      setShowReceiveModal(false);
+      setReceiveData({ total_price: '', due_date: '' });
       fetchOrders();
     } catch (error) {
       console.error('Error processing order:', error);
@@ -99,9 +105,49 @@ const Orders = () => {
     }
   };
 
+  const handleReceiveClick = () => {
+    setReceiveData({
+      total_price: selectedOrder?.total_price || '',
+      due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    });
+    setShowReceiveModal(true);
+  };
+
+  const handleUpdatePriceAndDate = async () => {
+    if (!selectedOrder) return;
+    const price = parseFloat(editPrice);
+    if (isNaN(price) || price <= 0) {
+      alert('Please enter a valid price');
+      return;
+    }
+    if (!editDueDate) {
+      alert('Please select a due date');
+      return;
+    }
+    try {
+      await api.patch(`/orders/${selectedOrder.id}/`, {
+        total_price: price,
+        due_date: editDueDate
+      });
+      fetchOrders();
+      setSelectedOrder({ ...selectedOrder, total_price: price, due_date: editDueDate });
+    } catch (error) {
+      console.error('Error updating order:', error);
+      alert(error.response?.data?.error || 'Failed to update order');
+    }
+  };
+
   const pendingCount = orders.filter(o => ['INITIATED', 'AWAITING_PAYMENT', 'PENDING_APPROVAL'].includes(o.status)).length;
   const inProgressCount = orders.filter(o => o.status === 'IN_PROGRESS').length;
   const completedCount = orders.filter(o => o.status === 'COMPLETED').length;
+
+  // Initialize edit state when order is selected
+  useEffect(() => {
+    if (selectedOrder) {
+      setEditPrice(String(selectedOrder.total_price || '0'));
+      setEditDueDate(selectedOrder.due_date || '');
+    }
+  }, [selectedOrder]);
 
   const getStatusColor = (status) => {
     const colors = {
@@ -110,6 +156,7 @@ const Orders = () => {
       'PENDING_APPROVAL': 'bg-orange-500/10 text-orange-500',
       'IN_PROGRESS': 'bg-blue-500/10 text-blue-500',
       'COMPLETED': 'bg-green-500/10 text-green-500',
+      'REJECTED': 'bg-red-500/10 text-red-500',
       'CANCELLED': 'bg-red-500/10 text-red-500',
     };
     return colors[status] || 'bg-gray-500/10 text-gray-400';
@@ -213,14 +260,33 @@ const Orders = () => {
                   <p className="text-sm font-bold dark:text-white">{selectedOrder.material_name}</p>
                 </div>
                 <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4">
-                  <p className="text-[9px] font-black text-zinc-400 uppercase">Total Price</p>
-                  <p className="text-sm font-bold dark:text-white">${selectedOrder.total_price}</p>
+                  <p className="text-[9px] font-black text-zinc-400 uppercase">Total Price (ETB)</p>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editPrice}
+                    onChange={(e) => setEditPrice(e.target.value)}
+                    className="w-full bg-transparent border-b border-zinc-400 dark:border-zinc-600 py-1 text-sm font-bold dark:text-white outline-none focus:border-red-600"
+                  />
                 </div>
                 <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4">
                   <p className="text-[9px] font-black text-zinc-400 uppercase">Due Date</p>
-                  <p className="text-sm font-bold dark:text-white">{selectedOrder.due_date || 'Not set'}</p>
+                  <input
+                    type="date"
+                    value={editDueDate}
+                    onChange={(e) => setEditDueDate(e.target.value)}
+                    className="w-full bg-transparent border-b border-zinc-400 dark:border-zinc-600 py-1 text-sm font-bold dark:text-white outline-none focus:border-red-600"
+                  />
                 </div>
               </div>
+
+              <button
+                onClick={handleUpdatePriceAndDate}
+                className="w-full py-3 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all mb-4"
+              >
+                Update Price & Date
+              </button>
 
               {selectedOrder.measurements && (
                 <div className="mb-6">
@@ -238,28 +304,52 @@ const Orders = () => {
 
               <div className="flex gap-3">
                 {selectedOrder.status === 'INITIATED' && (
-                  <button
-                    onClick={() => handleProcessOrder('receive', { total_price: 100, due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] })}
-                    className="flex-1 py-4 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all"
-                  >
-                    Receive Order
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => handleProcessOrder('reject', { reason: 'Order cancelled by staff' })}
+                      className="flex-1 py-4 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={handleReceiveClick}
+                      className="flex-1 py-4 bg-green-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-green-700 transition-all"
+                    >
+                      Receive Order
+                    </button>
+                  </div>
                 )}
                 {selectedOrder.status === 'AWAITING_PAYMENT' && (
-                  <button
-                    onClick={() => handleProcessOrder('record_payment', { payment_reference: 'CASH', payment_amount: selectedOrder.total_price })}
-                    className="flex-1 py-4 bg-green-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-green-700 transition-all"
-                  >
-                    Record Payment
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => handleProcessOrder('reject', { reason: 'Payment not received' })}
+                      className="flex-1 py-4 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => handleProcessOrder('record_payment', { payment_reference: 'CASH', payment_amount: selectedOrder.total_price })}
+                      className="flex-1 py-4 bg-green-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-green-700 transition-all"
+                    >
+                      Record Payment
+                    </button>
+                  </div>
                 )}
                 {selectedOrder.status === 'PENDING_APPROVAL' && (
-                  <button
-                    onClick={() => handleProcessOrder('approve')}
-                    className="flex-1 py-4 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all"
-                  >
-                    Approve Order
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => handleProcessOrder('reject', { reason: 'Payment verification failed' })}
+                      className="flex-1 py-4 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all"
+                    >
+                      Reject Order
+                    </button>
+                    <button
+                      onClick={() => handleProcessOrder('approve')}
+                      className="flex-1 py-4 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all"
+                    >
+                      Approve Order
+                    </button>
+                  </div>
                 )}
                 {selectedOrder.status === 'IN_PROGRESS' && (
                   <button
@@ -386,6 +476,67 @@ const Orders = () => {
                   </button>
                 </form>
               )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Receive Order Modal */}
+      <AnimatePresence>
+        {showReceiveModal && selectedOrder && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowReceiveModal(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-md bg-white dark:bg-[#0c0c0c] rounded-[2rem] shadow-2xl border border-zinc-200 dark:border-white/10 p-8"
+            >
+              <button onClick={() => setShowReceiveModal(false)} className="absolute top-6 right-6 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all">
+                <HiOutlineXMark size={20} />
+              </button>
+
+              <h2 className="text-xl font-black uppercase italic tracking-tighter mb-6 dark:text-white">Receive Order</h2>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Total Price (ETB) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={receiveData.total_price}
+                    onChange={(e) => setReceiveData({ ...receiveData, total_price: e.target.value })}
+                    className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 dark:text-white"
+                    placeholder="Enter price"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Due Date *</label>
+                  <input
+                    type="date"
+                    value={receiveData.due_date}
+                    onChange={(e) => setReceiveData({ ...receiveData, due_date: e.target.value })}
+                    className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 dark:text-white"
+                    required
+                  />
+                </div>
+                <button
+                  onClick={() => handleProcessOrder('receive', {
+                    total_price: parseFloat(receiveData.total_price),
+                    due_date: receiveData.due_date
+                  })}
+                  disabled={!receiveData.total_price || !receiveData.due_date}
+                  className="w-full py-4 bg-green-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.4em] hover:bg-green-700 transition-all mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Confirm Receive
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

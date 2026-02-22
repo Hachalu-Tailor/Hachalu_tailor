@@ -36,6 +36,7 @@ const PaymentForm = () => {
   const [receiptFile, setReceiptFile] = useState(null);
   const [receiptPreview, setReceiptPreview] = useState(null);
   const [receiptUrl, setReceiptUrl] = useState(null);
+  const [uploadMethod, setUploadMethod] = useState('file'); // 'file' or 'url'
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
@@ -56,24 +57,30 @@ const PaymentForm = () => {
     setOrder(null);
 
     try {
-      const response = await api.get(`/orders/list/?order_code=${orderCode.trim().toUpperCase()}`);
-      const orders = response.data.results || response.data || [];
+      // 1. Fetch the data
+      const response = await api.get(`/orders/code/${orderCode.trim()}/`);
 
-      if (orders.length === 0) {
+      // 2. Direct Access: The backend returns the object directly
+      const foundOrder = response.data;
+
+      // 3. Validation: Check if the object actually has data (like an ID)
+      if (!foundOrder || !foundOrder.id) {
         setError('Order not found. Please check the code.');
         return;
       }
 
-      const foundOrder = orders[0];
-
+      // 4. Status Check
       if (!['AWAITING_PAYMENT', 'PENDING_APPROVAL'].includes(foundOrder.status)) {
         setError(`Order is not payable (status: ${foundOrder.status})`);
         return;
       }
 
+      // 5. Success: Set the order
       setOrder(foundOrder);
       setPaymentAmount(foundOrder.total_price?.toString() || '');
+
     } catch (err) {
+      console.error("Search Error:", err);
       setError(err.response?.data?.detail || 'Could not fetch order. Try again.');
     } finally {
       setIsSearching(false);
@@ -129,21 +136,29 @@ const PaymentForm = () => {
       return;
     }
 
+    // Require either file or URL
+    if (!receiptFile && !receiptUrl) {
+      setError('Please upload a receipt file OR paste a payment link');
+      return;
+    }
+
     setIsSubmitting(true);
     setUploadProgress(0);
 
     try {
       const formData = new FormData();
       formData.append('order_code', orderCode.trim().toUpperCase());
-      formData.append('amount', amountNum);
+      // Backend expects decimal string like "120.00"
+      formData.append('amount', amountNum.toFixed(2));
       formData.append('bank_ref_number', bankRefNumber.trim());
-      formData.append('payment_method', paymentMethod);
       if (receiptFile) {
-        formData.append('receipt_file', receiptFile);
+        formData.append('receipt_screenshot', receiptFile);
+      }
+      if (receiptUrl) {
+        formData.append('receipt_pdf_url', receiptUrl);
       }
 
       const response = await api.post('/payments/', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (progressEvent) => {
           const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
           setUploadProgress(percent);
@@ -153,10 +168,25 @@ const PaymentForm = () => {
       setSubmittedPayment(response.data);
       setPaymentSuccess(true);
     } catch (err) {
-      const msg =
-        err.response?.data?.detail ||
-        err.response?.data?.non_field_errors?.[0] ||
-        'Payment submission failed. Please try again.';
+      console.error('Payment Error:', err.response?.data);
+      // Build detailed error message
+      let msg = 'Payment submission failed. Please try again.';
+      if (err.response?.data) {
+        const data = err.response.data;
+        if (data.detail) {
+          msg = data.detail;
+        } else if (typeof data === 'object') {
+          const errors = [];
+          for (const [key, value] of Object.entries(data)) {
+            if (Array.isArray(value)) {
+              errors.push(`${key}: ${value.join(', ')}`);
+            } else {
+              errors.push(`${key}: ${value}`);
+            }
+          }
+          if (errors.length > 0) msg = errors.join('; ');
+        }
+      }
       setError(msg);
     } finally {
       setIsSubmitting(false);
@@ -174,6 +204,8 @@ const PaymentForm = () => {
     setBankRefNumber('');
     setReceiptFile(null);
     setReceiptPreview(null);
+    setReceiptUrl(null);
+    setUploadMethod('file');
     setPaymentMethod('bank_transfer');
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -434,7 +466,32 @@ const PaymentForm = () => {
                     Upload Receipt / Proof (recommended)
                   </label>
 
-                  {!receiptFile ? (
+                  {/* Toggle Buttons */}
+                  <div className="flex gap-3 mb-4">
+                    <button
+                      type="button"
+                      onClick={() => { setUploadMethod('file'); setReceiptUrl(''); }}
+                      className={`flex-1 py-3 px-4 rounded-xl border-2 font-bold text-sm transition-all ${uploadMethod === 'file'
+                        ? 'border-red-600 bg-red-50 dark:bg-red-950/30 text-red-600'
+                        : 'border-gray-200 dark:border-white/10 text-gray-500 hover:border-gray-300'
+                        }`}
+                    >
+                      📎 Upload File
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setUploadMethod('url'); setReceiptFile(null); setReceiptPreview(null); }}
+                      className={`flex-1 py-3 px-4 rounded-xl border-2 font-bold text-sm transition-all ${uploadMethod === 'url'
+                        ? 'border-red-600 bg-red-50 dark:bg-red-950/30 text-red-600'
+                        : 'border-gray-200 dark:border-white/10 text-gray-500 hover:border-gray-300'
+                        }`}
+                    >
+                      🔗 Browser Link
+                    </button>
+                  </div>
+
+                  {/* File Upload Mode */}
+                  {uploadMethod === 'file' && !receiptFile && (
                     <label className="flex flex-col items-center justify-center w-full h-44 border-2 border-dashed border-gray-300 dark:border-white/20 rounded-2xl cursor-pointer hover:border-red-500/50 transition-all bg-gray-50/50 dark:bg-black/30">
                       <HiOutlineCloudArrowUp className="text-gray-400 mb-3" size={40} />
                       <span className="text-sm font-bold text-gray-500 dark:text-gray-300">
@@ -449,7 +506,26 @@ const PaymentForm = () => {
                         onChange={handleFileChange}
                       />
                     </label>
-                  ) : (
+                  )}
+
+                  {/* URL Input Mode */}
+                  {uploadMethod === 'url' && (
+                    <div className="space-y-2">
+                      <input
+                        type="url"
+                        value={receiptUrl || ''}
+                        onChange={(e) => setReceiptUrl(e.target.value)}
+                        placeholder="Paste payment screenshot link (e.g., https://imgbb.com/...)"
+                        className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-white/10 focus:border-red-600 dark:text-white p-4 rounded-2xl outline-none text-sm"
+                      />
+                      <p className="text-xs text-gray-500">
+                        Paste a direct link to your payment screenshot or proof image
+                      </p>
+                    </div>
+                  )}
+
+                  {/* File Preview */}
+                  {uploadMethod === 'file' && receiptFile && (
                     <div className="relative rounded-2xl overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-black/40 p-4">
                       {receiptPreview ? (
                         <img src={receiptPreview} alt="Receipt preview" className="max-h-64 mx-auto rounded-lg" />
@@ -473,7 +549,7 @@ const PaymentForm = () => {
                       </p>
                     </div>
                   )}
-                  
+
                 </div>
 
                 {/* Instructions */}

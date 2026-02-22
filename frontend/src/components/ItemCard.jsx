@@ -13,7 +13,7 @@ const ItemCard = ({ item, isActive, onClick }) => (
     <div className="w-20 h-24 overflow-hidden bg-gray-200 shrink-0">
       <img 
         src={item.img} 
-        className={`w-full h-full object-cover transition-all duration-700 ${isActive ? 'grayscale-0' : 'grayscale group-hover:grayscale-0'}`} 
+        className={`w-full h-full object-cover transition-all duration-700 ${isActive ? 'grayscale-0' : 'group-hover:grayscale-0'}`} 
         alt={item.name} 
       />
     </div>

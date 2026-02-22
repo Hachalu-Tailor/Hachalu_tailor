@@ -35,7 +35,7 @@ const About = () => {
             animate={{ opacity: 1, y: 0, letterSpacing: "0.6em" }}
             className="text-red-600 font-black uppercase text-xs mb-6"
           >
-            {t('about.established')}
+            {t('established')}
           </motion.p>
           <motion.h1 
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -43,7 +43,7 @@ const About = () => {
             transition={{ duration: 1, ease: "easeOut" }}
             className="text-6xl md:text-[10rem] font-black text-black dark:text-white uppercase leading-none tracking-tighter"
           >
-            {t('about.theHouse')}
+            {t('the House')}
           </motion.h1>
           
           <motion.div 

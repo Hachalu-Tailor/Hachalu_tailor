@@ -12,8 +12,9 @@ const Orders = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
-  const [receiveData, setReceiveData] = useState({ total_price: '', due_date: '' });
+  const [receiveData, setReceiveData] = useState({ total_price: '', expected_price: '', due_date: '' });
   const [editPrice, setEditPrice] = useState('0');
+  const [editExpectedPrice, setEditExpectedPrice] = useState('0');
   const [editDueDate, setEditDueDate] = useState('');
   const [suitTypes, setSuitTypes] = useState([]);
   const [materials, setMaterials] = useState([]);
@@ -97,7 +98,7 @@ const Orders = () => {
       await api.post(`/orders/${selectedOrder.id}/process`, { action, ...data });
       setSelectedOrder(null);
       setShowReceiveModal(false);
-      setReceiveData({ total_price: '', due_date: '' });
+      setReceiveData({ total_price: '', expected_price: '', due_date: '' });
       fetchOrders();
     } catch (error) {
       console.error('Error processing order:', error);
@@ -108,6 +109,7 @@ const Orders = () => {
   const handleReceiveClick = () => {
     setReceiveData({
       total_price: selectedOrder?.total_price || '',
+      expected_price: selectedOrder?.expected_price || '',
       due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     });
     setShowReceiveModal(true);
@@ -127,10 +129,11 @@ const Orders = () => {
     try {
       await api.patch(`/orders/${selectedOrder.id}/`, {
         total_price: price,
+        expected_price: parseFloat(editExpectedPrice) || 0,
         due_date: editDueDate
       });
       fetchOrders();
-      setSelectedOrder({ ...selectedOrder, total_price: price, due_date: editDueDate });
+      setSelectedOrder({ ...selectedOrder, total_price: price, expected_price: editExpectedPrice, due_date: editDueDate });
     } catch (error) {
       console.error('Error updating order:', error);
       alert(error.response?.data?.error || 'Failed to update order');
@@ -145,6 +148,7 @@ const Orders = () => {
   useEffect(() => {
     if (selectedOrder) {
       setEditPrice(String(selectedOrder.total_price || '0'));
+      setEditExpectedPrice(String(selectedOrder.expected_price || '0'));
       setEditDueDate(selectedOrder.due_date || '');
     }
   }, [selectedOrder]);
@@ -267,6 +271,17 @@ const Orders = () => {
                     min="0"
                     value={editPrice}
                     onChange={(e) => setEditPrice(e.target.value)}
+                    className="w-full bg-transparent border-b border-zinc-400 dark:border-zinc-600 py-1 text-sm font-bold dark:text-white outline-none focus:border-red-600"
+                  />
+                </div>
+                <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4">
+                  <p className="text-[9px] font-black text-zinc-400 uppercase">Expected Price (ETB)</p>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editExpectedPrice}
+                    onChange={(e) => setEditExpectedPrice(e.target.value)}
                     className="w-full bg-transparent border-b border-zinc-400 dark:border-zinc-600 py-1 text-sm font-bold dark:text-white outline-none focus:border-red-600"
                   />
                 </div>
@@ -517,6 +532,18 @@ const Orders = () => {
                   />
                 </div>
                 <div>
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Expected Price (ETB)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={receiveData.expected_price}
+                    onChange={(e) => setReceiveData({ ...receiveData, expected_price: e.target.value })}
+                    className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 dark:text-white"
+                    placeholder="Enter expected price"
+                  />
+                </div>
+                <div>
                   <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Due Date *</label>
                   <input
                     type="date"
@@ -529,6 +556,7 @@ const Orders = () => {
                 <button
                   onClick={() => handleProcessOrder('receive', {
                     total_price: parseFloat(receiveData.total_price),
+                    expected_price: parseFloat(receiveData.expected_price) || 0,
                     due_date: receiveData.due_date
                   })}
                   disabled={!receiveData.total_price || !receiveData.due_date}

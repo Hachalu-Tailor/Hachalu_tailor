@@ -492,7 +492,7 @@ const Orders = () => {
                 </div>
                 <button
                   onClick={() => handleProcessOrder('receive', {
-                    total_price: parseFloat(receiveData.total_price),
+                    total_price: parseFloat(receiveData.total_price) || 0,
                     expected_price: parseFloat(receiveData.expected_price) || 0,
                     due_date: receiveData.due_date
                   })}

@@ -67,6 +67,23 @@ const DashboardLayout = () => {
     }
   };
 
+  // Auto-refresh notifications every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Mark notification as read
+  const handleMarkAsRead = async (notifId) => {
+    try {
+      await api.patch(`/accounts/user/notifications/${notifId}/`, { read: true });
+      setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, read: true } : n));
+      setPendingCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
   // 2. Dynamic Title Logic: Clean up the URL for the header
   const getPageTitle = () => {
     const path = location.pathname.split('/').filter(Boolean).pop();
@@ -140,8 +157,10 @@ const DashboardLayout = () => {
                   className={`p-3 rounded-2xl transition-all ${showNotifications ? 'bg-red-600 text-white shadow-xl shadow-red-600/40' : 'bg-gray-100 dark:bg-white/5 text-gray-500 hover:text-red-600 hover:bg-gray-200 dark:hover:bg-white/10'}`}
                 >
                   <HiOutlineBell size={20} />
-                  {!showNotifications && (
-                    <span className="absolute top-3 right-3 w-2 h-2 bg-red-600 rounded-full border-2 border-white dark:border-[#080808]" />
+                  {pendingCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white text-[8px] font-black rounded-full flex items-center justify-center animate-pulse">
+                      {pendingCount > 9 ? '9+' : pendingCount}
+                    </span>
                   )}
                 </button>
 
@@ -161,13 +180,18 @@ const DashboardLayout = () => {
                       <div className="space-y-2">
                         {notifications.length > 0 ? (
                           notifications.slice(0, 5).map((notif, idx) => (
-                            <NotificationItem
+                            <div
                               key={notif.id || idx}
-                              icon={getNotificationIcon(notif.type)}
-                              text={notif.message || notif.title || 'New notification'}
-                              time={formatRelativeTime(notif.created_at)}
-                              isRead={notif.read}
-                            />
+                              onClick={() => !notif.read && handleMarkAsRead(notif.id)}
+                              className={`cursor-pointer ${!notif.read ? 'bg-red-50 dark:bg-red-900/10' : ''}`}
+                            >
+                              <NotificationItem
+                                icon={getNotificationIcon(notif.type)}
+                                text={notif.message || notif.title || 'New notification'}
+                                time={formatRelativeTime(notif.created_at)}
+                                isRead={notif.read}
+                              />
+                            </div>
                           ))
                         ) : (
                           <NotificationItem icon={<HiOutlineBell />} text="No notifications" time="" />

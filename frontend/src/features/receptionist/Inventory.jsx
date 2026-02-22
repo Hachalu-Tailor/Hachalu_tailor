@@ -371,90 +371,132 @@ const Inventory = () => {
                 <h2 className="text-2xl font-black uppercase italic tracking-tighter">{selectedItem.name}</h2>
                 <p className="text-[10px] text-zinc-400 uppercase font-bold mt-1">{selectedItem.color} • {selectedItem.texture}</p>
 
-                {/* Category Edit */}
-                <div className="mt-3 flex items-center gap-2">
-                  <span className="text-[10px] font-black text-zinc-500 uppercase">Category:</span>
-                  {editingField === 'category' ? (
-                    <input
-                      type="text"
-                      defaultValue={selectedItem.category || ''}
-                      id={`edit-category-${selectedItem.id}`}
-                      className="bg-zinc-100 dark:bg-zinc-800 rounded-lg px-2 py-1 text-xs font-bold outline-none focus:ring-2 ring-red-600/20"
-                      placeholder="Enter category..."
-                    />
-                  ) : (
-                    <span
-                      onClick={() => setEditingField('category')}
-                      className="text-[10px] font-bold text-red-600 cursor-pointer hover:underline"
-                    >
-                      {selectedItem.category || 'Not set'} ✏️
-                    </span>
-                  )}
-                  {editingField === 'category' && (
-                    <div className="flex gap-1">
-                      <button
-                        onClick={async () => {
-                          const newValue = document.getElementById(`edit-category-${selectedItem.id}`).value;
-                          try {
-                            await api.patch(`/invetory/materials/${selectedItem.id}/`, { category: newValue || null });
-                            setSelectedItem({ ...selectedItem, category: newValue });
-                            setEditingField(null);
-                            fetchInventory();
-                          } catch (error) {
-                            console.error('Error updating category:', error);
-                            alert('Failed to update category');
-                          }
-                        }}
-                        className="text-[10px] font-black text-green-600 hover:underline"
-                      >
-                        Save
-                      </button>
-                      <button onClick={() => setEditingField(null)} className="text-[10px] font-black text-red-600 hover:underline">Cancel</button>
+                {/* Category and Description Section - Improved Design */}
+                <div className="mt-4 space-y-3">
+                  {/* Category Edit */}
+                  <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest bg-zinc-200 dark:bg-zinc-700 px-2 py-1 rounded-lg">Category</span>
+                      </div>
+                      {editingField !== 'category' && (
+                        <button
+                          onClick={() => setEditingField('category')}
+                          className="p-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all"
+                        >
+                          <HiOutlinePencil size={12} />
+                        </button>
+                      )}
                     </div>
-                  )}
-                </div>
+                    {editingField === 'category' ? (
+                      <div className="mt-3 space-y-2">
+                        <select
+                          id={`edit-category-${selectedItem.id}`}
+                          defaultValue={selectedItem.category || ''}
+                          className="w-full bg-white dark:bg-black rounded-xl px-3 py-2 text-sm font-bold outline-none border border-zinc-200 dark:border-zinc-700 focus:ring-2 ring-red-600/20"
+                        >
+                          <option value="">Select Category</option>
+                          {[...new Set(inventory.filter(i => i.category).map(i => i.category))].map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                          <option value="Child">Child</option>
+                          <option value="Men">Men</option>
+                          <option value="Woman">Woman</option>
+                          <option value="Other">Other</option>
+                        </select>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={async () => {
+                              const newValue = document.getElementById(`edit-category-${selectedItem.id}`).value;
+                              try {
+                                await api.patch(`/invetory/materials/${selectedItem.id}/`, { category: newValue || null });
+                                setSelectedItem({ ...selectedItem, category: newValue });
+                                setEditingField(null);
+                                fetchInventory();
+                              } catch (error) {
+                                console.error('Error updating category:', error);
+                                alert('Failed to update category');
+                              }
+                            }}
+                            className="flex-1 py-2 bg-green-600 text-white rounded-xl text-[10px] font-black uppercase"
+                          >
+                            Save
+                          </button>
+                          <button 
+                            onClick={() => setEditingField(null)} 
+                            className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 rounded-xl text-[10px] font-black uppercase"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p 
+                        className="mt-2 text-sm font-bold text-zinc-700 dark:text-zinc-300"
+                      >
+                        {selectedItem.category || <span className="text-zinc-400 italic">Not set</span>}
+                      </p>
+                    )}
+                  </div>
 
-                {/* Description Edit */}
-                <div className="mt-2 flex items-start gap-2">
-                  <span className="text-[10px] font-black text-zinc-500 uppercase">Description:</span>
-                  {editingField === 'description' ? (
-                    <textarea
-                      defaultValue={selectedItem.description || ''}
-                      id={`edit-description-${selectedItem.id}`}
-                      className="bg-zinc-100 dark:bg-zinc-800 rounded-lg px-2 py-1 text-xs font-bold outline-none focus:ring-2 ring-red-600/20 w-full"
-                      placeholder="Enter description..."
-                      rows={2}
-                    />
-                  ) : (
-                    <span
-                      onClick={() => setEditingField('description')}
-                      className="text-[10px] font-bold text-red-600 cursor-pointer hover:underline"
-                    >
-                      {selectedItem.description || 'Not set'} ✏️
-                    </span>
-                  )}
-                  {editingField === 'description' && (
-                    <div className="flex gap-1">
-                      <button
-                        onClick={async () => {
-                          const newValue = document.getElementById(`edit-description-${selectedItem.id}`).value;
-                          try {
-                            await api.patch(`/invetory/materials/${selectedItem.id}/`, { description: newValue || null });
-                            setSelectedItem({ ...selectedItem, description: newValue });
-                            setEditingField(null);
-                            fetchInventory();
-                          } catch (error) {
-                            console.error('Error updating description:', error);
-                            alert('Failed to update description');
-                          }
-                        }}
-                        className="text-[10px] font-black text-green-600 hover:underline"
-                      >
-                        Save
-                      </button>
-                      <button onClick={() => setEditingField(null)} className="text-[10px] font-black text-red-600 hover:underline">Cancel</button>
+                  {/* Description Edit */}
+                  <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest bg-zinc-200 dark:bg-zinc-700 px-2 py-1 rounded-lg">Description</span>
+                      </div>
+                      {editingField !== 'description' && (
+                        <button
+                          onClick={() => setEditingField('description')}
+                          className="p-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all"
+                        >
+                          <HiOutlinePencil size={12} />
+                        </button>
+                      )}
                     </div>
-                  )}
+                    {editingField === 'description' ? (
+                      <div className="mt-3 space-y-2">
+                        <textarea
+                          defaultValue={selectedItem.description || ''}
+                          id={`edit-description-${selectedItem.id}`}
+                          placeholder="Enter material description..."
+                          rows={3}
+                          className="w-full bg-white dark:bg-black rounded-xl px-3 py-2 text-sm font-bold outline-none border border-zinc-200 dark:border-zinc-700 focus:ring-2 ring-red-600/20 resize-none"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={async () => {
+                              const newValue = document.getElementById(`edit-description-${selectedItem.id}`).value;
+                              try {
+                                await api.patch(`/invetory/materials/${selectedItem.id}/`, { description: newValue || null });
+                                setSelectedItem({ ...selectedItem, description: newValue });
+                                setEditingField(null);
+                                fetchInventory();
+                              } catch (error) {
+                                console.error('Error updating description:', error);
+                                alert('Failed to update description');
+                              }
+                            }}
+                            className="flex-1 py-2 bg-green-600 text-white rounded-xl text-[10px] font-black uppercase"
+                          >
+                            Save
+                          </button>
+                          <button 
+                            onClick={() => setEditingField(null)} 
+                            className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 rounded-xl text-[10px] font-black uppercase"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p 
+                        className="mt-2 text-sm font-medium text-zinc-600 dark:text-zinc-400"
+                      >
+                        {selectedItem.description || <span className="text-zinc-400 italic">No description provided</span>}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
 

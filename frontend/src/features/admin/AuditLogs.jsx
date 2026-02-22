@@ -5,10 +5,13 @@ import {
   HiOutlineCalendar,
   HiOutlineUser,
   HiOutlineClock,
-  HiOutlineEye
+  HiOutlineEye,
+  HiOutlineXMark,
+  HiOutlineArrowPath
 } from 'react-icons/hi2';
-import { getAuditLogs } from '../../api/api';
+import { getAuditLogs, getAuditLogDetail } from '../../api/api';
 import { formatDateTime, formatRelativeTime } from '../../utils/helpers';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const AuditLogs = () => {
   const [logs, setLogs] = useState([]);
@@ -20,9 +23,18 @@ const AuditLogs = () => {
     startDate: '',
     endDate: ''
   });
+  const [selectedLog, setSelectedLog] = useState(null);
+  const [logDetail, setLogDetail] = useState(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
   useEffect(() => {
     fetchLogs();
+  }, []);
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(fetchLogs, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchLogs = async (params = {}) => {
@@ -59,6 +71,25 @@ const AuditLogs = () => {
       endDate: ''
     });
     fetchLogs();
+  };
+
+  // Fetch single log detail
+  const fetchLogDetail = async (logId) => {
+    try {
+      setLoadingDetail(true);
+      const response = await getAuditLogDetail(logId);
+      setLogDetail(response.data);
+    } catch (error) {
+      console.error('Error fetching log detail:', error);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  // Handle clicking on a log to see details
+  const handleLogClick = (log) => {
+    setSelectedLog(log);
+    fetchLogDetail(log.id);
   };
 
   const getActionIcon = (action) => {
@@ -104,8 +135,9 @@ const AuditLogs = () => {
         </div>
         <button
           onClick={handleReset}
-          className="bg-gray-100 dark:bg-white/5 px-4 py-2 rounded-lg text-sm font-bold dark:text-white hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+          className="bg-gray-100 dark:bg-white/5 px-4 py-2 rounded-lg text-sm font-bold dark:text-white hover:bg-gray-200 dark:hover:bg-white/10 transition-colors flex items-center gap-2"
         >
+          <HiOutlineArrowPath size={16} />
           Reset Filters
         </button>
       </div>
@@ -206,7 +238,11 @@ const AuditLogs = () => {
 
         <div className="divide-y divide-gray-100 dark:divide-white/5">
           {logs.length > 0 ? logs.map((log) => (
-            <div key={log.id} className="p-6 hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
+            <div
+              key={log.id}
+              onClick={() => handleLogClick(log)}
+              className="p-6 hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors cursor-pointer"
+            >
               <div className="flex items-start gap-4">
                 <div className="h-12 w-12 bg-gray-100 dark:bg-white/10 rounded-xl flex items-center justify-center flex-shrink-0">
                   {getActionIcon(log.action)}
@@ -277,6 +313,76 @@ const AuditLogs = () => {
           )}
         </div>
       </div>
+
+      {/* Detail Modal */}
+      <AnimatePresence>
+        {selectedLog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setSelectedLog(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-[#0c0c0c] rounded-[2rem] p-8 w-full max-w-2xl max-h-[80vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  {getActionIcon(selectedLog.action)}
+                  <h3 className="text-lg font-black dark:text-white uppercase">{selectedLog.action}</h3>
+                </div>
+                <button
+                  onClick={() => setSelectedLog(null)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full"
+                >
+                  <HiOutlineXMark size={20} />
+                </button>
+              </div>
+
+              {loadingDetail ? (
+                <div className="flex justify-center py-8">
+                  <div className="w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gray-50 dark:bg-white/5 p-4 rounded-xl">
+                      <span className="text-[9px] font-black text-gray-400 uppercase">Actor</span>
+                      <p className="font-bold dark:text-white">{logDetail?.actor || selectedLog.actor || 'System'}</p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-white/5 p-4 rounded-xl">
+                      <span className="text-[9px] font-black text-gray-400 uppercase">Timestamp</span>
+                      <p className="font-bold dark:text-white">{formatDateTime(selectedLog.created_at)}</p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-white/5 p-4 rounded-xl">
+                      <span className="text-[9px] font-black text-gray-400 uppercase">Target ID</span>
+                      <p className="font-bold dark:text-white">{selectedLog.target_id || 'N/A'}</p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-white/5 p-4 rounded-xl">
+                      <span className="text-[9px] font-black text-gray-400 uppercase">IP Address</span>
+                      <p className="font-bold dark:text-white">{selectedLog.ip_address || 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  {(logDetail?.payload || selectedLog.payload) && (
+                    <div className="bg-gray-50 dark:bg-white/5 p-4 rounded-xl">
+                      <span className="text-[9px] font-black text-gray-400 uppercase block mb-3">Full Details</span>
+                      <pre className="text-xs dark:text-gray-300 overflow-x-auto">
+                        {JSON.stringify(logDetail?.payload || selectedLog.payload, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

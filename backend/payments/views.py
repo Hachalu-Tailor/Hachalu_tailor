@@ -120,6 +120,8 @@ class PaymentListView(ListAPIView):
             queryset = queryset.filter(is_verified=is_verified.lower() == "true")
 
         return queryset
+    
+
 class PaymentDetailView(APIView):
     permission_classes = [AllowAny]
 
@@ -184,3 +186,4 @@ class PaymentDetailByOrderCodeView(APIView):
         except DjangoValidationError as exc:
             raise ValidationError(str(exc))
         return Response(TransactionSerializer(transaction_obj).data)
+

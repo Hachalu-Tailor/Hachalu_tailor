@@ -13,6 +13,8 @@ const Orders = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [receiveData, setReceiveData] = useState({ total_price: '', due_date: '' });
+  const [editPrice, setEditPrice] = useState('0');
+  const [editDueDate, setEditDueDate] = useState('');
   const [suitTypes, setSuitTypes] = useState([]);
   const [materials, setMaterials] = useState([]);
   const [newOrder, setNewOrder] = useState({
@@ -113,13 +115,22 @@ const Orders = () => {
 
   const handleUpdatePriceAndDate = async () => {
     if (!selectedOrder) return;
+    const price = parseFloat(editPrice);
+    if (isNaN(price) || price <= 0) {
+      alert('Please enter a valid price');
+      return;
+    }
+    if (!editDueDate) {
+      alert('Please select a due date');
+      return;
+    }
     try {
       await api.patch(`/orders/${selectedOrder.id}/`, {
-        total_price: parseFloat(editPrice),
+        total_price: price,
         due_date: editDueDate
       });
       fetchOrders();
-      setSelectedOrder(null);
+      setSelectedOrder({...selectedOrder, total_price: price, due_date: editDueDate});
     } catch (error) {
       console.error('Error updating order:', error);
       alert(error.response?.data?.error || 'Failed to update order');
@@ -129,6 +140,14 @@ const Orders = () => {
   const pendingCount = orders.filter(o => ['INITIATED', 'AWAITING_PAYMENT', 'PENDING_APPROVAL'].includes(o.status)).length;
   const inProgressCount = orders.filter(o => o.status === 'IN_PROGRESS').length;
   const completedCount = orders.filter(o => o.status === 'COMPLETED').length;
+
+  // Initialize edit state when order is selected
+  useEffect(() => {
+    if (selectedOrder) {
+      setEditPrice(String(selectedOrder.total_price || '0'));
+      setEditDueDate(selectedOrder.due_date || '');
+    }
+  }, [selectedOrder]);
 
   const getStatusColor = (status) => {
     const colors = {
@@ -242,13 +261,32 @@ const Orders = () => {
                 </div>
                 <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4">
                   <p className="text-[9px] font-black text-zinc-400 uppercase">Total Price (ETB)</p>
-                  <p className="text-sm font-bold dark:text-white">${selectedOrder.total_price}</p>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editPrice}
+                    onChange={(e) => setEditPrice(e.target.value)}
+                    className="w-full bg-transparent border-b border-zinc-400 dark:border-zinc-600 py-1 text-sm font-bold dark:text-white outline-none focus:border-red-600"
+                  />
                 </div>
                 <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4">
                   <p className="text-[9px] font-black text-zinc-400 uppercase">Due Date</p>
-                  <p className="text-sm font-bold dark:text-white">{selectedOrder.due_date}</p>
+                  <input
+                    type="date"
+                    value={editDueDate}
+                    onChange={(e) => setEditDueDate(e.target.value)}
+                    className="w-full bg-transparent border-b border-zinc-400 dark:border-zinc-600 py-1 text-sm font-bold dark:text-white outline-none focus:border-red-600"
+                  />
                 </div>
               </div>
+
+              <button
+                onClick={handleUpdatePriceAndDate}
+                className="w-full py-3 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all mb-4"
+              >
+                Update Price & Date
+              </button>
 
               {selectedOrder.measurements && (
                 <div className="mb-6">

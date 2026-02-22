@@ -13,7 +13,10 @@ import {
   HiOutlineCube,
   HiOutlineMinus,
   HiOutlinePlus,
-  HiOutlineSwatch
+  HiOutlineSwatch,
+  HiOutlineCheckBadge,
+  HiOutlineClipboardDocumentCheck,
+  HiOutlineTag
 } from 'react-icons/hi2';
 import ItemCard from '../components/ItemCard';
 import { createOrder, getMaterials } from '../api/api';
@@ -31,12 +34,15 @@ const Items = ({ isHomePage = false }) => {
   const [categories, setCategories] = useState(['All']);
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedColor, setSelectedColor] = useState(0);
+  
+  const [selectedColor, setSelectedColor] = useState(null); 
+  const [orderSuccess, setOrderSuccess] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   const [formData, setFormData] = useState({
     customer_name: "",
     customer_phone: "",
-    suit_type: 1,
+    suit_type: "Full Suit",
     material: "",
     quantity: 1,
     measurements: {
@@ -74,12 +80,11 @@ const Items = ({ isHomePage = false }) => {
           img: m.image_url || 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?q=80&w=1480',
           desc: m.description || `A premium ${m.texture} fabric in a sophisticated ${m.color} finish.`,
           price: m.inventory ? `${m.inventory.quantity_meters}m Available` : "Check Stock",
-          // Mocking color variations if not provided by backend for the "Collection" feel
           colors: m.colors || [
-            { name: m.color || 'Primary', hex: '#1a1a1a' },
-            { name: 'Earth', hex: '#7d6e5d' },
-            { name: 'Navy', hex: '#1e293b' },
-            { name: 'Slate', hex: '#475569' }
+            { name: 'Classic Black', hex: '#1a1a1a' },
+            { name: 'Earth Brown', hex: '#7d6e5d' },
+            { name: 'Navy Blue', hex: '#1e293b' },
+            { name: 'Slate Gray', hex: '#475569' }
           ]
         }));
 
@@ -112,13 +117,13 @@ const Items = ({ isHomePage = false }) => {
   const activeItem = filteredProducts[activeIdx] || filteredProducts[0];
 
   useEffect(() => {
-    if (isPaused || selectedItem || filteredProducts.length <= 1) return;
+    if (isPaused || selectedItem || orderSuccess || filteredProducts.length <= 1) return;
     const timer = setInterval(() => {
       setActiveIdx((prev) => (prev + 1) % filteredProducts.length);
-      setSelectedColor(0); // Reset color selection on auto-slide
+      setSelectedColor(null); 
     }, 6000);
     return () => clearInterval(timer);
-  }, [isPaused, selectedItem, filteredProducts]);
+  }, [isPaused, selectedItem, orderSuccess, filteredProducts]);
 
   const handleInputChange = (field, value, isMeasurement = false) => {
     if (isMeasurement) {
@@ -135,6 +140,12 @@ const Items = ({ isHomePage = false }) => {
     setFormData(prev => ({ ...prev, quantity: Math.max(1, prev.quantity + val) }));
   };
 
+  const handleCopy = (code) => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const handleSubmit = async () => {
     if (!formData.customer_name || !formData.customer_phone) {
       alert('Please complete contact information');
@@ -142,7 +153,7 @@ const Items = ({ isHomePage = false }) => {
     }
     const payload = {
       ...formData,
-      suit_type: 1,
+      suit_type: formData.suit_type === "Full Suit" ? 1 : 2,
       material: activeItem?.id,
       quantity: parseInt(formData.quantity),
       measurements: Object.fromEntries(
@@ -152,7 +163,8 @@ const Items = ({ isHomePage = false }) => {
     try {
       const response = await createOrder(payload);
       if (response.status === 201 || response.status === 200) {
-        alert(`Order placed: ${response.data.order_code}`);
+        // Instead of alert, we set the order code to show the Success Overlay
+        setOrderSuccess(response.data.order_code || "ORDER-SUCCESS");
         setSelectedItem(null);
       }
     } catch (error) {
@@ -170,7 +182,7 @@ const Items = ({ isHomePage = false }) => {
     <div className="min-h-screen bg-white dark:bg-[#080808] pt-20 md:pt-28 pb-20 px-4 md:px-16 transition-colors duration-500 overflow-x-hidden">
       <div className="max-w-[1600px] mx-auto">
         
-        {/* TOP NAVIGATION HEADER */}
+        {/* TOP NAVIGATION */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6">
           <header>
             <motion.p initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="text-red-600 font-black tracking-[0.4em] uppercase text-[10px] mb-2">
@@ -198,24 +210,33 @@ const Items = ({ isHomePage = false }) => {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6 md:gap-8">
-          
-          {/* MAIN DISPLAY AREA */}
+          {/* MAIN DISPLAY */}
           <div className="flex-[2] flex flex-col gap-6">
             <div className="relative overflow-hidden bg-zinc-50 dark:bg-zinc-900 rounded-sm border dark:border-white/5 aspect-[4/5] lg:h-[65vh]" onMouseEnter={() => setIsPaused(true)} onMouseLeave={() => setIsPaused(false)}>
               <AnimatePresence mode="wait">
-                <motion.div key={activeItem?.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.7 }} className="absolute inset-0 p-4 md:p-12 flex items-center justify-center">
-                  <img src={activeItem?.img} className={`w-full h-full object-contain transition-all duration-1000 ${!activeItem?.inventory?.is_available ? 'grayscale blur-sm' : ''}`} alt="" />
+                <motion.div 
+                  key={`${activeItem?.id}-${selectedColor}`} 
+                  initial={{ opacity: 0 }} 
+                  animate={{ opacity: 1 }} 
+                  exit={{ opacity: 0 }} 
+                  transition={{ duration: 0.7 }} 
+                  className="absolute inset-0 p-4 md:p-12 flex items-center justify-center"
+                >
+                  <div className="relative w-full h-full">
+                    <img 
+                      src={activeItem?.img} 
+                      className={`w-full h-full object-contain transition-all duration-1000 ${!activeItem?.inventory?.is_available ? 'grayscale blur-sm' : ''}`} 
+                      alt="" 
+                    />
+                    {selectedColor !== null && (
+                      <div 
+                        className="absolute inset-0 mix-blend-color pointer-events-none opacity-60"
+                        style={{ backgroundColor: activeItem.colors[selectedColor].hex }}
+                      />
+                    )}
+                  </div>
                 </motion.div>
               </AnimatePresence>
-
-              {!activeItem?.inventory?.is_available && (
-                <div className="absolute inset-0 flex items-center justify-center z-20">
-                  <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center bg-black/60 backdrop-blur-xl p-10 border border-white/10 mx-4">
-                    <HiOutlineClock className="mx-auto text-red-600 mb-4" size={48} />
-                    <h3 className="text-white text-3xl font-black uppercase tracking-tighter">Temporarily Unavailable</h3>
-                  </motion.div>
-                </div>
-              )}
 
               <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12 flex flex-col md:flex-row justify-between items-end gap-6 bg-gradient-to-t from-black/60 to-transparent">
                 <div className="max-w-xl text-left">
@@ -230,26 +251,25 @@ const Items = ({ isHomePage = false }) => {
               </div>
             </div>
 
-            {/* COLOR GRID COLLECTION - NEW SECTION */}
+            {/* COLOR GRID */}
             <div className="bg-zinc-50 dark:bg-white/5 p-4 md:p-6 rounded-sm border dark:border-white/5">
               <div className="flex items-center justify-between mb-4">
                 <h5 className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 dark:text-white">
                   <HiOutlineSwatch className="text-red-600" /> Color Variations
                 </h5>
-                <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{activeItem?.colors?.length} Available Shades</span>
+                <button onClick={() => setSelectedColor(null)} className="text-[8px] font-black uppercase text-red-600 underline">Reset to True Color</button>
               </div>
-              <div className="flex flex-nowrap md:grid md:grid-cols-4 lg:grid-cols-6 gap-3 overflow-x-auto no-scrollbar pb-2 md:pb-0">
+              <div className="flex flex-nowrap md:grid md:grid-cols-4 lg:grid-cols-6 gap-3 overflow-x-auto no-scrollbar">
                 {activeItem?.colors?.map((clr, idx) => (
                   <button 
                     key={idx}
                     onClick={() => setSelectedColor(idx)}
-                    className={`flex-shrink-0 group relative p-3 rounded-sm border transition-all duration-300 ${selectedColor === idx ? 'bg-white dark:bg-white/10 border-red-600 shadow-lg' : 'bg-transparent border-gray-200 dark:border-white/5 hover:border-gray-400'}`}
+                    className={`flex-shrink-0 group relative p-3 rounded-sm border transition-all duration-300 ${selectedColor === idx ? 'bg-white dark:bg-white/10 border-red-600' : 'bg-transparent border-gray-200 dark:border-white/5'}`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full shadow-inner border border-black/5" style={{ backgroundColor: clr.hex }} />
+                      <div className="w-8 h-8 rounded-full shadow-inner" style={{ backgroundColor: clr.hex }} />
                       <div className="text-left">
-                        <p className={`text-[9px] font-black uppercase leading-none transition-colors ${selectedColor === idx ? 'text-red-600' : 'text-gray-500 dark:text-gray-400'}`}>{clr.name}</p>
-                        <p className="text-[7px] font-bold text-gray-400 mt-1">AVAILABLE</p>
+                        <p className={`text-[9px] font-black uppercase ${selectedColor === idx ? 'text-red-600' : 'text-gray-500'}`}>{clr.name}</p>
                       </div>
                     </div>
                   </button>
@@ -258,15 +278,15 @@ const Items = ({ isHomePage = false }) => {
             </div>
           </div>
 
-          {/* SIDE LIST - ITEM CARDS */}
+          {/* SIDE LIST */}
           <div className="flex-1 w-full lg:max-w-[420px] flex flex-col gap-4">
-            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2 px-1">
-              <HiOutlineQueueList size={16} className="text-red-600" /> {filter} Queue ({filteredProducts.length})
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 px-1">
+              <HiOutlineQueueList size={16} className="inline mr-2 text-red-600" /> {filter} Queue
             </h4>
             <div className="flex lg:flex-col gap-3 overflow-x-auto lg:overflow-y-auto no-scrollbar lg:h-[75vh]">
               {filteredProducts.map((item, idx) => (
                 <div key={item.id} className="min-w-[280px] lg:min-w-full">
-                  <ItemCard item={item} isActive={activeIdx === idx} onClick={() => { setActiveIdx(idx); setSelectedColor(0); }} />
+                  <ItemCard item={item} isActive={activeIdx === idx} onClick={() => { setActiveIdx(idx); setSelectedColor(null); }} />
                 </div>
               ))}
             </div>
@@ -274,12 +294,13 @@ const Items = ({ isHomePage = false }) => {
         </div>
       </div>
 
-      {/* OVERLAY MODAL */}
+      {/* TAILORING MODAL */}
       <AnimatePresence>
         {selectedItem && (
           <div className="fixed inset-0 z-[200] flex justify-end">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedItem(null)} className="absolute inset-0 bg-black/95 backdrop-blur-md" />
-            <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: 'spring', damping: 30, stiffness: 200 }} className="relative w-full max-w-2xl h-full bg-white dark:bg-[#0c0c0c] flex flex-col shadow-2xl overflow-hidden">
+            <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: 'spring', damping: 30 }} className="relative w-full max-w-2xl h-full bg-white dark:bg-[#0c0c0c] flex flex-col shadow-2xl">
+              
               <div className="p-6 md:p-8 border-b dark:border-white/5 flex justify-between items-center bg-zinc-50 dark:bg-zinc-900/50">
                 <div className="flex gap-4">
                   <TabBtn active={activeTab === 'details'} onClick={() => setActiveTab('details')} label="Profile" icon={<HiOutlineInboxStack />} />
@@ -289,57 +310,109 @@ const Items = ({ isHomePage = false }) => {
               </div>
 
               <div className="flex-1 overflow-y-auto p-8 md:p-12">
-                <AnimatePresence mode="wait">
-                  {activeTab === 'details' ? (
-                    <motion.div key="details" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
-                      <div className="aspect-square rounded-sm bg-zinc-50 dark:bg-white/5 flex items-center justify-center p-6 border dark:border-white/10">
-                        <img src={selectedItem.img} className="w-full h-full object-contain" alt="" />
+                {activeTab === 'details' ? (
+                  <div className="space-y-8">
+                    <div className="aspect-square bg-zinc-50 dark:bg-white/5 flex items-center justify-center p-6 border dark:border-white/10">
+                      <img src={selectedItem.img} className="w-full h-full object-contain" alt="" />
+                    </div>
+                    <div className="text-left">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-[10px] font-black text-red-600 uppercase tracking-widest">{selectedItem.category}</span>
+                        <div className="w-1 h-1 rounded-full bg-gray-400" />
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Premium Selection</span>
                       </div>
-                      <div className="text-left">
-                        <div className="flex items-center gap-4 mb-2">
-                           <span className="text-[10px] font-bold text-red-600 uppercase tracking-widest">{selectedItem.category} Collection</span>
-                           <div className="h-px flex-1 bg-gray-100 dark:bg-white/5" />
+                      <h2 className="text-4xl font-black dark:text-white uppercase tracking-tighter">{selectedItem.name}</h2>
+                      <p className="text-gray-500 mt-6 italic leading-relaxed">"{selectedItem.desc}"</p>
+                    </div>
+                    <button onClick={() => setActiveTab('bespoke')} className="w-full py-6 bg-black dark:bg-white text-white dark:text-black font-black uppercase text-xs tracking-widest hover:bg-red-600 transition-all">Setup Custom Measurements</button>
+                  </div>
+                ) : (
+                  <div className="space-y-10">
+                    <div className="flex items-center gap-4 py-3 px-4 bg-zinc-50 dark:bg-white/5 border dark:border-white/5 rounded-sm">
+                        <HiOutlineTag className="text-red-600" />
+                        <span className="text-[9px] font-black dark:text-white uppercase tracking-widest">
+                            Configuring: {selectedItem.category} / {selectedItem.name}
+                        </span>
+                    </div>
+
+                    <div className="space-y-4">
+                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Select Crafting Type</p>
+                        <div className="grid grid-cols-2 gap-3">
+                            {['Full Suit', 'Single Piece'].map((type) => (
+                                <button 
+                                    key={type}
+                                    onClick={() => handleInputChange('suit_type', type)}
+                                    className={`py-4 border text-[10px] font-black uppercase tracking-widest transition-all ${formData.suit_type === type ? 'bg-red-600 border-red-600 text-white shadow-lg' : 'border-gray-200 dark:border-white/10 dark:text-white hover:border-gray-400'}`}
+                                >
+                                    {type}
+                                </button>
+                            ))}
                         </div>
-                        <h2 className="text-4xl md:text-5xl font-black dark:text-white uppercase tracking-tighter leading-none">{selectedItem.name}</h2>
-                        <p className="text-gray-500 dark:text-gray-400 mt-6 leading-relaxed text-lg italic">"{selectedItem.desc}"</p>
-                      </div>
-                      <button onClick={() => setActiveTab('bespoke')} className="w-full py-6 bg-black dark:bg-white text-white dark:text-black font-black uppercase text-xs tracking-widest hover:bg-red-600 transition-all">Setup Custom Measurements</button>
-                    </motion.div>
-                  ) : (
-                    <motion.div key="bespoke" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
-                      <header className="border-b dark:border-white/10 pb-6 text-left">
-                        <h3 className="text-2xl font-black dark:text-white uppercase">Tailoring Request</h3>
-                        <p className="text-gray-500 text-xs uppercase tracking-widest mt-2">Configuring {selectedItem.name} — Selected: {selectedItem.colors[selectedColor].name}</p>
-                      </header>
+                    </div>
 
-                      <div className="flex items-center justify-between bg-zinc-100 dark:bg-white/5 p-6 rounded-sm">
-                        <div>
-                          <p className="text-black dark:text-white font-black uppercase text-xs">Quantity</p>
-                          <p className="text-[10px] text-gray-500 uppercase mt-1 tracking-widest">Multiple Craftsmanship Sets</p>
-                        </div>
-                        <div className="flex items-center gap-6">
-                          <button onClick={() => updateQuantity(-1)} className="w-10 h-10 flex items-center justify-center rounded-full border dark:border-white/10 dark:text-white hover:bg-red-600 transition-all"><HiOutlineMinus /></button>
-                          <span className="text-2xl font-black dark:text-white w-8 text-center">{formData.quantity}</span>
-                          <button onClick={() => updateQuantity(1)} className="w-10 h-10 flex items-center justify-center rounded-full border dark:border-white/10 dark:text-white hover:bg-red-600 transition-all"><HiOutlinePlus /></button>
-                        </div>
+                    <div className="flex items-center justify-between bg-zinc-100 dark:bg-white/5 p-6 rounded-sm border dark:border-white/5">
+                      <div>
+                        <p className="text-black dark:text-white font-black uppercase text-xs">Quantity</p>
+                        <p className="text-[9px] text-gray-500 uppercase mt-1 tracking-widest">How many units?</p>
                       </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-zinc-100 dark:bg-white/5 p-6 rounded-sm">
-                        <Input label="Full Name" type="text" placeholder="Entry Client Name" value={formData.customer_name} onChange={(e) => handleInputChange('customer_name', e.target.value)} />
-                        <Input label="Direct Phone" type="text" placeholder="+251..." value={formData.customer_phone} onChange={(e) => handleInputChange('customer_phone', e.target.value)} />
+                      <div className="flex items-center gap-6">
+                        <button onClick={() => updateQuantity(-1)} className="w-10 h-10 flex items-center justify-center rounded-full border dark:border-white/10 dark:text-white hover:bg-red-600 transition-all"><HiOutlineMinus /></button>
+                        <span className="text-2xl font-black dark:text-white w-8 text-center">{formData.quantity}</span>
+                        <button onClick={() => updateQuantity(1)} className="w-10 h-10 flex items-center justify-center rounded-full border dark:border-white/10 dark:text-white hover:bg-red-600 transition-all"><HiOutlinePlus /></button>
                       </div>
+                    </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                        {Object.keys(formData.measurements).map((key) => (
-                          <Input key={key} label={key.replace('_', ' ').toUpperCase() + ' (CM)'} placeholder="0.0" value={formData.measurements[key]} onChange={(e) => handleInputChange(key, e.target.value, true)} />
-                        ))}
-                      </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-zinc-100 dark:bg-white/5 p-6 rounded-sm">
+                      <Input label="Full Name" type="text" placeholder="Entry Client Name" value={formData.customer_name} onChange={(e) => handleInputChange('customer_name', e.target.value)} />
+                      <Input label="Direct Phone" type="text" placeholder="+251..." value={formData.customer_phone} onChange={(e) => handleInputChange('customer_phone', e.target.value)} />
+                    </div>
 
-                      <button onClick={handleSubmit} className="w-full py-6 bg-red-600 text-white font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:bg-black transition-all">Submit to Atelier</button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                      {Object.keys(formData.measurements).map((key) => (
+                        <Input key={key} label={key.replace('_', ' ').toUpperCase() + ' (CM)'} placeholder="0.0" value={formData.measurements[key]} onChange={(e) => handleInputChange(key, e.target.value, true)} />
+                      ))}
+                    </div>
+
+                    <button onClick={handleSubmit} className="w-full py-6 bg-red-600 text-white font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:bg-black transition-all">Submit to Atelier</button>
+                  </div>
+                )}
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ORDER SUCCESS OVERLAY - Handles Copy to Paste */}
+      <AnimatePresence>
+        {orderSuccess && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOrderSuccess(null)} className="absolute inset-0 bg-black/90 backdrop-blur-xl" />
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-white dark:bg-[#111] max-w-md w-full p-8 text-center shadow-2xl border dark:border-white/10">
+              <HiOutlineCheckBadge className="mx-auto text-green-500 mb-6" size={60} />
+              <h3 className="text-2xl font-black dark:text-white uppercase tracking-tighter">Order Successfully Created</h3>
+              <p className="text-gray-400 text-[10px] uppercase tracking-widest mt-2 mb-8">Save your Order ID for tracking</p>
+              
+              {/* Copy Section */}
+              <div 
+                onClick={() => handleCopy(orderSuccess)}
+                className="bg-zinc-100 dark:bg-white/5 p-6 border-2 border-dashed border-zinc-200 dark:border-white/10 cursor-pointer group active:scale-95 transition-all"
+              >
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Order Identification Code</p>
+                <div className="flex items-center justify-center gap-4">
+                  <span className="text-2xl font-black dark:text-white tracking-[0.2em]">{orderSuccess}</span>
+                  <HiOutlineClipboardDocumentCheck className={copied ? "text-green-500" : "text-red-600"} size={24} />
+                </div>
+                <p className={`text-[8px] font-black uppercase tracking-widest mt-4 ${copied ? "text-green-500" : "text-gray-400"}`}>
+                  {copied ? "Copied to Clipboard!" : "Click to Copy Code"}
+                </p>
+              </div>
+
+              <button 
+                onClick={() => setOrderSuccess(null)} 
+                className="mt-8 w-full py-4 bg-red-600 text-white font-black uppercase text-[10px] tracking-widest hover:bg-black transition-colors"
+              >
+                Done
+              </button>
             </motion.div>
           </div>
         )}
@@ -349,7 +422,7 @@ const Items = ({ isHomePage = false }) => {
 };
 
 const TabBtn = ({ active, onClick, label, icon }) => (
-  <button onClick={onClick} className={`flex items-center gap-2 px-6 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${active ? 'bg-red-600 text-white shadow-lg' : 'dark:text-white hover:bg-white/10'}`}>
+  <button onClick={onClick} className={`flex items-center gap-2 px-6 py-2 rounded-full text-[9px] font-black uppercase transition-all ${active ? 'bg-red-600 text-white shadow-lg' : 'dark:text-white hover:bg-white/10'}`}>
     {icon} {label}
   </button>
 );
@@ -357,7 +430,7 @@ const TabBtn = ({ active, onClick, label, icon }) => (
 const Input = ({ label, placeholder, type = "number", value, onChange }) => (
   <div className="flex flex-col gap-2 text-left">
     <label className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em]">{label}</label>
-    <input type={type} value={value} onChange={onChange} placeholder={placeholder} className="bg-transparent border-b border-gray-200 dark:border-white/10 py-3 text-lg font-bold dark:text-white outline-none focus:border-red-600 transition-all placeholder:opacity-20" />
+    <input type={type} value={value} onChange={onChange} placeholder={placeholder} className="bg-transparent border-b border-gray-200 dark:border-white/10 py-3 text-lg font-bold dark:text-white outline-none focus:border-red-600 transition-all" />
   </div>
 );
 

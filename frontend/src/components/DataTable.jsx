@@ -64,9 +64,10 @@ const DataTable = ({
     // Empty state
     if (!loading && data.length === 0) {
         return (
-            <div className="bg-white/5 border border-white/10 rounded-xl p-12 text-center">
-                <EmptyIcon className="text-gray-500 mx-auto mb-4" size={48} />
-                <p className="text-gray-400">{emptyMessage}</p>
+            <div className="bg-white/5 border border-white/10 rounded-xl p-16 text-center">
+                <EmptyIcon className="text-gray-500 mx-auto mb-6" size={64} />
+                <p className="text-gray-300 text-lg font-bold mb-2">No Records Found</p>
+                <p className="text-gray-500 text-sm">{emptyMessage || 'There are no items to display at the moment.'}</p>
             </div>
         );
     }

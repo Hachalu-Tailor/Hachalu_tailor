@@ -79,7 +79,7 @@ const Inventory = () => {
       fetchInventory();
     } catch (error) {
       console.error("Error adding material:", error);
-      alert(error.response?.data?.error || "Failed to add material");
+      alert("Operation failed. Please try again or refresh the page.");
     }
   };
 
@@ -91,7 +91,7 @@ const Inventory = () => {
       fetchInventory();
     } catch (error) {
       console.error("Error updating stock:", error);
-      alert(error.response?.data?.error || "Failed to update stock");
+      alert("Stock update failed. Please try again.");
     }
   };
 

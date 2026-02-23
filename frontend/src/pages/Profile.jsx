@@ -50,19 +50,19 @@ const Profile = () => {
 
   const validateProfile = () => {
     const newErrors = {};
-    if (!profileData.name.trim()) newErrors.name = 'Name is required';
-    if (!profileData.email.trim()) newErrors.email = 'Email is required';
+    if (!profileData.name.trim()) newErrors.name = 'Please enter your full name';
+    if (!profileData.email.trim()) newErrors.email = 'Please enter your email address';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const validatePassword = () => {
     const newErrors = {};
-    if (!passwordData.current_password) newErrors.current_password = 'Current password is required';
-    if (!passwordData.new_password) newErrors.new_password = 'New password is required';
-    if (passwordData.new_password.length < 8) newErrors.new_password = 'Password must be at least 8 characters';
+    if (!passwordData.current_password) newErrors.current_password = 'Please enter your current password';
+    if (!passwordData.new_password) newErrors.new_password = 'Please enter a new password';
+    if (passwordData.new_password.length < 8) newErrors.new_password = 'Password must be at least 8 characters long';
     if (passwordData.new_password !== passwordData.confirm_password) {
-      newErrors.confirm_password = 'Passwords do not match';
+      newErrors.confirm_password = 'Passwords do not match. Please try again.';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;

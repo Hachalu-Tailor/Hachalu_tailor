@@ -85,7 +85,7 @@ const Orders = () => {
       fetchOrders();
     } catch (error) {
       console.error('Error creating order:', error);
-      alert(error.response?.data?.error || 'Failed to create order');
+      alert('Something went wrong. Please try again or contact support.');
     }
   };
 
@@ -336,7 +336,7 @@ const Orders = () => {
                 <HiOutlineXMark size={20} />
               </button>
 
-              <h2 className="text-xl font-black uppercase italic tracking-tighter mb-6">Create New Order</h2>
+              <h2 className="text-xl font-black uppercase italic tracking-tighter mb-6 dark:text-white">Create New Order</h2>
 
               {createdOrder ? (
                 <div className="text-center py-8">
@@ -346,37 +346,37 @@ const Orders = () => {
                   <h3 className="text-lg font-black dark:text-white mb-2">Order Created!</h3>
                   <p className="text-[10px] text-zinc-400 uppercase mb-4">Order Code</p>
                   <p className="text-3xl font-black text-red-600 mb-6">{createdOrder.order_code}</p>
-                  <p className="text-[10px] text-zinc-400">Please provide this code to the customer.</p>
+                  <p className="text-[10px] text-zinc-400 dark:text-zinc-500">Please provide this code to the customer.</p>
                 </div>
               ) : (
                 <form onSubmit={handleCreateOrder} className="space-y-4">
                   <div>
-                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Customer Name *</label>
+                    <label className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Customer Name *</label>
                     <input
                       type="text"
                       value={newOrder.customer_name}
                       onChange={(e) => setNewOrder({ ...newOrder, customer_name: e.target.value })}
-                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2"
+                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 dark:text-white"
                       required
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Customer Phone *</label>
+                    <label className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Customer Phone *</label>
                     <input
                       type="text"
                       value={newOrder.customer_phone}
                       onChange={(e) => setNewOrder({ ...newOrder, customer_phone: e.target.value })}
-                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2"
+                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 dark:text-white"
                       placeholder="+251911234567"
                       required
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Suit Type *</label>
+                    <label className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Suit Type *</label>
                     <select
                       value={newOrder.suit_type}
                       onChange={(e) => setNewOrder({ ...newOrder, suit_type: e.target.value })}
-                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2"
+                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 dark:text-white cursor-pointer"
                       required
                     >
                       <option value="">Select Suit Type</option>
@@ -384,11 +384,11 @@ const Orders = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Material *</label>
+                    <label className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Material *</label>
                     <select
                       value={newOrder.material}
                       onChange={(e) => setNewOrder({ ...newOrder, material: e.target.value })}
-                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2"
+                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 dark:text-white cursor-pointer"
                       required
                     >
                       <option value="">Select Material</option>
@@ -396,17 +396,17 @@ const Orders = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Quantity</label>
+                    <label className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Quantity</label>
                     <input
                       type="number"
                       min="1"
                       value={newOrder.quantity}
                       onChange={(e) => setNewOrder({ ...newOrder, quantity: parseInt(e.target.value) || 1 })}
-                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2"
+                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 dark:text-white"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Measurements (cm)</label>
+                    <label className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Measurements (cm)</label>
                     <div className="grid grid-cols-2 gap-2 mt-2">
                       {['height', 'chest', 'shoulder', 'waist', 'hips', 'arm_length'].map(m => (
                         <input
@@ -415,7 +415,7 @@ const Orders = () => {
                           placeholder={m.replace('_', ' ')}
                           value={newOrder.measurements[m]}
                           onChange={(e) => setNewOrder({ ...newOrder, measurements: { ...newOrder.measurements, [m]: e.target.value } })}
-                          className="bg-zinc-100 dark:bg-zinc-900 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:ring-2 ring-red-600/20"
+                          className="bg-zinc-100 dark:bg-zinc-900 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 dark:text-white placeholder:text-zinc-400"
                         />
                       ))}
                     </div>

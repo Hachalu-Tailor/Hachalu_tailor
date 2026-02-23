@@ -48,8 +48,9 @@ const DashboardLayout = () => {
 
     if (storedRole) setUserRole(storedRole.toLowerCase());
 
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) setDarkMode(savedTheme === 'dark');
+    // Always use dark mode - ignore saved preference to ensure visibility
+    setDarkMode(true);
+    localStorage.setItem('theme', 'dark');
 
     // Fetch notifications
     fetchNotifications();

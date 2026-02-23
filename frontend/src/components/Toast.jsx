@@ -23,27 +23,31 @@ export const useToast = () => {
 const TOAST_TYPES = {
   success: {
     icon: HiOutlineCheckCircle,
-    bgColor: 'bg-green-500/20',
-    borderColor: 'border-green-500/30',
-    iconColor: 'text-green-400',
+    bgColor: 'bg-green-600',
+    borderColor: 'border-green-500',
+    iconColor: 'text-white',
+    title: 'Success!',
   },
   error: {
     icon: HiOutlineXCircle,
-    bgColor: 'bg-red-500/20',
-    borderColor: 'border-red-500/30',
-    iconColor: 'text-red-400',
+    bgColor: 'bg-red-600',
+    borderColor: 'border-red-500',
+    iconColor: 'text-white',
+    title: 'Error!',
   },
   warning: {
     icon: HiOutlineExclamationTriangle,
-    bgColor: 'bg-yellow-500/20',
-    borderColor: 'border-yellow-500/30',
-    iconColor: 'text-yellow-400',
+    bgColor: 'bg-yellow-600',
+    borderColor: 'border-yellow-500',
+    iconColor: 'text-white',
+    title: 'Warning!',
   },
   info: {
     icon: HiOutlineInformationCircle,
-    bgColor: 'bg-blue-500/20',
-    borderColor: 'border-blue-500/30',
-    iconColor: 'text-blue-400',
+    bgColor: 'bg-blue-600',
+    borderColor: 'border-blue-500',
+    iconColor: 'text-white',
+    title: 'Info',
   },
 };
 
@@ -67,18 +71,21 @@ const Toast = ({ id, type = 'info', message, duration = 5000, onRemove }) => {
       animate={{ opacity: 1, x: 0, scale: 1 }}
       exit={{ opacity: 0, x: 100, scale: 0.9 }}
       className={`
-        flex items-start gap-3 p-4 rounded-lg border backdrop-blur-sm
+        flex items-start gap-3 p-4 rounded-xl border backdrop-blur-sm shadow-xl
         ${config.bgColor} ${config.borderColor}
-        min-w-[300px] max-w-[400px]
+        min-w-[320px] max-w-[450px]
       `}
     >
-      <Icon className={`${config.iconColor} flex-shrink-0`} size={20} />
-      <p className="text-white text-sm flex-1">{message}</p>
+      <Icon className={`${config.iconColor} flex-shrink-0 mt-0.5`} size={24} />
+      <div className="flex-1">
+        <p className="text-white font-bold text-sm">{config.title}</p>
+        <p className="text-white/90 text-sm mt-0.5">{message}</p>
+      </div>
       <button
         onClick={() => onRemove(id)}
-        className="text-gray-400 hover:text-white transition-colors flex-shrink-0"
+        className="text-white/70 hover:text-white transition-colors flex-shrink-0 p-1"
       >
-        <HiOutlineXMark size={16} />
+        <HiOutlineXMark size={18} />
       </button>
     </motion.div>
   );

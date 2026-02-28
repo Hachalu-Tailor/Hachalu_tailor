@@ -1,0 +1,37 @@
+# Render configuration for Hachalu Tailor
+# https://render.com/docs/yaml
+
+services:
+  # Backend Django Application
+  - type: web
+    name: hachalu-backend
+    region: oregon
+    runtime: python
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && gunicorn HTLBE.wsgi:application --bind 0.0.0.0:$PORT
+    envVars:
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com,localhost"
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+
+  # Frontend Static Site
+  - type: web
+    name: hachalu-frontend
+    region: oregon
+    buildCommand: cd frontend && npm install && npm run build
+    startCommand: cd frontend && npx serve dist -l $PORT
+    envVars:
+      - key: VITE_API_URL
+        value: "https://hachalu-backend.onrender.com"
+
+# Database (uncomment if you want to use Render's managed PostgreSQL)
+# databases:
+#   - name: hachalu-db
+#     databaseName: hachalu_tailor
+#     user: hachalu
+#     plan: free

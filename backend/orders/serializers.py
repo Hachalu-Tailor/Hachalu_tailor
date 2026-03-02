@@ -144,3 +144,9 @@ class OrderUpdateSerializer(serializers.Serializer):
     )
     payment_received_at = serializers.DateTimeField(required=False)
     payment_notes = serializers.CharField(required=False, allow_blank=True)
+
+
+class OrderStatusUpdateSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(
+        choices=[choice[0] for choice in Order.STATUS_CHOICES if choice[0] in ["IN_STORE", "CLOSED"]]
+    )

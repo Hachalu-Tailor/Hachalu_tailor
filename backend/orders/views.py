@@ -18,6 +18,7 @@ from .serializers import (
     OrderProcessingSerializer,
     OrderSerializer,
     OrderUpdateSerializer,
+    OrderStatusUpdateSerializer,
 )
 from .services import (
     approve_order,
@@ -25,6 +26,7 @@ from .services import (
     expire_orders,
     get_order_by_code,
     list_orders,
+    order_status_update,
     receive_order_for_processing,
     record_payment_info,
     reject_order,
@@ -296,6 +298,38 @@ class OrderUpdateView(APIView):
         order = update_order(
             order_id=id, updates=serializer.validated_data, requester=request.user
         )
+        return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
+
+
+class OrderStatusUpdateView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminOrReceptionist]
+
+    @extend_schema(
+        tags=["Orders"],
+        request=OrderStatusUpdateSerializer,
+        responses={200: OrderSerializer, 400: dict, 401: dict, 403: dict},
+        examples=[
+            OpenApiExample(
+                "Close order",
+                value={"status": "CLOSED"},
+                request_only=True,
+            )
+        ],
+        description=(
+            "Update order status to closed (receptionists only). "
+            "Creates staff notifications after update."
+        ),
+    )
+
+    def patch(self, request, id):
+        serializer = OrderStatusUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        new_status = serializer.validated_data["status"]
+        if new_status not in ["CLOSED", "IN_STORE"]:
+            raise ValidationError("Only 'CLOSED' or 'IN_STORE' status is allowed in this endpoint.")
+        
+        order = order_status_update(order_code=id, status=new_status, requester=request.user)
+    
         return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
 
 

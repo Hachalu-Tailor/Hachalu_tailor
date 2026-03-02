@@ -126,7 +126,11 @@ const StaffManagement = () => {
                     </div>
                   </td>
                   <td className="px-10 py-6 hidden md:table-cell">
-                    <span className={`px-4 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest ${person.role === 'ADMIN' ? 'bg-red-600/10 text-red-600' : 'bg-gray-100 dark:bg-white/5 text-gray-400'}`}>
+                    <span className={`px-4 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest ${
+                      person.role === 'ADMIN' ? 'bg-red-600/10 text-red-600' : 
+                      person.role === 'GARMENT' ? 'bg-blue-600/10 text-blue-600' : 
+                      'bg-gray-100 dark:bg-white/5 text-gray-400'
+                    }`}>
                       {person.role}
                     </span>
                   </td>
@@ -238,6 +242,7 @@ const StaffManagement = () => {
                             className="w-full bg-gray-100 dark:bg-white/5 border-none p-5 rounded-none text-xs font-bold tracking-widest outline-none appearance-none cursor-pointer focus:ring-1 focus:ring-[#BA181B] uppercase"
                           >
                             <option value="RECEPTIONIST">Receptionist (Standard)</option>
+                            <option value="GARMENT">Garment (Tailor)</option>
                             <option value="ADMIN">Admin (Root Access)</option>
                           </select>
                           <HiOutlineChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-[#BA181B]" size={18} />

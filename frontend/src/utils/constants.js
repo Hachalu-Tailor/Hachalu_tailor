@@ -14,6 +14,7 @@ export const ROUTES = {
   MEASUREMENTS: '/measurements',
   ADMIN: '/admin',
   RECEPTION: '/reception',
+  GARMENT: '/garment',
   NOT_FOUND: '/not-found'
 };
 
@@ -22,7 +23,8 @@ export const ROLES = {
   ADMIN: 'ADMIN',
   RECEPTIONIST: 'RECEPTIONIST',
   TAILOR: 'TAILOR',
-  CUSTOMER: 'CUSTOMER'
+  CUSTOMER: 'CUSTOMER',
+  GARMENT: 'GARMENT'
 };
 
 // Currency Configuration

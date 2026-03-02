@@ -18,7 +18,7 @@ def list_orders_in_progress():
         Order: A list of Order objects that are currently in progress.
 
     """
-    orders = list(Order.objects.filter(status=Order.IN_PROGRESS))
+    orders = list(Order.objects.filter(status="IN_PROGRESS"))
 
     return orders
 
@@ -37,7 +37,7 @@ def retrive_order_in_progress_by_code(code):
         Order: The Order object that matches the given code and is currently in progress.
 
     """
-    order = Order.objects.filter(code=code, status=Order.IN_PROGRESS).first()
+    order = Order.objects.filter(order_code=code, status="IN_PROGRESS").first()
 
     return order
 
@@ -57,7 +57,7 @@ def mark_order_as_completed(code, requester):
         status (str): A message indicating the result of the operation.
 
     """
-    order = Order.objects.filter(code=code).first()
+    order = Order.objects.filter(order_code=code).first()
 
     if not order:
         AuditLog.objects.create(
@@ -72,10 +72,10 @@ def mark_order_as_completed(code, requester):
 
         return {status(code=404, message="Order not found.")}
 
-    if order.status == Order.COMPLETED:
+    if order.status == "COMPLETED":
         return {status(code=400, message="Order is already marked as completed.")}
 
-    order.status = Order.COMPLETED
+    order.status = "COMPLETED"
     order.save()
 
     # Audit logging
@@ -108,7 +108,7 @@ def mark_order_as_shipped(code, requester):
         status (str): A message indicating the result of the operation.
 
     """
-    order = Order.objects.filter(code=code).first()
+    order = Order.objects.filter(order_code=code).first()
     if not order:
         AuditLog.objects.create(
             actor=requester,
@@ -122,7 +122,7 @@ def mark_order_as_shipped(code, requester):
 
         return {status(code=404, message="Order not found.")}
 
-    if order.status != Order.COMPLETED:
+    if order.status != "COMPLETED":
         AuditLog.objects.create(
             actor=requester,
             action="ORDER_MARKED_SHIPPED_FAILED",
@@ -137,7 +137,7 @@ def mark_order_as_shipped(code, requester):
             status(code=400, message="Only completed orders can be marked as shipped.")
         }
 
-    if order.status == Order.SHIPPED:
+    if order.status == "SHIPPED":
         AuditLog.objects.create(
             actor=requester,
             action="ORDER_MARKED_SHIPPED_FAILED",
@@ -150,7 +150,7 @@ def mark_order_as_shipped(code, requester):
 
         return {status(code=400, message="Order is already marked as shipped.")}
 
-    order.status = Order.SHIPPED
+    order.status = "SHIPPED"
     order.save()
 
     # Audit logging
@@ -182,5 +182,5 @@ def list_shiped_orders():
         list: A list of Order objects that are currently marked as shipped.
 
     """
-    shipped_orders = list(Order.objects.filter(status=Order.SHIPPED))
+    shipped_orders = list(Order.objects.filter(status="SHIPPED"))
     return shipped_orders

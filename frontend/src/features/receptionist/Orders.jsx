@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   HiOutlineCheck, HiOutlineEye, HiOutlineNoSymbol, HiOutlinePlus,
-  HiOutlineShoppingBag, HiOutlineClock, HiOutlineXMark, HiOutlineClipboardDocumentCheck
+  HiOutlineShoppingBag, HiOutlineClock, HiOutlineXMark, 
+  HiOutlineClipboardDocumentCheck, HiOutlineBanknotes, HiOutlinePhoto
 } from 'react-icons/hi2';
 import api from '../../api/api';
 
@@ -12,6 +13,7 @@ const Orders = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [receiveData, setReceiveData] = useState({ total_price: '', expected_price: '', due_date: '' });
   const [suitTypes, setSuitTypes] = useState([]);
   const [materials, setMaterials] = useState([]);
@@ -208,13 +210,22 @@ const Orders = () => {
               exit={{ scale: 0.9, opacity: 0 }}
               className="relative w-full max-w-2xl bg-white dark:bg-[#0c0c0c] rounded-[2rem] shadow-2xl border border-zinc-200 dark:border-white/10 p-8 max-h-[90vh] overflow-y-auto"
             >
-              <button onClick={() => setSelectedOrder(null)} className="absolute top-6 right-6 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all">
+              <button onClick={() => setSelectedOrder(null)} className="absolute top-6 right-6 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all dark:text-white">
                 <HiOutlineXMark size={20} />
               </button>
 
-              <div className="mb-6">
-                <h2 className="text-2xl font-black uppercase italic tracking-tighter">{selectedOrder.order_code}</h2>
-                <p className="text-[10px] text-zinc-400 uppercase font-bold mt-1">{selectedOrder.customer_name} • {selectedOrder.customer_phone}</p>
+              <div className="mb-6 flex justify-between items-start">
+                <div>
+                    <h2 className="text-2xl font-black uppercase italic tracking-tighter dark:text-white">{selectedOrder.order_code}</h2>
+                    <p className="text-[10px] text-zinc-400 uppercase font-bold mt-1">{selectedOrder.customer_name} • {selectedOrder.customer_phone}</p>
+                </div>
+                <button 
+                    onClick={(e) => { e.stopPropagation(); setShowPaymentModal(true); }}
+                    className="flex items-center gap-2 px-4 py-2 bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl transition-all border border-zinc-200 dark:border-white/5"
+                >
+                    <HiOutlineBanknotes className="text-emerald-500" />
+                    <span className="text-[9px] font-black uppercase tracking-tighter dark:text-white">View Payments</span>
+                </button>
               </div>
 
               <div className="grid grid-cols-2 gap-4 mb-6">
@@ -256,7 +267,7 @@ const Orders = () => {
 
               <div className="flex gap-3">
                 {selectedOrder.status === 'INITIATED' && (
-                  <div className="flex gap-3">
+                  <div className="flex gap-3 w-full">
                     <button
                       onClick={() => handleProcessOrder('reject', { reason: 'Order cancelled by staff' })}
                       className="flex-1 py-4 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all"
@@ -272,7 +283,7 @@ const Orders = () => {
                   </div>
                 )}
                 {selectedOrder.status === 'AWAITING_PAYMENT' && (
-                  <div className="flex gap-3">
+                  <div className="flex gap-3 w-full">
                     <button
                       onClick={() => handleProcessOrder('reject', { reason: 'Payment not received' })}
                       className="flex-1 py-4 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all"
@@ -288,7 +299,7 @@ const Orders = () => {
                   </div>
                 )}
                 {selectedOrder.status === 'PENDING_APPROVAL' && (
-                  <div className="flex gap-3">
+                  <div className="flex gap-3 w-full">
                     <button
                       onClick={() => handleProcessOrder('reject', { reason: 'Payment verification failed' })}
                       className="flex-1 py-4 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all"
@@ -317,6 +328,71 @@ const Orders = () => {
         )}
       </AnimatePresence>
 
+      {/* Payment List Modal */}
+      <AnimatePresence>
+        {showPaymentModal && selectedOrder && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowPaymentModal(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-white dark:bg-[#0c0c0c] rounded-[2.5rem] shadow-3xl border border-zinc-200 dark:border-white/10 p-8 overflow-hidden"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-black uppercase italic dark:text-white">Payment Records</h3>
+                <button onClick={() => setShowPaymentModal(false)} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all dark:text-white">
+                    <HiOutlineXMark size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                {selectedOrder.payments && selectedOrder.payments.length > 0 ? (
+                    selectedOrder.payments.map((payment, idx) => (
+                        <div key={idx} className="bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl p-4 border border-zinc-100 dark:border-white/5">
+                            <div className="flex justify-between items-start mb-3">
+                                <div>
+                                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Transaction No (TIN)</p>
+                                    <p className="text-sm font-bold dark:text-white">{payment.transaction_id || payment.payment_reference || 'N/A'}</p>
+                                </div>
+                                <span className="bg-emerald-500/10 text-emerald-500 text-[10px] font-black px-3 py-1 rounded-full uppercase">
+                                    {payment.amount} ETB
+                                </span>
+                            </div>
+                            
+                            {payment.receipt_image && (
+                                <div className="mt-3 rounded-xl overflow-hidden border border-zinc-200 dark:border-white/10">
+                                    <img 
+                                        src={payment.receipt_image} 
+                                        alt="Receipt" 
+                                        className="w-full h-32 object-cover hover:scale-105 transition-transform duration-500"
+                                    />
+                                </div>
+                            )}
+                            <div className="flex items-center gap-2 mt-3 text-[9px] text-zinc-500 font-bold uppercase">
+                                <HiOutlineClock />
+                                <span>{new Date(payment.created_at).toLocaleDateString()}</span>
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <div className="py-12 text-center">
+                        <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <HiOutlineNoSymbol className="text-zinc-400" size={30} />
+                        </div>
+                        <p className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Payment is not received yet</p>
+                    </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Create Order Modal */}
       <AnimatePresence>
         {showCreateModal && (
@@ -332,11 +408,11 @@ const Orders = () => {
               exit={{ scale: 0.9, opacity: 0 }}
               className="relative w-full max-w-lg bg-white dark:bg-[#0c0c0c] rounded-[2rem] shadow-2xl border border-zinc-200 dark:border-white/10 p-8 max-h-[90vh] overflow-y-auto"
             >
-              <button onClick={() => { setShowCreateModal(false); setCreatedOrder(null); }} className="absolute top-6 right-6 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all">
+              <button onClick={() => { setShowCreateModal(false); setCreatedOrder(null); }} className="absolute top-6 right-6 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all dark:text-white">
                 <HiOutlineXMark size={20} />
               </button>
 
-              <h2 className="text-xl font-black uppercase italic tracking-tighter mb-6">Create New Order</h2>
+              <h2 className="text-xl font-black uppercase italic tracking-tighter mb-6 dark:text-white">Create New Order</h2>
 
               {createdOrder ? (
                 <div className="text-center py-8">
@@ -346,7 +422,7 @@ const Orders = () => {
                   <h3 className="text-lg font-black dark:text-white mb-2">Order Created!</h3>
                   <p className="text-[10px] text-zinc-400 uppercase mb-4">Order Code</p>
                   <p className="text-3xl font-black text-red-600 mb-6">{createdOrder.order_code}</p>
-                  <p className="text-[10px] text-zinc-400">Please provide this code to the customer.</p>
+                  <p className="text-[10px] text-zinc-400 uppercase">Please provide this code to the customer.</p>
                 </div>
               ) : (
                 <form onSubmit={handleCreateOrder} className="space-y-4">
@@ -356,7 +432,7 @@ const Orders = () => {
                       type="text"
                       value={newOrder.customer_name}
                       onChange={(e) => setNewOrder({ ...newOrder, customer_name: e.target.value })}
-                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2"
+                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 dark:text-white"
                       required
                     />
                   </div>
@@ -366,7 +442,7 @@ const Orders = () => {
                       type="text"
                       value={newOrder.customer_phone}
                       onChange={(e) => setNewOrder({ ...newOrder, customer_phone: e.target.value })}
-                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2"
+                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 dark:text-white"
                       placeholder="+251911234567"
                       required
                     />
@@ -376,7 +452,7 @@ const Orders = () => {
                     <select
                       value={newOrder.suit_type}
                       onChange={(e) => setNewOrder({ ...newOrder, suit_type: e.target.value })}
-                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2"
+                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 dark:text-white"
                       required
                     >
                       <option value="">Select Suit Type</option>
@@ -388,7 +464,7 @@ const Orders = () => {
                     <select
                       value={newOrder.material}
                       onChange={(e) => setNewOrder({ ...newOrder, material: e.target.value })}
-                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2"
+                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 dark:text-white"
                       required
                     >
                       <option value="">Select Material</option>
@@ -402,7 +478,7 @@ const Orders = () => {
                       min="1"
                       value={newOrder.quantity}
                       onChange={(e) => setNewOrder({ ...newOrder, quantity: parseInt(e.target.value) || 1 })}
-                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2"
+                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 dark:text-white"
                     />
                   </div>
                   <div>
@@ -415,7 +491,7 @@ const Orders = () => {
                           placeholder={m.replace('_', ' ')}
                           value={newOrder.measurements[m]}
                           onChange={(e) => setNewOrder({ ...newOrder, measurements: { ...newOrder.measurements, [m]: e.target.value } })}
-                          className="bg-zinc-100 dark:bg-zinc-900 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:ring-2 ring-red-600/20"
+                          className="bg-zinc-100 dark:bg-zinc-900 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 dark:text-white"
                         />
                       ))}
                     </div>
@@ -448,7 +524,7 @@ const Orders = () => {
               exit={{ scale: 0.9, opacity: 0 }}
               className="relative w-full max-w-md bg-white dark:bg-[#0c0c0c] rounded-[2rem] shadow-2xl border border-zinc-200 dark:border-white/10 p-8"
             >
-              <button onClick={() => setShowReceiveModal(false)} className="absolute top-6 right-6 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all">
+              <button onClick={() => setShowReceiveModal(false)} className="absolute top-6 right-6 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all dark:text-white">
                 <HiOutlineXMark size={20} />
               </button>
 

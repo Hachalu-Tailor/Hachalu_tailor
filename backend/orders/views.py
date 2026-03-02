@@ -85,6 +85,7 @@ class OrderCreateView(APIView):
             customer_phone=customer_data["phone_number"],
             suit_type=validated["suit_type"],
             material=validated["material"],
+            selected_color=validated["selected_color"],
             quantity=validated["quantity"],
             measurements=measurement_data,
             requester=request.user if request.user.is_authenticated else None,

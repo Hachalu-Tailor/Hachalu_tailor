@@ -378,6 +378,23 @@ Body:None
 Body:
 ```
 {
+  "customer_name": "Jane Doe",
+  "customer_phone": "9991112222",
+  "suit_type": 1,
+  "material": 1,
+  "selected_color": "Dark Blue",
+  "quantity": 2,
+  "measurements": {
+    "chest": 40,
+    "shoulder": 18,
+    "waist": 32,
+    "hips": 38,
+    "arm_length": 25,
+    "height": 170
+  }
+}
+#########################################
+{
   "customer_name": "John Doe",
   "customer_phone": "+251900000000",
   "suit_type": 1,

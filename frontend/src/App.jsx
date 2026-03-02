@@ -15,6 +15,7 @@ import DiscountPage from './pages/DiscountPage';
 // Staff/Admin Pages
 import ReceptionDashboard from './pages/ReceptionDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import GarmentDashboard from './pages/GarmentDashboard';
 import DashboardLayout from './layouts/DashboardLayout';
 import Profile from './pages/Profile';
 
@@ -88,7 +89,15 @@ function App() {
           </Route>
         </Route>
 
-        {/* --- 5. 404 NOT FOUND --- */}
+        {/* --- 5. GARMENT/TAILOR AREA --- */}
+        <Route element={<ProtectedRoute allowedRoles={[ROLES.GARMENT]} />}>
+          <Route path="/garment" element={<DashboardLayout />}>
+            <Route index element={<GarmentDashboard />} />
+            <Route path="profile" element={<Profile />} />
+          </Route>
+        </Route>
+
+        {/* --- 6. 404 NOT FOUND --- */}
         <Route path="/not-found" element={<NotFound />} />
 
         {/* --- 6. REDIRECTS --- */}

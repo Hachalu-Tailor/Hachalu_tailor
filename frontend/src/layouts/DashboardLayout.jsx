@@ -131,8 +131,8 @@ const DashboardLayout = () => {
                   {getPageTitle()} <span className="text-red-600 font-sans ml-1">/</span>
                 </h1>
                 <span className="text-[7px] font-black text-gray-400 uppercase tracking-[0.4em] hidden sm:block mt-1">
-                  Terminal: <span className={userRole === 'admin' ? 'text-red-500' : 'text-blue-500'}>
-                    {userRole === 'admin' ? 'SECURE_MASTER_NODE' : 'STAFF_ACCESS_PT'}
+                  Terminal: <span className={userRole === 'admin' ? 'text-red-500' : userRole === 'garment' ? 'text-green-500' : 'text-blue-500'}>
+                    {userRole === 'admin' ? 'SECURE_MASTER_NODE' : userRole === 'garment' ? 'GARMENT_WORKSHOP' : 'STAFF_ACCESS_PT'}
                   </span>
                 </span>
               </div>
@@ -211,7 +211,7 @@ const DashboardLayout = () => {
               <div className="flex items-center gap-3 pl-3 border-l border-gray-100 dark:border-white/5">
                 <div className="hidden sm:flex flex-col items-end">
                   <button
-                    onClick={() => navigate(userRole === 'admin' ? '/admin/profile' : '/reception/profile')}
+                    onClick={() => navigate(userRole === 'admin' ? '/admin/profile' : userRole === 'garment' ? '/garment/profile' : '/reception/profile')}
                     className="text-[9px] font-black dark:text-white uppercase tracking-wider hover:text-red-500 transition-colors"
                   >
                     Profile
@@ -224,7 +224,7 @@ const DashboardLayout = () => {
                   </button>
                 </div>
                 <button
-                  onClick={() => navigate(userRole === 'admin' ? '/admin/profile' : '/reception/profile')}
+                  onClick={() => navigate(userRole === 'admin' ? '/admin/profile' : userRole === 'garment' ? '/garment/profile' : '/reception/profile')}
                   className="h-12 w-12 rounded-2xl bg-gradient-to-br from-red-600 to-red-900 flex items-center justify-center text-white shadow-xl shadow-red-600/20 group hover:rotate-3 transition-all cursor-pointer"
                   title="View Profile"
                 >

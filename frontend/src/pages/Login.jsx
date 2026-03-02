@@ -53,6 +53,8 @@ const Login = () => {
         navigate('/admin');
       } else if (role === 'RECEPTIONIST') {
         navigate('/reception');
+      } else if (role === 'GARMENT') {
+        navigate('/garment');
       } else {
         navigate('/');
       }

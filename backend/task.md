@@ -1,0 +1,1 @@
+- photo sync script to github with ssh to make it secure enogh

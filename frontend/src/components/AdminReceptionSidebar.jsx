@@ -6,7 +6,7 @@ import {
   HiOutlineUserGroup, HiOutlineBanknotes, HiOutlineArrowLeftOnRectangle,
   HiOutlineSun, HiOutlineMoon, HiOutlineMegaphone, HiOutlineSquares2X2,
   HiOutlineXMark, HiOutlineChartBar, HiOutlineUser, HiOutlineClipboardDocumentList,
-  HiOutlineEnvelope, HiOutlineCurrencyDollar
+  HiOutlineEnvelope, HiOutlineCurrencyDollar, HiOutlineScissors
 } from 'react-icons/hi2';
 
 const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => {
@@ -47,6 +47,9 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
     { path: '/reception/inventory', label: 'Inventory', icon: <HiOutlineCube />, roles: ['receptionist'] },
     { path: '/reception/clients', label: 'Clients', icon: <HiOutlineUserGroup />, roles: ['receptionist'] },
     { path: '/reception/announcement', label: 'Bulletins', icon: <HiOutlineMegaphone />, roles: ['receptionist'] },
+
+    // Garment/Tailor Section
+    { path: '/garment', label: 'Workshop', icon: <HiOutlineScissors />, roles: ['garment'] },
 
     // Shared/Common Sections (Admin & Receptionist)
     { path: '/reception/payments', label: 'Finance', icon: <HiOutlineBanknotes />, roles: ['admin', 'receptionist'] },

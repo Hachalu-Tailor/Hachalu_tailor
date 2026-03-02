@@ -4,21 +4,38 @@ from orders.models import Order
 from rest_framework import status
 
 
-def list_orders_in_progress():
+def list_orders_in_progress(filter_by_customer=None, filter_by_suit_type=None):
     """
     List all orders that are currently in progress.
 
     Inputs:
-        None.
+        filter_by_customer (str, optional): The customer name or phone number to filter by.
+        filter_by_suit_type (str, optional): The suit type name to filter by.
 
     Behavior:
         Retrieves all orders with status 'IN_PROGRESS' from the database.
+        Allows filtering by customer name/phone and suit type.
 
     Returns:
         Order: A list of Order objects that are currently in progress.
 
     """
     orders = list(Order.objects.filter(status="IN_PROGRESS"))
+
+    if filter_by_customer:
+        orders = [
+            order
+            for order in orders
+            if filter_by_customer.lower() in order.customer.full_name.lower()
+            or filter_by_customer in order.customer.phone_number
+        ]
+
+    if filter_by_suit_type:
+        orders = [
+            order
+            for order in orders
+            if order.suit_type.name.lower() == filter_by_suit_type.lower()
+        ]
 
     return orders
 
@@ -109,6 +126,7 @@ def mark_order_as_shipped(code, requester):
 
     """
     order = Order.objects.filter(order_code=code).first()
+
     if not order:
         AuditLog.objects.create(
             actor=requester,
@@ -168,12 +186,16 @@ def mark_order_as_shipped(code, requester):
     return {status(code=200, message="Order marked as shipped.")}
 
 
-def list_shiped_orders():
+def list_shiped_orders(
+    filter_by_customer=None, filter_by_suit_type=None, filter_by_date_range=None
+):
     """
     Retrieve all orders that have been marked as shipped.
 
     Inputs:
-        None.
+        filter_by_customer (str, optional): The customer name or phone number to filter by.
+        filter_by_suit_type (str, optional): The suit type name to filter by.
+        filter_by_date_range (tuple, optional): A tuple of two dates (start_date, end_date) to filter by date range.
 
     Behavior:
         Fetches all orders with status 'SHIPPED' from the database.
@@ -183,4 +205,45 @@ def list_shiped_orders():
 
     """
     shipped_orders = list(Order.objects.filter(status="SHIPPED"))
+    if filter_by_customer:
+        shipped_orders = [
+            order
+            for order in shipped_orders
+            if filter_by_customer.lower() in order.customer.full_name.lower()
+            or filter_by_customer in order.customer.phone_number
+        ]
+
+    if filter_by_suit_type:
+        shipped_orders = [
+            order
+            for order in shipped_orders
+            if order.suit_type.name.lower() == filter_by_suit_type.lower()
+        ]
+
+    if filter_by_date_range:
+        shipped_orders = [
+            order
+            for order in shipped_orders
+            if filter_by_date_range[0]
+            <= order.updated_at.date()
+            <= filter_by_date_range[1]
+        ]
+
     return shipped_orders
+
+def retrive_shiped_order_by_code(code):
+    """
+    Retrieve a specific order that is currently marked as shipped by its unique code.
+
+    Inputs:
+        code (str): The unique code of the order to retrieve.
+    
+    Behavior:
+        Fetches the order with the given code and status 'SHIPPED' from the database
+    
+    Returns:
+        Order: The Order object that matches the given code and is currently marked as shipped.
+    """
+    order = Order.objects.filter(order_code=code, status="SHIPPED").first()
+
+    return order

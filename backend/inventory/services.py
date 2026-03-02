@@ -6,7 +6,7 @@ from accounts.models import AuditLog
 from .models import Material, Stock, Color
 
 
-ALLOWED_MATERIAL_FIELDS = {"name", "texture", "image_url", "description", "category"}
+ALLOWED_MATERIAL_FIELDS = {"name", "brand", "texture", "image_url", "description", "category"}
 
 
 def _normalize_quantity(quantity_meters) -> Decimal:
@@ -53,7 +53,8 @@ def _validate_material_data(material_data: dict) -> dict:
         raise ValidationError(f"Unexpected fields: {', '.join(sorted(unexpected))}.")
 
     cleaned = dict(material_data)
-    for field in ("name", "color"):
+    
+    for field in ("name",):
         value = cleaned.get(field, "")
         if not isinstance(value, str) or not value.strip():
             raise ValidationError(f"{field} is required.")
@@ -114,15 +115,20 @@ def create_material_with_stock(
     Returns:
         Material: The newly created material instance.
     """
+    # color creation process: WE MUST SEND A LIST OF COLORS
+    color_names = material_data.pop("colors", [])
     cleaned_data = _validate_material_data(material_data)
     quantity = _normalize_quantity(quantity_meters)
-    # color creation process: WE MUST SEND A LIST OF COLORS
-    color_names = material_data.get("color_ids", [])
     if not isinstance(color_names, list):
         raise ValidationError("colors must be a list of color names.")
 
     # Map names to existing Color objects
     colors_qs = Color.objects.filter(name__in=color_names)
+    if len(colors_qs) != len(color_names):
+        found_names = set(c.name for c in colors_qs)
+        missing = set(color_names) - found_names
+        raise ValidationError(f"Colors not found in database: {', '.join(missing)}")
+    
     found_color_names = set(c.name for c in colors_qs)
     missing_colors = set(color_names) - found_color_names
     if missing_colors:
@@ -146,6 +152,7 @@ def create_material_with_stock(
             "description": material.texture,
         },
     )
+    material.refresh_from_db()
     return material
 
 
@@ -166,7 +173,8 @@ def update_material(*, material: Material, updates: dict, requester) -> Material
     """
     if not updates:
         raise ValidationError("updates is required.")
-    color_names = updates.pop("color", None)
+    
+    color_names = updates.pop("colors", None)
     
     unexpected = set(updates.keys()) - ALLOWED_MATERIAL_FIELDS
     if unexpected:

@@ -211,34 +211,33 @@ Body
   },
   "quantity_meters": "10.0"
 }
-#############################
-{
-  "material": {
-    "name": "Silk",
-    "color": "Blue",
-    "texture": "Soft",
-    "description": "Hellooooooo",
-    "category": "MEN"
-  },
-  "quantity_meters": 12.5
-}
 ```
 
 ##### Response: 201
 ```
- {
-        "id": 5,
-        "name": "Silk",
-        "color": "Blue",
-        "texture": "Soft",
-        "image_url": null,
-        "description": "Hellooooooo",
-        "category": "MEN",
-        "inventory": {
-            "id": 5,
-            "quantity_meters": "12.50",
-            "is_available": true
+{
+    "id": 5,
+    "name": "Silk",
+    "texture": "Smooth",
+    "brand": "CR7",
+    "image_url": null,
+    "description": "Premium fabric",
+    "category": "Cloth",
+    "colors": [
+        {
+            "id": 1,
+            "name": "Red"
+        },
+        {
+            "id": 2,
+            "name": "Blue"
         }
+    ],
+    "inventory": {
+        "id": 5,
+        "quantity_meters": "10.00",
+        "is_available": true
+    }
 }
 ```
 #### 2. List objects
@@ -275,11 +274,18 @@ Body: NONE
 Body: 
 ```
 {
-  "colors": ["Dark Blue", "Light Blue", "White"]
+  
 }
-##############
+
+or something like
+
 {
-  "color": "Dark Blue"
+    "name": "Silk",
+    "brand": "CR", 
+    "texture": "Smooth",
+    "description": "Premium fabric",
+    "category": "Cloth",
+    "colors": ["Blue", "White"]
 }
 ```
 

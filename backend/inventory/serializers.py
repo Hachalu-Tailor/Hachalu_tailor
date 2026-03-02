@@ -30,4 +30,4 @@ class MaterialSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Material
-        fields = ['id', 'name', 'texture', 'image_url', 'description', 'category', 'colors', 'inventory']
+        fields = ['id', 'name', 'texture', 'brand', 'image_url', 'description', 'category', 'colors', 'inventory']

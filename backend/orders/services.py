@@ -13,7 +13,7 @@ from django.db import models, transaction
 from django.utils import timezone
 
 from accounts.models import AuditLog, User, Notification
-from inventory.models import Material
+from inventory.models import Material, Color
 from .models import Customer, Order, Measurement, SuitType
 
 logger = logging.getLogger(__name__)
@@ -262,6 +262,7 @@ def create_order(
     customer_phone: str,
     suit_type,
     material,
+    selected_color: str, 
     quantity,
     measurements: dict,
     requester=None,
@@ -273,6 +274,12 @@ def create_order(
 
     suit_type_obj = _resolve_suit_type(suit_type)
     material_obj = _resolve_material(material)
+    try:
+        color_obj = Color.objects.get(name=selected_color, material=material_obj)
+    except Color.DoesNotExist:
+        raise ValidationError(
+            f"The color '{selected_color}' is not available for the chosen material."
+        )
     normalized_quantity = _normalize_quantity(quantity)
     normalized_measurements = _normalize_measurements(measurements)
 
@@ -290,6 +297,7 @@ def create_order(
         customer=customer,
         suit_type=suit_type_obj,
         material=material_obj,
+        selected_color=color_obj,
         measurement=measurement,
         order_code=_generate_order_code(),
         status="INITIATED",

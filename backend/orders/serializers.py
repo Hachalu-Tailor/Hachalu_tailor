@@ -67,7 +67,12 @@ class CreateOrderSerializer(serializers.ModelSerializer):
     # Read-only fields to show the user after creation
     order_id = serializers.UUIDField(source="id", read_only=True)
     order_code = serializers.CharField(read_only=True)
-
+    selected_color = serializers.CharField(
+        write_only=True,
+        help_text="Name of the color the customer choose"
+    )  # for choosing # sent from the frontend
+    selected_color_name = serializers.CharField(source="selected_color.name", read_only=True)  # for returning
+    
     class Meta:
         model = Order
         fields = [

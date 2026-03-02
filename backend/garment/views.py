@@ -197,3 +197,44 @@ class ListOrdersInProgressView(APIView):
         serializer = OrderSerializer(orders_in_progress, many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class InProgressDetailView(APIView):
+    permission_classes = [IsAuthenticated, (IsGarmentAdmin | IsAdminOrReceptionist)]
+
+    @extend_schema(
+        tags=["Orders"],
+        parameters=[
+            OpenApiParameter(
+                name="code",
+                required=True,
+                description="The unique code of the order to retrieve.",
+                type=str,
+            )
+        ],
+        responses={200: OrderSerializer, 400: dict, 401: dict, 403: dict, 404: dict},
+        examples=[
+            OpenApiExample(
+                "Order detail",
+                value={
+                    "id": "<uuid>",
+                    "order_code": "HP-00000001",
+                    "status": "IN_PROGRESS",
+                },
+                response_only=True,
+            )
+        ],
+        description=(
+            "Retrieve details of an order in progress by its unique code. "
+            "Accessible to garment admins, admins and receptionists."
+        ),
+    )
+    def get(self, request):
+        order = retrive_order_in_progress_by_code(code=request.query_params.get("code"))
+        if not order:
+            return Response(
+                {"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = OrderSerializer(order)
+        return Response(serializer.data, status=status.HTTP_200_OK)

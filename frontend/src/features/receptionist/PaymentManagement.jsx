@@ -39,6 +39,8 @@ const PaymentManagement = () => {
             }
             const response = await api.get('/payments/list/', { params });
             setPayments(response.data || []);
+            // console.log('Fetched payments:', response.data);
+
         } catch (error) {
             console.error('Error fetching payments:', error);
         } finally {
@@ -303,7 +305,7 @@ const PaymentManagement = () => {
                                             View Receipt
                                         </a>
                                     ) : (
-                                        <span className="text-sm text-gray-400">No receipt</span>
+                                        <img src={selectedPayment.receipt_screenshot} alt="" />
                                     )}
                                 </div>
                                 <div className="flex justify-between items-center py-3 border-b border-gray-100 dark:border-white/5">

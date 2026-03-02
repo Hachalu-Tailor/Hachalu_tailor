@@ -597,7 +597,7 @@ Body NONE
 # ============================================================
 ### Payment Management 
 #### 1. Create Payment
-##### Endpoint: POST /api/payments/
+##### Endpoint: POST HP-44385832
 Body
 ```
 {

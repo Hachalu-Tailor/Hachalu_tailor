@@ -16,6 +16,9 @@ from accounts.models import AuditLog, User, Notification
 from inventory.models import Material
 from .models import Customer, Order, Measurement, SuitType
 
+
+from rest_framework import status
+
 logger = logging.getLogger(__name__)
 
 MEASUREMENT_FIELDS = ("chest", "shoulder", "waist", "hips", "arm_length", "height")
@@ -566,7 +569,7 @@ def update_order(*, order_id, updates: dict, requester=None) -> Order:
     if "payment_notes" in updates:
         order.payment_notes = str(updates["payment_notes"]).strip()
     if "status" in updates:
-        order.status = updates["status"]
+        return ValidationError("Status cannot be updated by this function.")
 
     if "expected_price" in updates:
         order.expected_price = _normalize_decimal(
@@ -594,7 +597,111 @@ def update_order(*, order_id, updates: dict, requester=None) -> Order:
     return order
 
 
-@transaction.atomic
+@transaction.atomic()
+def order_status_update(code, requester):
+    """
+    Mark an order as instore based on its code.
+
+    inputs:
+        code (str): The unique order code to identify the order.
+        requester (User): The user performing the action (for audit logging).
+
+    Returns:
+         status (str): A message indicating the result of the operation.
+
+    Behavior:
+        Updates the status of the order with the given code to 'INSTORE' in the database.
+    """
+
+    order = Order.objects.filter(order_code=code).first()
+
+    if not order:
+        AuditLog.objects.create(
+            actor=requester,
+            action="ORDER_MARKED_INSTORE_FAILED",
+            target_id=None,
+            identifier_used=code,
+            payload={
+                "description": f"Attempted to mark order as instore, but order with code {code} was not found."
+            },
+        )
+
+        return {status(code=404, message="Order not found.")}
+
+    if order.status == "INSTORE":
+        return {status(code=400, message="Order is already marked as instore.")}
+
+    if order.status != "SHIPPED":
+        return {
+            status(code=400, message="Only shipped orders can be marked as instore.")
+        }
+
+    order.status = "INSTORE"
+    order.save()
+
+    # Audit logging
+    AuditLog.objects.create(
+        actor=requester,
+        action="ORDER_MARKED_INSTORE",
+        target_id=order.id,
+        identifier_used=order.order_code,
+        payload={
+            "order_id": str(order.id),
+            "order_code": order.order_code,
+            "description": [order.material, order.customer, order.created_at],
+        },
+    )
+
+    return {status(code=200, message="Order marked as instore.")}
+
+
+@transaction.atomic()
+def mark_order_as_closed(code, requester):
+    """
+    Mark an order as closed.
+
+    Inputs:
+        order (Order): The Order instance to mark as closed.
+        requester (User): The user performing the action (for audit logging).
+
+    Returns:
+        status (str): A message indicating the result of the operation.
+
+    Behavior:
+        Updates the status of the given order to 'CLOSED' in the database.
+    """
+
+    order = Order.objects.filter(order_code=code).first()
+    if not order:
+        return {status(code=404, message="Order not found.")}
+
+    if order.status == "CLOSED":
+        return {status(code=400, message="Order is already marked as closed.")}
+
+    if order.status != "INSTORE":
+        return {
+            status(code=400, message="Only instore orders can be marked as closed.")
+        }
+
+    order.status = "CLOSED"
+    order.save()
+
+    AuditLog.objects.create(
+        actor=requester,
+        action="ORDER_MARKED_CLOSED",
+        target_id=order.id,
+        identifier_used=order.order_code,
+        payload={
+            "order_id": str(order.id),
+            "order_code": order.order_code,
+            "description": [order.material, order.customer, order.created_at],
+        },
+    )
+
+    return {status(code=200, message="Order marked as closed.")}
+
+
+@transaction.atomic()
 def expire_orders(*, requester=None):
     today = timezone.localdate()
     candidates = Order.objects.filter(

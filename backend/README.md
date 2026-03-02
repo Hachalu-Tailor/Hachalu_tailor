@@ -195,11 +195,22 @@ Body: None
 
 # ============================================================
 ### Inventory manangment 
-#### 1. Create object
+#### 1. Create Material
 #### Note Here that both admin and receptionist can login
 ##### Endpoint: POST /api/invetory/materials/
 Body
 ```
+{
+  "material": {
+    "name": "Silk",
+    "texture": "Smooth",
+    "description": "Premium fabric",
+    "category": "Cloth",
+    "colors": ["Red", "Blue", "Violet"]
+  },
+  "quantity_meters": "10.0"
+}
+#############################
 {
   "material": {
     "name": "Silk",
@@ -262,6 +273,10 @@ Body: NONE
 ##### Endpoint: PATCH /api/invetory/materials/{id}/
 Body: 
 ```
+{
+  "colors": ["Dark Blue", "Light Blue", "White"]
+}
+##############
 {
   "color": "Dark Blue"
 }

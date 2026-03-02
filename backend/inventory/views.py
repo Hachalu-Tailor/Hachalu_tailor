@@ -1,5 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, OpenApiExample
@@ -101,11 +102,14 @@ class MaterialListCreateView(APIView):
         material_data = request.data.get("material")
         quantity = request.data.get("quantity_meters")
 
-        material = create_material_with_stock(
-            material_data=material_data,
-            quantity_meters=quantity,
-            requester=request.user,
-        )
+        try:
+            material = create_material_with_stock(
+                material_data=material_data,
+                quantity_meters=quantity,
+                requester=request.user,
+            )
+        except ValidationError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = MaterialSerializer(material)
         return Response(serializer.data, status=status.HTTP_201_CREATED)

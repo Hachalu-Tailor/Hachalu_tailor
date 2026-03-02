@@ -3,10 +3,10 @@ from rest_framework.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import F
 from accounts.models import AuditLog
-from .models import Material, Stock
+from .models import Material, Stock, Color
 
 
-ALLOWED_MATERIAL_FIELDS = {"name", "color", "texture", "image_url", "description", "category"}
+ALLOWED_MATERIAL_FIELDS = {"name", "texture", "image_url", "description", "category"}
 
 
 def _normalize_quantity(quantity_meters) -> Decimal:
@@ -116,7 +116,22 @@ def create_material_with_stock(
     """
     cleaned_data = _validate_material_data(material_data)
     quantity = _normalize_quantity(quantity_meters)
+    # color creation process: WE MUST SEND A LIST OF COLORS
+    color_names = material_data.get("color_ids", [])
+    if not isinstance(color_names, list):
+        raise ValidationError("colors must be a list of color names.")
+
+    # Map names to existing Color objects
+    colors_qs = Color.objects.filter(name__in=color_names)
+    found_color_names = set(c.name for c in colors_qs)
+    missing_colors = set(color_names) - found_color_names
+    if missing_colors:
+        raise ValidationError(f"These colors do not exist: {', '.join(missing_colors)}")
+
     material = Material.objects.create(**cleaned_data)
+    # Assign colors
+    material.colors.set(colors_qs)
+
     Stock.objects.create(material=material, quantity_meters=quantity)
 
     # Audit logging
@@ -151,17 +166,31 @@ def update_material(*, material: Material, updates: dict, requester) -> Material
     """
     if not updates:
         raise ValidationError("updates is required.")
+    color_names = updates.pop("color", None)
+    
     unexpected = set(updates.keys()) - ALLOWED_MATERIAL_FIELDS
     if unexpected:
         raise ValidationError(f"Unexpected fields: {', '.join(sorted(unexpected))}.")
     for field, value in updates.items():
-        if field in {"name", "color"}:
+        if field == "name":
             if not isinstance(value, str) or not value.strip():
                 raise ValidationError(f"{field} cannot be blank.")
             value = value.strip()
         if field in {"texture", "image_url"} and isinstance(value, str):
             value = value.strip()
         setattr(material, field, value)
+    
+    # Update colors if provided
+    if color_names is not None:
+        if not isinstance(color_names, list):
+            raise ValidationError("colors must be a list of color names.")
+        colors_qs = Color.objects.filter(name__in=color_names)
+        found_color_names = set(c.name for c in colors_qs)
+        missing_colors = set(color_names) - found_color_names
+        if missing_colors:
+            raise ValidationError(f"These colors do not exist: {', '.join(missing_colors)}")
+        material.colors.set(colors_qs)
+    
     material.save()
 
     # Audit logging
@@ -173,7 +202,7 @@ def update_material(*, material: Material, updates: dict, requester) -> Material
         payload={
             "material_id": str(material.id),
             "name": material.name,
-            "color": material.color,
+            "color": [c.name for c in material.colors.all()],
             "texture": material.texture,
             "image_url": material.image_url,
         },

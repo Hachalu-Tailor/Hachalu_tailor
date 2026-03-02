@@ -1,4 +1,8 @@
+from datetime import date as dt_date
+
 from django.db import transaction
+from django.db.models import Q
+
 from accounts.models import AuditLog
 from orders.models import Order
 
@@ -19,24 +23,20 @@ def list_orders_in_progress(filter_by_customer=None, filter_by_suit_type=None):
         Order: A list of Order objects that are currently in progress.
 
     """
-    orders = list(Order.objects.filter(status="IN_PROGRESS"))
+    queryset = Order.objects.select_related("customer", "suit_type", "material").filter(
+        status="IN_PROGRESS"
+    )
 
     if filter_by_customer:
-        orders = [
-            order
-            for order in orders
-            if filter_by_customer.lower() in order.customer.full_name.lower()
-            or filter_by_customer in order.customer.phone_number
-        ]
+        queryset = queryset.filter(
+            Q(customer__full_name__icontains=filter_by_customer)
+            | Q(customer__phone_number__icontains=filter_by_customer)
+        )
 
     if filter_by_suit_type:
-        orders = [
-            order
-            for order in orders
-            if order.suit_type.name.lower() == filter_by_suit_type.lower()
-        ]
+        queryset = queryset.filter(suit_type__name__iexact=filter_by_suit_type)
 
-    return orders
+    return list(queryset)
 
 
 def retrive_order_in_progress_by_code(code):
@@ -53,7 +53,11 @@ def retrive_order_in_progress_by_code(code):
         Order: The Order object that matches the given code and is currently in progress.
 
     """
-    order = Order.objects.filter(order_code=code, status="IN_PROGRESS").first()
+    order = (
+        Order.objects.select_related("customer", "suit_type", "material")
+        .filter(order_code=code, status="IN_PROGRESS")
+        .first()
+    )
 
     return order
 
@@ -73,7 +77,7 @@ def mark_order_as_completed(code, requester):
         status (str): A message indicating the result of the operation.
 
     """
-    order = Order.objects.filter(order_code=code).first()
+    order = Order.objects.select_related("customer", "material").filter(order_code=code).first()
 
     if not order:
         AuditLog.objects.create(
@@ -134,7 +138,7 @@ def mark_order_as_shipped(code, requester):
         status (str): A message indicating the result of the operation.
 
     """
-    order = Order.objects.filter(order_code=code).first()
+    order = Order.objects.select_related("customer", "material").filter(order_code=code).first()
 
     if not order:
         AuditLog.objects.create(
@@ -208,32 +212,41 @@ def list_shiped_orders(
         list: A list of Order objects that are currently marked as shipped.
 
     """
-    shipped_orders = list(Order.objects.filter(status="SHIPPED"))
+    queryset = Order.objects.select_related("customer", "suit_type", "material").filter(
+        status="SHIPPED"
+    )
+
     if filter_by_customer:
-        shipped_orders = [
-            order
-            for order in shipped_orders
-            if filter_by_customer.lower() in order.customer.full_name.lower()
-            or filter_by_customer in order.customer.phone_number
-        ]
+        queryset = queryset.filter(
+            Q(customer__full_name__icontains=filter_by_customer)
+            | Q(customer__phone_number__icontains=filter_by_customer)
+        )
 
     if filter_by_suit_type:
-        shipped_orders = [
-            order
-            for order in shipped_orders
-            if order.suit_type.name.lower() == filter_by_suit_type.lower()
-        ]
+        queryset = queryset.filter(suit_type__name__iexact=filter_by_suit_type)
 
     if filter_by_date_range:
-        shipped_orders = [
-            order
-            for order in shipped_orders
-            if filter_by_date_range[0]
-            <= order.updated_at.date()
-            <= filter_by_date_range[1]
-        ]
+        start_date = None
+        end_date = None
 
-    return shipped_orders
+        if (
+            isinstance(filter_by_date_range, (tuple, list))
+            and len(filter_by_date_range) == 2
+        ):
+            start_date, end_date = filter_by_date_range
+        elif isinstance(filter_by_date_range, str) and "," in filter_by_date_range:
+            raw_start, raw_end = [chunk.strip() for chunk in filter_by_date_range.split(",", 1)]
+            try:
+                start_date = dt_date.fromisoformat(raw_start)
+                end_date = dt_date.fromisoformat(raw_end)
+            except ValueError:
+                start_date, end_date = None, None
+
+        if isinstance(start_date, dt_date) and isinstance(end_date, dt_date):
+            queryset = queryset.filter(updated_at__date__range=(start_date, end_date))
+
+    return list(queryset)
+
 
 def retrive_shiped_order_by_code(code):
     """
@@ -241,13 +254,17 @@ def retrive_shiped_order_by_code(code):
 
     Inputs:
         code (str): The unique code of the order to retrieve.
-    
+
     Behavior:
         Fetches the order with the given code and status 'SHIPPED' from the database
-    
+
     Returns:
         Order: The Order object that matches the given code and is currently marked as shipped.
     """
-    order = Order.objects.filter(order_code=code, status="SHIPPED").first()
+    order = (
+        Order.objects.select_related("customer", "suit_type", "material")
+        .filter(order_code=code, status="SHIPPED")
+        .first()
+    )
 
     return order

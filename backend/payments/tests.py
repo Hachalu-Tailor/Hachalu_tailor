@@ -86,6 +86,17 @@ class PaymentSerializerTests(PaymentBaseTestCase):
         )
         self.assertTrue(valid.is_valid(), valid.errors)
 
+    def test_payment_create_serializer_allows_decimal_shape(self):
+        serializer = PaymentCreateSerializer(
+            data={
+                "order_code": "HP-00000001",
+                "amount": "-1",
+                "bank_ref_number": "B-NEG",
+                "receipt_pdf_url": "https://example.com/r.pdf",
+            }
+        )
+        self.assertTrue(serializer.is_valid())
+
 
 class PaymentServiceTests(PaymentBaseTestCase):
     def test_create_and_verify_payment_flow(self):
@@ -102,7 +113,9 @@ class PaymentServiceTests(PaymentBaseTestCase):
         order.refresh_from_db()
         self.assertEqual(order.status, "PENDING_APPROVAL")
 
-        verified = verify_payment(transaction_id=transaction_obj.id, reviewer=self.receptionist)
+        verified = verify_payment(
+            transaction_id=transaction_obj.id, reviewer=self.receptionist
+        )
         self.assertTrue(verified.is_verified)
 
         order.refresh_from_db()
@@ -119,7 +132,36 @@ class PaymentServiceTests(PaymentBaseTestCase):
         )
 
         with self.assertRaises(ValidationError):
-            verify_payment(transaction_id=transaction_obj.id, reviewer=self.other_receptionist)
+            verify_payment(
+                transaction_id=transaction_obj.id, reviewer=self.other_receptionist
+            )
+
+    def test_create_payment_rejects_duplicate_for_same_order(self):
+        order = self._awaiting_payment_order(phone="9100000015")
+        create_payment(
+            order_code=order.order_code,
+            amount="130.00",
+            bank_ref_number="BANK-102",
+            receipt_pdf_url="https://example.com/payment4.pdf",
+        )
+
+        with self.assertRaises(ValidationError):
+            create_payment(
+                order_code=order.order_code,
+                amount="130.00",
+                bank_ref_number="BANK-103",
+                receipt_pdf_url="https://example.com/payment5.pdf",
+            )
+
+    def test_create_payment_rejects_negative_amount(self):
+        order = self._awaiting_payment_order(phone="9100000018")
+        with self.assertRaises(ValidationError):
+            create_payment(
+                order_code=order.order_code,
+                amount="-1",
+                bank_ref_number="BANK-104",
+                receipt_pdf_url="https://example.com/payment6.pdf",
+            )
 
 
 class PaymentEndpointTests(PaymentBaseTestCase):
@@ -169,5 +211,37 @@ class PaymentEndpointTests(PaymentBaseTestCase):
             receipt_pdf_url="https://example.com/receipt.pdf",
         )
 
-        response = self.client.post(f"/api/payments/{tx.id}/verify/", {"is_verified": True}, format="json")
+        response = self.client.post(
+            f"/api/payments/{tx.id}/verify/", {"is_verified": True}, format="json"
+        )
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_payment_create_endpoint_requires_receipt_field(self):
+        order = self._awaiting_payment_order(phone="9100000016")
+        response = self.client.post(
+            "/api/payments/",
+            {
+                "order_code": order.order_code,
+                "amount": "140.00",
+                "bank_ref_number": "BANK-201",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_payment_verify_endpoint_requires_true_flag(self):
+        order = self._awaiting_payment_order(phone="9100000017")
+        tx = Transaction.objects.create(
+            order_id=order,
+            payment_amount="100.00",
+            bank_ref_number="BANK-301",
+            receipt_pdf_url="https://example.com/receipt2.pdf",
+        )
+
+        self.client.force_authenticate(self.receptionist)
+        response = self.client.post(
+            f"/api/payments/{tx.id}/verify/",
+            {"is_verified": False},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

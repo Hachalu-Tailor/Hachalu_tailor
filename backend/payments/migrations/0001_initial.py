@@ -32,7 +32,9 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "bank_ref_number",
-                    models.CharField(blank=True, max_length=255, null=True, unique=True),
+                    models.CharField(
+                        blank=True, max_length=255, null=True, unique=True
+                    ),
                 ),
                 (
                     "receipt_pdf_url",

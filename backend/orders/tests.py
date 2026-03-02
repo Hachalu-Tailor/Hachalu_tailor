@@ -69,6 +69,24 @@ class OrderSerializerTests(OrderBaseTestCase):
         invalid = OrderStatusUpdateSerializer(data={"status": "COMPLETED"})
         self.assertFalse(invalid.is_valid())
 
+    def test_create_order_serializer_requires_all_measurements(self):
+        payload = {
+            "customer_name": "Jane Doe",
+            "customer_phone": "9000000100",
+            "suit_type": self.suit_type.id,
+            "material": self.material.id,
+            "quantity": 1,
+            "measurements": {
+                "chest": 40,
+                "shoulder": 18,
+                "waist": 32,
+                "hips": 38,
+                "arm_length": 25,
+            },
+        }
+        serializer = CreateOrderSerializer(data=payload)
+        self.assertFalse(serializer.is_valid())
+
 
 class OrderServiceFlowTests(OrderBaseTestCase):
     def test_create_receive_record_and_approve_order_flow(self):
@@ -84,7 +102,9 @@ class OrderServiceFlowTests(OrderBaseTestCase):
         self.assertEqual(order.status, "INITIATED")
         self.assertTrue(order.order_code.startswith("HP-"))
         self.assertTrue(AuditLog.objects.filter(action="ORDER_CREATED").exists())
-        self.assertTrue(Notification.objects.filter(notification_type="ORDER_CREATED").exists())
+        self.assertTrue(
+            Notification.objects.filter(notification_type="ORDER_CREATED").exists()
+        )
 
         order = receive_order_for_processing(
             order_id=order.id,
@@ -161,6 +181,50 @@ class OrderServiceFlowTests(OrderBaseTestCase):
                 requester=self.receptionist,
             )
 
+    def test_create_order_rejects_invalid_quantity(self):
+        with self.assertRaises(ValidationError):
+            create_order(
+                customer_name="Jane Doe",
+                customer_phone="9000000006",
+                suit_type=self.suit_type,
+                material=self.material,
+                quantity=0,
+                measurements=self._measurement_payload(),
+                requester=self.admin,
+            )
+
+    def test_record_payment_info_rejects_invalid_status(self):
+        order = create_order(
+            customer_name="Jane Doe",
+            customer_phone="9000000007",
+            suit_type=self.suit_type,
+            material=self.material,
+            quantity=1,
+            measurements=self._measurement_payload(),
+            requester=self.admin,
+        )
+
+        with self.assertRaises(ValidationError):
+            record_payment_info(
+                order_id=order.id,
+                payment_reference="BANK999",
+                payment_amount="50.00",
+                requester=self.receptionist,
+            )
+
+    def test_list_orders_with_conflicting_filters_returns_empty(self):
+        create_order(
+            customer_name="Only Active",
+            customer_phone="9000000008",
+            suit_type=self.suit_type,
+            material=self.material,
+            quantity=1,
+            measurements=self._measurement_payload(),
+            requester=self.admin,
+        )
+        qs = list_orders(requester=self.admin, active_only=True, processed_only=True)
+        self.assertEqual(qs.count(), 0)
+
 
 class OrderEndpointFlowTests(OrderBaseTestCase):
     def test_create_order_endpoint_and_fetch_by_code(self):
@@ -214,3 +278,25 @@ class OrderEndpointFlowTests(OrderBaseTestCase):
         expire = self.client.post("/api/orders/expire/")
         self.assertEqual(expire.status_code, status.HTTP_200_OK)
         self.assertEqual(expire.data["expired_count"], 1)
+
+    def test_order_list_requires_authentication(self):
+        response = self.client.get("/api/orders/list/")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_order_process_endpoint_rejects_invalid_action(self):
+        order = create_order(
+            customer_name="Jane Doe",
+            customer_phone="9000000009",
+            suit_type=self.suit_type,
+            material=self.material,
+            quantity=1,
+            measurements=self._measurement_payload(),
+            requester=self.admin,
+        )
+        self.client.force_authenticate(self.receptionist)
+        response = self.client.post(
+            f"/api/orders/{order.id}/process",
+            {"action": "invalid_action"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

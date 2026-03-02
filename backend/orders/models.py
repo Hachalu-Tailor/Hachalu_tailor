@@ -1,7 +1,7 @@
 from django.db import models
 from django.conf import settings
 import uuid
-from inventory.models import Material
+from inventory.models import Material, Color
 
 
 class SuitType(models.Model):
@@ -35,9 +35,12 @@ class Order(models.Model):
         ('AWAITING_PAYMENT', 'Price/Date set; waiting for Customer to upload Ref Number/Receipt'),
         ('PENDING_APPROVAL', 'Customer uploaded receipt; waiting for Receptionist to verify bank data'),
         ('IN_PROGRESS', 'Payment verified; Suit is being stitched'),
-        ('COMPLETED', 'Suit is finished and ready for pickup'),
+        ('COMPLETED', 'Suit is finished and ready for pickup'), 'HAS BEEN SEEWED AT THE FACTORY'
+        ('SHIPPED'), 'ORDER HAS BEEN SHIPPED FROM FACTORY'
+        ('IN_STORE'), 'ORDER MATERIAL HAS NOW ARRIVED AND IS READY FOR USER TO TAKE'
         ('CLOSED', 'Customer has collected the suit'),
         ('REJECTED', 'Payment was invalid or order cancelled'),
+        ('FULLY_PAID', 'PAYMENT HAS BEEN COMPLETED BY USER WITH NO IN ADVANCE PAYMENTS')
     """
 
     STATUS_CHOICES = [
@@ -45,7 +48,9 @@ class Order(models.Model):
         ("AWAITING_PAYMENT", "Awaiting_approval"),
         ("PENDING_APPROVAL", "pending_approval"),
         ("IN_PROGRESS", "In_progress"),
+        ("SHIPPED", "Shipped"),
         ("COMPLETED", "Completed"),
+        ("IN_STORE", "In_store"),
         ("CLOSED", "Closed"),
         ("REJECTED", "Rejected"),
         ("EXPIRED", "Expired"),
@@ -66,6 +71,9 @@ class Order(models.Model):
     )
     material = models.ForeignKey(
         Material, on_delete=models.CASCADE, related_name="orders"
+    )
+    color = models.ForeignKey(
+        Color, on_delete=models.PROTECT, related_name="chosen_color", default=1
     )
     measurement = models.OneToOneField(
         "Measurement",

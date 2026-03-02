@@ -203,6 +203,7 @@ Body
 {
   "material": {
     "name": "Silk",
+    "brand": "Lui V"
     "texture": "Smooth",
     "description": "Premium fabric",
     "category": "Cloth",

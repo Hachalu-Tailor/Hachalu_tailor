@@ -31,3 +31,13 @@ class IsAdminOrReceptionist(BasePermission):
         return bool(
             getattr(request.user, "is_authenticated", False)
         ) and request.user.role in {"ADMIN", "RECEPTIONIST"}
+
+
+class IsGarmentAdmin(BasePermission):
+    """Allow access to users who are GARMENT_ADMINs."""
+
+    def has_permission(self, request, view):
+        return (
+            bool(getattr(request.user, "is_authenticated", False))
+            and request.user.role == "GARMENT_ADMIN"
+        )

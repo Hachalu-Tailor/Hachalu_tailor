@@ -160,6 +160,9 @@ export const AuthProvider = ({ children }) => {
   // Check if user is tailor
   const isTailor = () => hasRole('TAILOR');
 
+  // Check if user is garment (tailor)
+  const isGarment = () => hasRole('GARMENT');
+
   const value = {
     user,
     loading,
@@ -174,6 +177,7 @@ export const AuthProvider = ({ children }) => {
     isAdmin,
     isReceptionist,
     isTailor,
+    isGarment,
     refreshAccessToken,
     checkAuth
   };

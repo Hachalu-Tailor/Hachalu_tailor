@@ -1,7 +1,6 @@
 from django.db import transaction
 from accounts.models import AuditLog
 from orders.models import Order
-from rest_framework import status
 
 
 def list_orders_in_progress(filter_by_customer=None, filter_by_suit_type=None):
@@ -87,10 +86,16 @@ def mark_order_as_completed(code, requester):
             },
         )
 
-        return {status(code=404, message="Order not found.")}
+        return {"code": 404, "message": "Order not found."}
 
     if order.status == "COMPLETED":
-        return {status(code=400, message="Order is already marked as completed.")}
+        return {"code": 400, "message": "Order is already marked as completed."}
+
+    if order.status != "IN_PROGRESS":
+        return {
+            "code": 400,
+            "message": "Only orders in progress can be marked as completed.",
+        }
 
     order.status = "COMPLETED"
     order.save()
@@ -103,11 +108,15 @@ def mark_order_as_completed(code, requester):
         identifier_used=order.order_code,
         payload={
             "material_id": str(order.order_code),
-            "description": [order.material, order.customer, order.created_at],
+            "description": [
+                str(order.material),
+                str(order.customer),
+                order.created_at.isoformat() if order.created_at else None,
+            ],
         },
     )
 
-    return {status(code=200, message="Order marked as completed.")}
+    return {"code": 200, "message": "Order marked as completed."}
 
 
 @transaction.atomic()
@@ -138,7 +147,10 @@ def mark_order_as_shipped(code, requester):
             },
         )
 
-        return {status(code=404, message="Order not found.")}
+        return {"code": 404, "message": "Order not found."}
+
+    if order.status == "SHIPPED":
+        return {"code": 400, "message": "Order is already marked as shipped."}
 
     if order.status != "COMPLETED":
         AuditLog.objects.create(
@@ -152,21 +164,9 @@ def mark_order_as_shipped(code, requester):
         )
 
         return {
-            status(code=400, message="Only completed orders can be marked as shipped.")
+            "code": 400,
+            "message": "Only completed orders can be marked as shipped.",
         }
-
-    if order.status == "SHIPPED":
-        AuditLog.objects.create(
-            actor=requester,
-            action="ORDER_MARKED_SHIPPED_FAILED",
-            target_id=order.id,
-            identifier_used=order.order_code,
-            payload={
-                "description": f"Attempted to mark order as shipped, but order with code {code} is already marked as shipped."
-            },
-        )
-
-        return {status(code=400, message="Order is already marked as shipped.")}
 
     order.status = "SHIPPED"
     order.save()
@@ -179,11 +179,15 @@ def mark_order_as_shipped(code, requester):
         identifier_used=order.order_code,
         payload={
             "material_id": str(order.order_code),
-            "description": [order.material, order.customer, order.created_at],
+            "description": [
+                str(order.material),
+                str(order.customer),
+                order.created_at.isoformat() if order.created_at else None,
+            ],
         },
     )
 
-    return {status(code=200, message="Order marked as shipped.")}
+    return {"code": 200, "message": "Order marked as shipped."}
 
 
 def list_shiped_orders(

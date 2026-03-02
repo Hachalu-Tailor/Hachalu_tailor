@@ -6,8 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("payments", "0004_alter_transaction_bank_ref_number"),
-        ("payments", "0004_transaction_receipt_screenshot"),
+        ("payments", "0005_add_receipt_screenshot"),
     ]
 
     operations = []

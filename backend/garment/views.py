@@ -2,6 +2,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework import serializers
 
 from .services import (
     list_orders_in_progress,
@@ -11,11 +12,16 @@ from .services import (
     list_shiped_orders,
     retrive_shiped_order_by_code,
 )
-from orders.serializers import OrderSerializer, OrderStatusUpdateSerializer
+from orders.serializers import OrderSerializer
 from accounts.permissions import IsGarmentAdmin, IsAdminOrReceptionist
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
 from rest_framework import status
 from django.db import transaction
+from orders.models import Order
+
+
+class GarmentOrderStatusSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=["COMPLETED", "SHIPPED"])
 
 
 class OrderProcessingView(APIView):
@@ -23,7 +29,7 @@ class OrderProcessingView(APIView):
 
     @extend_schema(
         tags=["Orders"],
-        request=OrderStatusUpdateSerializer,
+        request=GarmentOrderStatusSerializer,
         responses={200: OrderSerializer, 400: dict, 401: dict, 403: dict},
         examples=[
             OpenApiExample(
@@ -38,26 +44,32 @@ class OrderProcessingView(APIView):
         ),
     )
     @transaction.atomic()
-    def post(self, request, id):
-        order = retrive_order_in_progress_by_code(code=id)
+    def post(self, request, code):
+        order = Order.objects.filter(order_code=code).first()
         if not order:
             return Response(
                 {"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
-        serializer = OrderStatusUpdateSerializer(data=request.data)
+        serializer = GarmentOrderStatusSerializer(data=request.data)
         if serializer.is_valid():
             status_value = serializer.validated_data["status"]
             if status_value == "SHIPPED":
-                mark_order_as_shipped(code=id, requester=request.user)
+                result = mark_order_as_shipped(code=code, requester=request.user)
             elif status_value == "COMPLETED":
-                mark_order_as_completed(code=id, requester=request.user)
+                result = mark_order_as_completed(code=code, requester=request.user)
             else:
                 return Response(
                     {"error": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST
                 )
 
-            updated_order = retrive_order_in_progress_by_code(code=id)
+            if result["code"] != 200:
+                return Response(
+                    {"error": result["message"]},
+                    status=result["code"],
+                )
+
+            updated_order = Order.objects.filter(order_code=code).first()
             return Response(
                 OrderSerializer(updated_order).data, status=status.HTTP_200_OK
             )

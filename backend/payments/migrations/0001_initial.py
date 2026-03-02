@@ -27,12 +27,22 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
+                    "payment_amount",
+                    models.DecimalField(decimal_places=2, default=0.0, max_digits=12),
+                ),
+                (
                     "bank_ref_number",
-                    models.CharField(blank=True, max_length=255, null=True),
+                    models.CharField(blank=True, max_length=255, null=True, unique=True),
                 ),
                 (
                     "receipt_pdf_url",
                     models.URLField(blank=True, max_length=500, null=True),
+                ),
+                (
+                    "receipt_screenshot",
+                    models.FileField(
+                        blank=True, null=True, upload_to="receipts/screenshots/"
+                    ),
                 ),
                 ("is_verified", models.BooleanField(default=False)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),

@@ -24,7 +24,7 @@ class MaterialListCreateView(APIView):
     Handles listing all materials and adding a new material with initial stock.
     """
 
-    # permission_classes = [IsReseptionist | IsAdmin]
+    permission_classes = [IsReseptionist | IsAdmin]
 
     @extend_schema(
         tags=["Inventory"],

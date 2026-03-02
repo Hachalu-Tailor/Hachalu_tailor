@@ -151,11 +151,15 @@ class GarmentFlowTests(APITestCase):
     def test_garment_service_rejects_invalid_state_transitions(self):
         order = self._in_progress_order(phone="9200000014")
 
-        ship_before_complete = mark_order_as_shipped(order.order_code, self.garment_admin)
+        ship_before_complete = mark_order_as_shipped(
+            order.order_code, self.garment_admin
+        )
         self.assertEqual(ship_before_complete["code"], 400)
 
         mark_order_as_completed(order.order_code, self.garment_admin)
-        already_completed = mark_order_as_completed(order.order_code, self.garment_admin)
+        already_completed = mark_order_as_completed(
+            order.order_code, self.garment_admin
+        )
         self.assertEqual(already_completed["code"], 400)
 
         mark_order_as_shipped(order.order_code, self.garment_admin)
@@ -191,7 +195,9 @@ class GarmentFlowTests(APITestCase):
             f"/api/garment/orders/shipped/?date_range={today},{today}"
         )
         self.assertEqual(valid.status_code, status.HTTP_200_OK)
-        self.assertTrue(any(item["order_code"] == order.order_code for item in valid.data))
+        self.assertTrue(
+            any(item["order_code"] == order.order_code for item in valid.data)
+        )
 
         invalid = self.client.get("/api/garment/orders/shipped/?date_range=bad-range")
         self.assertEqual(invalid.status_code, status.HTTP_200_OK)

@@ -77,7 +77,11 @@ def mark_order_as_completed(code, requester):
         status (str): A message indicating the result of the operation.
 
     """
-    order = Order.objects.select_related("customer", "material").filter(order_code=code).first()
+    order = (
+        Order.objects.select_related("customer", "material")
+        .filter(order_code=code)
+        .first()
+    )
 
     if not order:
         AuditLog.objects.create(
@@ -138,7 +142,11 @@ def mark_order_as_shipped(code, requester):
         status (str): A message indicating the result of the operation.
 
     """
-    order = Order.objects.select_related("customer", "material").filter(order_code=code).first()
+    order = (
+        Order.objects.select_related("customer", "material")
+        .filter(order_code=code)
+        .first()
+    )
 
     if not order:
         AuditLog.objects.create(
@@ -235,7 +243,9 @@ def list_shiped_orders(
         ):
             start_date, end_date = filter_by_date_range
         elif isinstance(filter_by_date_range, str) and "," in filter_by_date_range:
-            raw_start, raw_end = [chunk.strip() for chunk in filter_by_date_range.split(",", 1)]
+            raw_start, raw_end = [
+                chunk.strip() for chunk in filter_by_date_range.split(",", 1)
+            ]
             try:
                 start_date = dt_date.fromisoformat(raw_start)
                 end_date = dt_date.fromisoformat(raw_end)

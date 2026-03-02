@@ -598,19 +598,20 @@ def update_order(*, order_id, updates: dict, requester=None) -> Order:
 
 
 @transaction.atomic()
-def order_status_update(code, requester):
+def order_status_update(code, status, requester):
     """
-    Mark an order as instore based on its code.
+    Mark an order as instore or closed based on its code.
 
     inputs:
         code (str): The unique order code to identify the order.
+        status (str): The new status to set ('INSTORE' or 'CLOSED').
         requester (User): The user performing the action (for audit logging).
 
     Returns:
          status (str): A message indicating the result of the operation.
 
     Behavior:
-        Updates the status of the order with the given code to 'INSTORE' in the database.
+        Updates the status of the order with the given code to 'INSTORE' or 'CLOSED' in the database.
     """
 
     order = Order.objects.filter(order_code=code).first()
@@ -628,77 +629,64 @@ def order_status_update(code, requester):
 
         return {status(code=404, message="Order not found.")}
 
-    if order.status == "INSTORE":
-        return {status(code=400, message="Order is already marked as instore.")}
+    if status == "INSTORE":
 
-    if order.status != "SHIPPED":
-        return {
-            status(code=400, message="Only shipped orders can be marked as instore.")
-        }
+        if order.status == "INSTORE":
+            return {status(code=400, message="Order is already marked as instore.")}
 
-    order.status = "INSTORE"
-    order.save()
+        if order.status != "SHIPPED":
+            return {
+                status(code=400, message="Only shipped orders can be marked as instore.")
+            }
 
-    # Audit logging
-    AuditLog.objects.create(
-        actor=requester,
-        action="ORDER_MARKED_INSTORE",
-        target_id=order.id,
-        identifier_used=order.order_code,
-        payload={
-            "order_id": str(order.id),
-            "order_code": order.order_code,
-            "description": [order.material, order.customer, order.created_at],
-        },
-    )
+        order.status = "INSTORE"
+        order.save()
 
-    return {status(code=200, message="Order marked as instore.")}
+        # Audit logging
+        AuditLog.objects.create(
+            actor=requester,
+            action="ORDER_MARKED_INSTORE",
+            target_id=order.id,
+            identifier_used=order.order_code,
+            payload={
+                "order_id": str(order.id),
+                "order_code": order.order_code,
+                "description": [order.material, order.customer, order.created_at],
+            },
+        )
 
+        return {status(code=200, message="Order marked as instore.")}
+    
+    elif status == "CLOSED":
+        
+        order = Order.objects.filter(order_code=code).first()
+        if not order:
+            return {status(code=404, message="Order not found.")}
 
-@transaction.atomic()
-def mark_order_as_closed(code, requester):
-    """
-    Mark an order as closed.
+        if order.status == "CLOSED":
+            return {status(code=400, message="Order is already marked as closed.")}
 
-    Inputs:
-        order (Order): The Order instance to mark as closed.
-        requester (User): The user performing the action (for audit logging).
+        if order.status != "INSTORE":
+            return {
+                status(code=400, message="Only instore orders can be marked as closed.")
+            }
 
-    Returns:
-        status (str): A message indicating the result of the operation.
+        order.status = "CLOSED"
+        order.save()
 
-    Behavior:
-        Updates the status of the given order to 'CLOSED' in the database.
-    """
+        AuditLog.objects.create(
+            actor=requester,
+            action="ORDER_MARKED_CLOSED",
+            target_id=order.id,
+            identifier_used=order.order_code,
+            payload={
+                "order_id": str(order.id),
+                "order_code": order.order_code,
+                "description": [order.material, order.customer, order.created_at],
+            },
+        )
 
-    order = Order.objects.filter(order_code=code).first()
-    if not order:
-        return {status(code=404, message="Order not found.")}
-
-    if order.status == "CLOSED":
-        return {status(code=400, message="Order is already marked as closed.")}
-
-    if order.status != "INSTORE":
-        return {
-            status(code=400, message="Only instore orders can be marked as closed.")
-        }
-
-    order.status = "CLOSED"
-    order.save()
-
-    AuditLog.objects.create(
-        actor=requester,
-        action="ORDER_MARKED_CLOSED",
-        target_id=order.id,
-        identifier_used=order.order_code,
-        payload={
-            "order_id": str(order.id),
-            "order_code": order.order_code,
-            "description": [order.material, order.customer, order.created_at],
-        },
-    )
-
-    return {status(code=200, message="Order marked as closed.")}
+        return {status(code=200, message="Order marked as closed.")}
 
 
 @transaction.atomic()

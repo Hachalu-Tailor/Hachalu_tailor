@@ -47,10 +47,12 @@ class Order(models.Model):
         ("IN_PROGRESS", "In_progress"),
         ("COMPLETED", "Completed"),
         ("CLOSED", "Closed"),
+        ("IN_STORE", "In_store"),
         ("REJECTED", "Rejected"),
         ("EXPIRED", "Expired"),
         ("FULLY_PAID", "Fully_paid"),
     ]
+    
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,

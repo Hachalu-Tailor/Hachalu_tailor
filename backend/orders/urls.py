@@ -26,4 +26,9 @@ urlpatterns = [
     path("orders/expire/", OrderExpirationView.as_view(), name="order-expire"),
     path("suit-types/", SuitTypeListView.as_view(), name="suit-type-list"),
     path("suit-types/create/", SuitTypeCreateView.as_view(), name="suit-type-create"),
+    path(
+        "orders/code/<str:code>/status/",
+        OrderUpdateView.as_view(),
+        name="order-status-update",
+    ),
 ]

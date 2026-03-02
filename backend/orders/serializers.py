@@ -79,6 +79,8 @@ class CreateOrderSerializer(serializers.ModelSerializer):
             "order_id",
             "order_code",
             "customer_name",
+            "selected_color",
+            "selected_color_name",
             "customer_phone",
             "suit_type",
             "material",

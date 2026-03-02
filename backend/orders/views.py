@@ -79,15 +79,17 @@ class OrderCreateView(APIView):
     def post(self, request):
         serializer = CreateOrderSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
         validated = serializer.validated_data
         customer_data = validated["customer"]
         measurement_data = validated["measurements"]
+        color_name = validated["selected_color"]
         order = create_order(
             customer_name=customer_data["full_name"],
             customer_phone=customer_data["phone_number"],
             suit_type=validated["suit_type"],
             material=validated["material"],
-            selected_color=validated["selected_color"],
+            selected_color=color_name,
             quantity=validated["quantity"],
             measurements=measurement_data,
             requester=request.user if request.user.is_authenticated else None,
@@ -351,7 +353,10 @@ class OrderExpirationView(APIView):
     def post(self, request):
         expired = expire_orders(requester=request.user)
         return Response(
-            {"expired_count": len(expired)},
+            {
+                "expired_count": len(expired),
+                "expired_ids": [str(order.id) for order in expired] 
+            },
             status=status.HTTP_200_OK,
         )
 

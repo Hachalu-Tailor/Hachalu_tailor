@@ -365,7 +365,7 @@ Body:
 #### 2. List Suit
 #### (For Recieptionist/Admin/User Needs to see this too)
 #### Note Here that both admin and receptionist Shall see
-##### Endpoint: GET /api/orders/suit-types/
+##### Endpoint: GET /api/suit-types/
 
 Body:None
 ##### Response: 200
@@ -388,7 +388,7 @@ Body:
   "customer_phone": "9991112222",
   "suit_type": 1,
   "material": 1,
-  "selected_color": "Dark Blue",
+  "selected_color": "Blue",
   "quantity": 2,
   "measurements": {
     "chest": 40,
@@ -399,23 +399,9 @@ Body:
     "height": 170
   }
 }
-#########################################
-{
-  "customer_name": "John Doe",
-  "customer_phone": "+251900000000",
-  "suit_type": 1,
-  "material": 1,
-  "quantity": 1,
-  "measurements":{
-    "height":178,
-  "chest": 100,
-  "shoulder": 45,
-  "waist": 80,
-  "hips": 95,
-  "arm_length": 60
-  }
-}
+
 ```
+### makue sure the material has the selected color other wise it is a validation error
 
 ##### Response: 201
 ```
@@ -436,7 +422,7 @@ Body:None
 ## Here It need query params
 - active_only:Bool
 -processed_only:Bool
--customer:String
+-customer:String # here u can search with customer phone number
 ##### Response: 200
 ```
 [
@@ -536,6 +522,9 @@ Body
     "due_date": "2026-03-01",
     .....
 ```
+
+### NOTE that the above stages are for a perfect flow of order al that way to payment
+#### recieve(status will be awaiting payment) ++> recorded payment ++> approve then it becomes in 
 d. Reject Order
 Body
 ```
@@ -543,6 +532,7 @@ Body
 "action": "reject"
 }
 ```
+
 
 ### NOTE that this process of can only be done after the AWAITING_PAYMENT stage
 Body
@@ -591,18 +581,15 @@ Body
 #### 4. Expired Orders
 ##### Endpoint: POST /api/orders/expire/
 ##### For admin and receptionist
-Body
-```
-{
-"quantity": 2,
-"due_date": "2026-03-05"
-}
-```
+Body NONE
 
 ##### Response: 200
 ```
 {
-"expired_count": 3
+    "expired_count": 1,
+    "expired_ids": [
+        "c2c1d327-be0d-4e1e-839b-996f976a7bb2"
+    ]
 }
 ```
 

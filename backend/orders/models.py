@@ -72,7 +72,7 @@ class Order(models.Model):
     material = models.ForeignKey(
         Material, on_delete=models.CASCADE, related_name="orders"
     )
-    color = models.ForeignKey(
+    selected_color = models.ForeignKey(
         Color, on_delete=models.PROTECT, related_name="chosen_color", default=1
     )
     measurement = models.OneToOneField(

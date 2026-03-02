@@ -1,12 +1,58 @@
 # Hachalu_tailor
 
+## Latest updates (2026-03-02)
+
+### Testing coverage expanded
+
+- End-to-end and edge-case tests were added across garment, orders, and payments apps.
+- Current targeted suite count: 29 tests.
+- Run targeted suites:
+
+```
+python manage.py test garment orders payments -v 2
+```
+
+### New edge scenarios now covered
+
+- Invalid status transitions in garment flow (e.g., ship before complete, repeated transitions).
+- Not-found and invalid payload handling for garment process endpoints.
+- Payment duplicate creation prevention and invalid verification flags.
+- Order service validation failures (invalid quantity, invalid payment stage, conflicting filters).
+- Auth/permission boundaries for order listing, payment verification, and garment processing.
+
+### Performance optimization
+
+- `garment/services.py` list and detail reads were optimized:
+  - moved Python-side filtering to SQL filters,
+  - added `select_related` to reduce N+1 queries,
+  - added safe `date_range` parsing for shipped-order filtering.
+
+### Garment workflow endpoints (current)
+
+All garment endpoints are under `/api/garment/`.
+
+- `GET /api/garment/orders/in-progress/`
+  - Optional query params: `customer`, `suit_type`
+- `GET /api/garment/orders/in-progress/detail/?code=<ORDER_CODE>`
+- `POST /api/garment/orders/<ORDER_CODE>/process/`
+  - Body status options: `COMPLETED`, `SHIPPED`
+- `GET /api/garment/orders/shipped/`
+  - Optional query params: `customer`, `suit_type`, `date_range`
+  - `date_range` format: `YYYY-MM-DD,YYYY-MM-DD`
+- `GET /api/garment/orders/shipped/detail/?code=<ORDER_CODE>`
 
 # API DOC
+
 ### Authentication
+
 #### 1. Login
+
 #### Note Here that both admin and receptionist can login
+
 ##### Endpoint: POST api/accounts/auth/login/
+
 Body
+
 ```
 {
   "email": "admin@example.com",
@@ -15,16 +61,22 @@ Body
 ```
 
 ##### Response: 201
+
 ```
 {
     "refresh": ......,
     "access": ........
 }
 ```
+
 #### 2. Add new receptionist
+
 ##### Endpoint: POST /api/accounts/admin/staff/
+
 ##### Make Sure Admin is loged in(save JWT)
+
 Body
+
 ```
 {
   "email": "recep1@gmail.com",
@@ -36,6 +88,7 @@ Body
 ```
 
 ##### Response: 201
+
 ```
 {
     "message": "User created successfully",
@@ -43,11 +96,15 @@ Body
     "user_id": "15ac3d04-85d7-4078-9e45-edef9ef24f64"
 }
 ```
+
 #### 3. List All Staff
+
 ##### Endpoint: POST /api/accounts/admin/staff/
+
 Body: None
 
 ##### Response: 200
+
 ```
  [
     {
@@ -68,11 +125,15 @@ Body: None
     }
 ]
 ```
+
 #### 4. DELETE RECEPTIONIST
+
 ##### Endpoint: POST /api/accounts/admin/staff/{id}/
+
 Body: None
 
 ##### Response: 204
+
 ```
  [
     {
@@ -93,9 +154,13 @@ Body: None
     }
 ]
 ```
+
 #### 5. Change Password
+
 ##### Endpoint: POST /api/accounts/user/change-password/
+
 Body:
+
 ```
 {
   "old_password": "12345678",
@@ -105,14 +170,19 @@ Body:
 ```
 
 ##### Response: 200
+
 ```
 {
     "message": "Password updated successfully"
 }
 ```
+
 #### 6. Update Profile
+
 ##### Endpoint: PATCH api/accounts/admin/users/{UUid}/update-profile/
+
 Body:
+
 ```
 {
   "email": "newemail@example.com",
@@ -121,34 +191,43 @@ Body:
 ```
 
 ##### Response: 200
+
 ```
 {
     "message": "User updated successfully"
 }
 ```
+
 #### 7. Reset Password
+
 ##### Endpoint: POST api/accounts/admin/users/{id}/reset-password/
+
 Body: None (password generated automatically)
 
 ##### Response: 200
+
 ```
 {
   "temporary_password": "A9xP2kQm",
   "message": "Password reset successful"
 }
 ```
+
 #### 7. Audit Log
+
 ##### Endpoint: GET api/accounts/admin/audit-logs/
-Body: None 
-| Parameter     | Type   | Description                                      |
+
+Body: None
+| Parameter | Type | Description |
 |---------------|--------|--------------------------------------------------|
-| `search`      | string | Search by identifier, email, or phone.           |
-| `actor`       | uuid   | Filter by the ID of the user who performed the action. |
-| `action`      | string | Filter by action name (e.g., `USER_CREATED`).    |
-| `start_date`  | string | Filter start date (format: `YYYY-MM-DD`).        |
-| `end_date`    | string | Filter end date (format: `YYYY-MM-DD`).          |
+| `search` | string | Search by identifier, email, or phone. |
+| `actor` | uuid | Filter by the ID of the user who performed the action. |
+| `action` | string | Filter by action name (e.g., `USER_CREATED`). |
+| `start_date` | string | Filter start date (format: `YYYY-MM-DD`). |
+| `end_date` | string | Filter end date (format: `YYYY-MM-DD`). |
 
 ##### Response: 200
+
 ```
 [
     {
@@ -170,12 +249,17 @@ Body: None
         "actor": "62759895-0632-4055-b924-5cbe0d4ddaa0",
         "action": "USER_CREATED",.......
 ```
-#### 7. Detail Audit Log 
+
+#### 7. Detail Audit Log
+
 ##### Endpoint: GET api/accounts/admin/audit-logs/{id}/
+
 ###### returns the audit log with that specific ID
-Body: None 
+
+Body: None
 
 ##### Response: 200
+
 ```
 {
     "id": 20,
@@ -196,9 +280,13 @@ Body: None
 # ============================================================
 ### Inventory manangment 
 #### 1. Create Material
+
 #### Note Here that both admin and receptionist can login
+
 ##### Endpoint: POST /api/invetory/materials/
+
 Body
+
 ```
 {
   "material": {
@@ -214,6 +302,7 @@ Body
 ```
 
 ##### Response: 201
+
 ```
 {
     "id": 5,
@@ -240,12 +329,17 @@ Body
     }
 }
 ```
+
 #### 2. List objects
+
 #### Note Here that both admin and receptionist can login
+
 ##### Endpoint: GET /api/invetory/materials/
+
 Body: NONE
 
 ##### Response: 200
+
 ```
 [
     {
@@ -268,10 +362,15 @@ Body: NONE
         .....
 ]
 ```
+
 #### 3. Update Object Data (only on material)
+
 #### Note Here that both admin and receptionist can login
+
 ##### Endpoint: PATCH /api/invetory/materials/{id}/
-Body: 
+
+Body:
+
 ```
 {
   
@@ -290,6 +389,7 @@ or something like
 ```
 
 ##### Response: 200
+
 ```
 {
     "id": 1,
@@ -304,11 +404,17 @@ or something like
     }
 }
 ```
+
 #### 2. Update Object Data (only on Stock)
+
 #### Note Here that both admin and receptionist can login
+
 ##### Endpoint: POST /api/invetory/materials/{id}/stock/
+
 ###### Actions are add and set
-Body: 
+
+Body:
+
 ```
 {
   "action_type": "add",
@@ -318,13 +424,16 @@ Body:
 ```
 
 ##### Response: 200
+
 ```
 {
     "message": "Stock updated successfully",
     "current_quantity": 60.5
 }
 ```
+
 #### Incase You perform a wrong action
+
 ```
 {
   "action_type": "remove",
@@ -339,22 +448,30 @@ Body:
   "error": "Invalid action_type. Use 'add' or 'set'."
 }
 ```
+
 #### On this one the options are add, Set are the only ones
 
 # =============================================================
+
 ### Orders
+
 #### 1. Create Suit(For Recieptionist/Admin)
+
 #### Note Here that both admin and receptionist can login
+
 ##### Endpoint: POST /api/suit-types/create/
 
 Body:
+
 ```
 {
   "name": "Single Lapel Suit",
   "lapel_count": 1
 }
 ```
+
 ##### Response: 201
+
 ```
 {
     "id": 1,
@@ -362,13 +479,18 @@ Body:
     "lapel_count": 1
 }
 ```
+
 #### 2. List Suit
+
 #### (For Recieptionist/Admin/User Needs to see this too)
+
 #### Note Here that both admin and receptionist Shall see
 ##### Endpoint: GET /api/suit-types/
 
 Body:None
+
 ##### Response: 200
+
 ```
 [
     {
@@ -378,10 +500,13 @@ Body:None
     }
 ]
 ```
+
 #### 3. Create Order
+
 ##### Endpoint: POST /api/orders/
 
 Body:
+
 ```
 {
   "customer_name": "Jane Doe",
@@ -404,6 +529,7 @@ Body:
 ### makue sure the material has the selected color other wise it is a validation error
 
 ##### Response: 201
+
 ```
 {
     "order_id": "25f1e832-6aba-4306-a29c-238168e6697f",
@@ -411,19 +537,25 @@ Body:
     "status": "INITIATED"
 }
 ```
+
 # MAKE SURE THE ORDER CODE IS DISPLAYED TO THE CUSTOMER ON THE FRONT END
 
 #### 3. List Orders
+
 #### Note Here that both admin and receptionist can view this
+
 ##### Endpoint: GET /api/orders/list/
 
 Body:None
 
 ## Here It need query params
-- active_only:Bool
+
+-active_only:Bool
 -processed_only:Bool
 -customer:String # here u can search with customer phone number
+
 ##### Response: 200
+
 ```
 [
     {
@@ -456,13 +588,17 @@ Body:None
     }
 ]
 ```
+
 #### 3. Process Order
+
 ##### Endpoint: POST /api/orders/{uuid}/process
+
 ##### For admin and receptionist
 
 Here there may be different options
 a. Recieve Order
 Body
+
 ```
 {
 "action": "receive",
@@ -473,6 +609,7 @@ Body
 ```
 
 ##### Response: 200
+
 ```
 {
     "id": "ac2a7eeb-9cea-4200-b09c-c55e2cadaacf",
@@ -482,8 +619,10 @@ Body
     "due_date": "2026-03-01",
     .....
 ```
+
 b. Record Payment
 Body
+
 ```
 {
 "action": "record_payment",
@@ -495,6 +634,7 @@ Body
 ```
 
 ##### Response: 200
+
 ```
 {
     "id": "ac2a7eeb-9cea-4200-b09c-c55e2cadaacf",
@@ -504,8 +644,10 @@ Body
     "due_date": "2026-03-01",
     .....
 ```
+
 c. Approve Order
 Body
+
 ```
 {
 "action": "approve"
@@ -513,6 +655,7 @@ Body
 ```
 
 ##### Response: 200
+
 ```
 {
     "id": "ac2a7eeb-9cea-4200-b09c-c55e2cadaacf",
@@ -525,8 +668,10 @@ Body
 
 ### NOTE that the above stages are for a perfect flow of order al that way to payment
 #### recieve(status will be awaiting payment) ++> recorded payment ++> approve then it becomes in 
+
 d. Reject Order
 Body
+
 ```
 {
 "action": "reject"
@@ -535,7 +680,9 @@ Body
 
 
 ### NOTE that this process of can only be done after the AWAITING_PAYMENT stage
+
 Body
+
 ```
 {
 "action": "reject",
@@ -544,6 +691,7 @@ Body
 ```
 
 ##### Response: 200
+
 ```
 {
     "id": "ac2a7eeb-9cea-4200-b09c-c55e2cadaacf",
@@ -557,9 +705,13 @@ Body
 ## ????
 
 #### 3. Update Order
-##### Endpoint: PATCH /api/orders/{uuid}/process
+
+##### Endpoint: PATCH /api/orders/{uuid}/
+
 ##### For admin and receptionist
+
 Body
+
 ```
 {
 "quantity": 2,
@@ -568,6 +720,7 @@ Body
 ```
 
 ##### Response: 200
+
 ```
 {
     "id": "ac2a7eeb-9cea-4200-b09c-c55e2cadaacf",
@@ -579,11 +732,21 @@ Body
 ```
 
 #### 4. Expired Orders
+
 ##### Endpoint: POST /api/orders/expire/
+
 ##### For admin and receptionist
-Body NONE
+Body
+
+```
+{
+"quantity": 2,
+"due_date": "2026-03-05"
+}
+```
 
 ##### Response: 200
+
 ```
 {
     "expired_count": 1,
@@ -594,11 +757,16 @@ Body NONE
 ```
 
 #### But here we need more things
+
 # ============================================================
-### Payment Management 
+
+### Payment Management
+
 #### 1. Create Payment
-##### Endpoint: POST HP-44385832
+##### Endpoint: POST /api/payments/
+
 Body
+
 ```
 {
   "order_code": "HP-28182092",
@@ -607,7 +775,9 @@ Body
   "receipt_pdf_url": "https://storage.provider.com/receipts/txn_01.pdf"
 }
 ```
+
 ##### Response: 201
+
 ```
 {
     "id": "ea0cb258-750d-43cd-a36b-87312cbb8f08",
@@ -620,16 +790,23 @@ Body
     "created_at": "2026-02-16T09:26:51.286556Z"
 }
 ```
+
 #### 2. Verify Payment
+
 ##### Endpoint: POST api/payments/<uuid:id>/verify/
+
 ###### The id is the id of the payment(not the order)
+
 Body
+
 ```
 {
   "is_verified": true
 }
 ```
+
 ##### Response: 200
+
 ```
 {
     "id": "ea0cb258-750d-43cd-a36b-87312cbb8f08",
@@ -642,12 +819,17 @@ Body
     "created_at": "2026-02-16T09:26:51.286556Z"
 }
 ```
+
 #### 3. List payments
+
 ##### Endpoint: GET api/payments/list/
 
 Body: None
+
 ##### query param will be is_verified. It can be true or false based on what you want to filter
+
 ##### Response: 200
+
 ```
 [
     {
@@ -662,4 +844,3 @@ Body: None
     }
 ]
 ```
-

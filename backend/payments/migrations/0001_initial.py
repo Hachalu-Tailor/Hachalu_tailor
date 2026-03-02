@@ -32,6 +32,7 @@ class Migration(migrations.Migration):
                     models.DecimalField(
                         decimal_places=2, default=Decimal("0.00"), max_digits=12
                     ),
+
                 ),
                 (
                     "bank_ref_number",

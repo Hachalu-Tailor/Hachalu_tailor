@@ -40,6 +40,9 @@ class Order(models.Model):
         ('IN_STORE'), 'ORDER MATERIAL HAS NOW ARRIVED AND IS READY FOR USER TO TAKE'
         ('CLOSED', 'Customer has collected the suit'),
         ('REJECTED', 'Payment was invalid or order cancelled'),
+        ('EXPIRED', 'Order expired due to inactivity'),
+        ('IN_STORE', 'Suit is in store and ready for pickup'),
+        ('FULLY_PAID', 'Customer has fully paid but suit is not yet completed'),
     """
 
     STATUS_CHOICES = [
@@ -55,7 +58,7 @@ class Order(models.Model):
         ("REJECTED", "Rejected"),
         ("EXPIRED", "Expired"),
     ]
-    
+
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,

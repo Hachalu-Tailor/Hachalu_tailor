@@ -10,7 +10,8 @@ import {
     HiOutlineFunnel,
     HiOutlineEye,
     HiOutlineClipboardDocumentCheck,
-    HiOutlineExclamationCircle
+    HiOutlineExclamationCircle,
+    HiOutlineBell
 } from 'react-icons/hi2';
 import api from '../api/api';
 
@@ -20,10 +21,22 @@ const GarmentDashboard = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState('in_progress');
     const [selectedOrder, setSelectedOrder] = useState(null);
+    const [notifications, setNotifications] = useState([]);
+    const [showNotifications, setShowNotifications] = useState(false);
 
     useEffect(() => {
         loadOrders();
+        loadNotifications();
     }, []);
+
+    const loadNotifications = async () => {
+        try {
+            const response = await api.get('/accounts/user/notifications/', { params: { limit: 10 } });
+            setNotifications(response.data?.results || []);
+        } catch (error) {
+            console.error('Error loading notifications:', error);
+        }
+    };
 
     const loadOrders = async () => {
         setLoading(true);
@@ -108,7 +121,7 @@ const GarmentDashboard = () => {
             <div className="max-w-7xl mx-auto mb-8">
                 <div className="bg-white dark:bg-[#0a0a0a] p-6 md:p-8 rounded-[3rem] border border-gray-100 dark:border-white/5 shadow-2xl shadow-black/5">
                     <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-                        <div>
+                        <div className="flex-1">
                             <h1 className="text-3xl font-black dark:text-white tracking-tighter uppercase italic flex items-center gap-3">
                                 <HiOutlineScissors className="text-red-600" />
                                 Garment <span className="text-red-600">Workshop</span>
@@ -116,6 +129,50 @@ const GarmentDashboard = () => {
                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.4em] mt-1 flex items-center gap-2">
                                 <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" /> Tailor Management System
                             </p>
+                        </div>
+
+                        {/* Notification Bell */}
+                        <div className="relative">
+                            <button 
+                                onClick={() => setShowNotifications(!showNotifications)}
+                                className="relative p-3 rounded-2xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+                            >
+                                <HiOutlineBell className="w-6 h-6 dark:text-white" />
+                                {notifications.length > 0 && (
+                                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                                        {notifications.length}
+                                    </span>
+                                )}
+                            </button>
+                            
+                            {/* Notification Dropdown */}
+                            <AnimatePresence>
+                                {showNotifications && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: 10 }}
+                                        className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-[#0a0a0a] rounded-2xl shadow-xl border border-gray-100 dark:border-white/10 overflow-hidden z-50"
+                                    >
+                                        <div className="p-4 border-b border-gray-100 dark:border-white/5">
+                                            <h3 className="font-bold dark:text-white">Notifications</h3>
+                                        </div>
+                                        <div className="max-h-64 overflow-y-auto">
+                                            {notifications.length === 0 ? (
+                                                <div className="p-4 text-center text-gray-500">No notifications</div>
+                                            ) : (
+                                                notifications.map((notif, index) => (
+                                                    <div key={index} className="p-4 border-b border-gray-50 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/5">
+                                                        <p className="text-sm dark:text-white font-medium">{notif.title || 'Notification'}</p>
+                                                        <p className="text-xs text-gray-500 mt-1">{notif.message}</p>
+                                                        <p className="text-[10px] text-gray-400 mt-2">{notif.created_at ? new Date(notif.created_at).toLocaleString() : ''}</p>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
 
                         {/* Stats */}

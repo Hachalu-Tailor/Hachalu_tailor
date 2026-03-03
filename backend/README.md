@@ -283,7 +283,7 @@ Body: None
 
 #### Note Here that both admin and receptionist can login
 
-##### Endpoint: POST /api/invetory/materials/
+##### Endpoint: POST /api/invetory/materials/create/
 
 Body
 

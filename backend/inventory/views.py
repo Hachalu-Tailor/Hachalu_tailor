@@ -18,14 +18,15 @@ from .models import Material
 
 # custom permissions
 from accounts.permissions import IsAdmin, IsReseptionist
+from rest_framework.permissions import AllowAny
 
 
-class MaterialListCreateView(APIView):
+class MaterialListView(APIView):
     """
-    Handles listing all materials and adding a new material with initial stock.
+    Handles listing all materials 
     """
 
-    permission_classes = [IsReseptionist | IsAdmin]
+    permission_classes = [AllowAny]
 
     @extend_schema(
         tags=["Inventory"],
@@ -58,6 +59,13 @@ class MaterialListCreateView(APIView):
         materials = list_materials()
         serializer = MaterialSerializer(materials, many=True)
         return Response(serializer.data)
+
+
+class MaterialCreateView(APIView):
+    """
+        Handles creating new materials
+    """
+    permission_classes = [IsAdmin | IsReseptionist]
 
     @extend_schema(
         tags=["Inventory"],

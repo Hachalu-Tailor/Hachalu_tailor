@@ -41,7 +41,7 @@ const Login = () => {
       console.log("Login Result:", result);
 
       if (!result.success) {
-        setError(result.error || "Access Denied: Invalid Credentials");
+        setError(result.error || "Invalid email or password. Please try again.");
         return;
       }
 
@@ -53,13 +53,15 @@ const Login = () => {
         navigate('/admin');
       } else if (role === 'RECEPTIONIST') {
         navigate('/reception');
+      } else if (role === 'GARMENT') {
+        navigate('/garment');
       } else {
         navigate('/');
       }
 
     } catch (err) {
       console.error("Login Error:", err);
-      setError(err.response?.data?.detail || "Access Denied: Invalid Credentials");
+      setError(err.response?.data?.detail || "Login failed. Please check your credentials and try again.");
     } finally {
       setLoading(false);
     }
@@ -143,7 +145,7 @@ const Login = () => {
                 value={formData.email}
                 onChange={handleInputChange}
                 placeholder="Enter your email"
-                className="w-full bg-transparent border-b border-white/20 py-3 pl-8 text-sm font-bold tracking-widest text-white outline-none focus:border-red-600 transition-all placeholder:text-gray-700"
+                className="w-full bg-transparent border-b border-white/20 py-3 pl-8 text-sm font-bold tracking-widest text-white outline-none focus:border-red-600 transition-all placeholder:text-gray-400"
               />
             </div>
 
@@ -160,7 +162,7 @@ const Login = () => {
                 value={formData.password}
                 onChange={handleInputChange}
                 placeholder="••••••••"
-                className="w-full bg-transparent border-b border-white/20 py-3 pl-8 text-sm font-bold tracking-widest text-white outline-none focus:border-red-600 transition-all placeholder:text-gray-700"
+                className="w-full bg-transparent border-b border-white/20 py-3 pl-8 text-sm font-bold tracking-widest text-white outline-none focus:border-red-600 transition-all placeholder:text-gray-400"
               />
               <button
                 type="button"

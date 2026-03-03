@@ -43,6 +43,8 @@ const ProtectedRoute = ({ allowedRoles }) => {
     // send them to their specific dashboard instead of the login page.
     const redirectPath = userRole === 'ADMIN' 
       ? '/admin' 
+      : userRole === 'GARMENT'
+      ? '/garment'
       : '/reception';
       
     return <Navigate to={redirectPath} replace />;

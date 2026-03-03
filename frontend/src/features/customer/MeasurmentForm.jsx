@@ -144,8 +144,8 @@ const MeasurementForm = ({
   // Render a single measurement input field
   const renderMeasurementInput = (field, label) => (
     <div key={field} className="relative">
-      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-        {label} <span className="text-gray-400">(cm)</span>
+      <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+        {label} <span className="text-gray-400 dark:text-gray-500">(cm)</span>
       </label>
       <div className="relative">
         <input
@@ -153,9 +153,8 @@ const MeasurementForm = ({
           value={measurements[field] || ''}
           onChange={(e) => handleChange(field, e.target.value)}
           disabled={readOnly}
-          className={`w-full px-3 py-2.5 bg-white dark:bg-white/5 border ${
-            errors[field] ? 'border-red-500' : 'border-gray-200 dark:border-white/10'
-          } rounded-xl text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
+          className={`w-full px-3 py-2.5 bg-white dark:bg-white/5 border ${errors[field] ? 'border-red-500' : 'border-gray-200 dark:border-white/10'
+            } rounded-xl text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
           placeholder="0"
         />
         <MdOutlineStraighten
@@ -188,7 +187,7 @@ const MeasurementForm = ({
             <h3 className="text-sm font-black dark:text-white uppercase tracking-wider">
               Measurements
             </h3>
-            <p className="text-[10px] text-gray-500">Enter customer measurements in centimeters</p>
+            <p className="text-[10px] text-gray-500 dark:text-gray-400">Enter customer measurements in centimeters</p>
           </div>
         </div>
 
@@ -213,7 +212,7 @@ const MeasurementForm = ({
 
       {/* Garment Type Selector */}
       <div>
-        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+        <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
           Garment Type
         </label>
         <select
@@ -243,7 +242,7 @@ const MeasurementForm = ({
 
       {/* Notes */}
       <div>
-        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+        <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
           Additional Notes
         </label>
         <textarea

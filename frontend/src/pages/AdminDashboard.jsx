@@ -257,10 +257,10 @@ const AdminDashboard = () => {
       {/* 1. HEADER & WELCOME */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black dark:text-white uppercase tracking-tighter italic">
+          <h1 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter italic">
             Admin<span className="text-red-600">Command</span>
           </h1>
-          <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">System Overview & Analytics</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest mt-1">System Overview & Analytics</p>
         </div>
 
         <div className="flex gap-2 flex-wrap">

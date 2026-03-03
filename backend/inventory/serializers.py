@@ -1,5 +1,11 @@
 from rest_framework import serializers
-from .models import Material, Stock
+from .models import Material, Stock, Color
+
+
+class ColorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Color
+        fields = ['id', 'name']
 
 
 class StockSerializer(serializers.ModelSerializer):
@@ -20,7 +26,8 @@ class MaterialSerializer(serializers.ModelSerializer):
     """
     # This allows us to see stock data when querying the material
     inventory = StockSerializer(read_only=True)
+    colors = ColorSerializer(many=True, read_only=True)
 
     class Meta:
         model = Material
-        fields = ['id', 'name', 'color', 'texture', 'image_url', 'description', 'category', 'inventory']
+        fields = ['id', 'name', 'texture', 'brand', 'image_url', 'description', 'category', 'colors', 'inventory']

@@ -44,10 +44,12 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     ADMIN = "ADMIN"
     RECEPTIONIST = "RECEPTIONIST"
+    GARMENT_ADMIN = "GARMENT_ADMIN"
 
     ROLE_CHOICES = [
         (ADMIN, "Admin"),
         (RECEPTIONIST, "Receptionist"),
+        (GARMENT_ADMIN, "Garment_Admin")
     ]
     id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False, unique=True

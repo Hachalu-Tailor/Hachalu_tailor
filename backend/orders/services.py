@@ -13,11 +13,12 @@ from django.db import models, transaction
 from django.utils import timezone
 
 from accounts.models import AuditLog, User, Notification
-from inventory.models import Material
+from inventory.models import Material, Color
 from .models import Customer, Order, Measurement, SuitType
 
 
 from rest_framework import status
+from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -265,6 +266,7 @@ def create_order(
     customer_phone: str,
     suit_type,
     material,
+    selected_color,
     quantity,
     measurements: dict,
     requester=None,
@@ -276,6 +278,12 @@ def create_order(
 
     suit_type_obj = _resolve_suit_type(suit_type)
     material_obj = _resolve_material(material)
+    try:
+        color_obj = Color.objects.get(name=selected_color, materials=material_obj)
+    except Color.DoesNotExist:
+        raise ValidationError(
+            f"The color '{selected_color}' is not available for the chosen material."
+        )
     normalized_quantity = _normalize_quantity(quantity)
     normalized_measurements = _normalize_measurements(measurements)
 
@@ -293,6 +301,7 @@ def create_order(
         customer=customer,
         suit_type=suit_type_obj,
         material=material_obj,
+        selected_color=color_obj,
         measurement=measurement,
         order_code=_generate_order_code(),
         status="INITIATED",
@@ -578,12 +587,22 @@ def update_order(*, order_id, updates: dict, requester=None) -> Order:
 
     order.save()
 
+    log_updates = {}
+    for key, value in updates.items():
+        # Convert date, datetime, and Decimal to strings
+        if hasattr(value, 'isoformat'): # Handles date and datetime
+            log_updates[key] = value.isoformat()
+        elif isinstance(value, Decimal):
+            log_updates[key] = str(value)
+        else:
+            log_updates[key] = value
+        
     AuditLog.objects.create(
         actor=_normalize_actor(requester),
         action="ORDER_UPDATED",
         target_id=str(order.id),
         identifier_used=str(order.id),
-        payload={"order_id": str(order.id), "updates": updates},
+        payload={"order_id": str(order.id), "updates": log_updates},
     )
 
     _notify_users(
@@ -693,7 +712,7 @@ def order_status_update(code, status, requester):
 def expire_orders(*, requester=None):
     today = timezone.localdate()
     candidates = Order.objects.filter(
-        status__in=ACTIVE_STATUSES, due_date__lt=today
+        status__in=ACTIVE_STATUSES, due_date__lt=today-timedelta(days=7)
     ).exclude(due_date=PLACEHOLDER_DUE_DATE)
 
     expired_orders = list(candidates)

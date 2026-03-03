@@ -9,3 +9,8 @@ Password: 12345678
   "phone_number": "+251911234567",
   "temporary_password": "12345678",
 ##########################
+  "email": "garmentADMIN@gmail.com",
+  "full_name": "Garment Garment",
+  "phone_number": "+251911231567",
+  "role": "GARMENT_ADMIN"
+  "PASSWORD": "Y0kzIV3Z"

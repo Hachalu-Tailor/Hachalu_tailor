@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
     HiOutlineScissors,
     HiOutlineCheckCircle,
@@ -11,12 +12,14 @@ import {
     HiOutlineEye,
     HiOutlineClipboardDocumentCheck,
     HiOutlineExclamationCircle,
-    HiOutlineBell
+    HiOutlineBell,
+    HiOutlineChatBubbleLeftRight
 } from 'react-icons/hi2';
 import api, { getGarmentOrdersInProgress, getGarmentShippedOrders, processGarmentOrder, getNotifications, getMaterialDetail } from '../api/api';
 import { getHexColor } from '../utils/colors';
 
 const GarmentDashboard = () => {
+    const navigate = useNavigate();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -41,30 +44,91 @@ const GarmentDashboard = () => {
 
     const loadOrders = async () => {
         setLoading(true);
+        setOrders([]); // Clear previous orders
+        console.log('Loading orders for tab:', activeTab);
+
         try {
             let response;
+            let errorMessage = '';
+
             if (activeTab === 'in_progress' || activeTab === 'pending') {
-                response = await getGarmentOrdersInProgress();
+                try {
+                    console.log('Fetching garment orders in progress...');
+                    response = await getGarmentOrdersInProgress();
+                    console.log('In-progress response:', response);
+                } catch (err) {
+                    console.log('Garment in-progress endpoint failed, trying general orders...', err.message);
+                    // Fallback: try to get orders from general orders endpoint
+                    try {
+                        console.log('Trying general orders list with IN_PROGRESS filter...');
+                        const allOrdersResponse = await getOrders({ status: 'IN_PROGRESS' });
+                        console.log('General orders response:', allOrdersResponse);
+                        let data = allOrdersResponse.data;
+                        if (data && typeof data === 'object' && !Array.isArray(data)) {
+                            data = data.results || data.data || data.items || [];
+                        }
+                        console.log('Parsed in-progress orders:', data);
+                        setOrders(data || []);
+                        setLoading(false);
+                        return;
+                    } catch (fallbackErr) {
+                        console.error('Fallback also failed:', fallbackErr);
+                        setOrders([]);
+                        setLoading(false);
+                        return;
+                    }
+                }
             } else if (activeTab === 'completed' || activeTab === 'shipped') {
-                response = await getGarmentShippedOrders();
+                try {
+                    console.log('Fetching garment shipped orders...');
+                    response = await getGarmentShippedOrders();
+                    console.log('Shipped response:', response);
+                } catch (err) {
+                    console.log('Garment shipped endpoint failed, trying general orders...', err.message);
+                    // Fallback: try to get completed orders
+                    try {
+                        console.log('Trying general orders list with COMPLETED filter...');
+                        const allOrdersResponse = await getOrders({ status: 'COMPLETED' });
+                        let data = allOrdersResponse.data;
+                        if (data && typeof data === 'object' && !Array.isArray(data)) {
+                            data = data.results || data.data || data.items || [];
+                        }
+                        setOrders(data || []);
+                        setLoading(false);
+                        return;
+                    } catch (fallbackErr) {
+                        console.error('Fallback also failed:', fallbackErr);
+                        setOrders([]);
+                        setLoading(false);
+                        return;
+                    }
+                }
             } else {
                 // For 'all' tab, get both in-progress and shipped
-                const [inProgressResponse, shippedResponse] = await Promise.all([
-                    getGarmentOrdersInProgress(),
-                    getGarmentShippedOrders()
-                ]);
-                // Handle both array and paginated responses
-                let inProgressData = inProgressResponse.data;
-                let shippedData = shippedResponse.data;
-                if (inProgressData && typeof inProgressData === 'object' && !Array.isArray(inProgressData)) {
-                    inProgressData = inProgressData.results || inProgressData.data || inProgressData.items || [];
+                try {
+                    console.log('Fetching all orders (in-progress + shipped)...');
+                    const [inProgressResponse, shippedResponse] = await Promise.all([
+                        getGarmentOrdersInProgress().catch(err => ({ data: [] })),
+                        getGarmentShippedOrders().catch(err => ({ data: [] }))
+                    ]);
+                    // Handle both array and paginated responses
+                    let inProgressData = inProgressResponse.data;
+                    let shippedData = shippedResponse.data;
+                    if (inProgressData && typeof inProgressData === 'object' && !Array.isArray(inProgressData)) {
+                        inProgressData = inProgressData.results || inProgressData.data || inProgressData.items || [];
+                    }
+                    if (shippedData && typeof shippedData === 'object' && !Array.isArray(shippedData)) {
+                        shippedData = shippedData.results || shippedData.data || shippedData.items || [];
+                    }
+                    setOrders([...(inProgressData || []), ...(shippedData || [])]);
+                    setLoading(false);
+                    return;
+                } catch (err) {
+                    console.error('Error loading all orders:', err);
+                    setOrders([]);
+                    setLoading(false);
+                    return;
                 }
-                if (shippedData && typeof shippedData === 'object' && !Array.isArray(shippedData)) {
-                    shippedData = shippedData.results || shippedData.data || shippedData.items || [];
-                }
-                setOrders([...(inProgressData || []), ...(shippedData || [])]);
-                setLoading(false);
-                return;
             }
 
             // Handle both array and paginated responses
@@ -72,9 +136,28 @@ const GarmentDashboard = () => {
             if (ordersData && typeof ordersData === 'object' && !Array.isArray(ordersData)) {
                 ordersData = ordersData.results || ordersData.data || ordersData.items || [];
             }
+            console.log('Final parsed orders:', ordersData);
             setOrders(ordersData || []);
         } catch (error) {
             console.error('Error loading orders:', error);
+            // Try one more fallback - get all orders
+            try {
+                console.log('Final fallback - getting all orders...');
+                const allResponse = await getOrders();
+                let data = allResponse.data;
+                if (data && typeof data === 'object' && !Array.isArray(data)) {
+                    data = data.results || data.data || data.items || [];
+                }
+                // Filter for garment-relevant statuses
+                const filteredOrders = (data || []).filter(order =>
+                    ['IN_PROGRESS', 'COMPLETED', 'SHIPPED', 'INITIATED', 'PENDING_APPROVAL', 'AWAITING_PAYMENT'].includes(order.status)
+                );
+                console.log('Filtered orders for garment:', filteredOrders);
+                setOrders(filteredOrders);
+            } catch (finalErr) {
+                console.error('Final fallback also failed:', finalErr);
+                setOrders([]);
+            }
         } finally {
             setLoading(false);
         }
@@ -82,11 +165,20 @@ const GarmentDashboard = () => {
 
     const handleCompleteOrder = async (orderCode) => {
         try {
-            const response = await processGarmentOrder(orderCode, { status: 'COMPLETED' });
+            // Try garment-specific endpoint first
+            let response;
+            try {
+                response = await processGarmentOrder(orderCode, { status: 'COMPLETED' });
+            } catch (err) {
+                console.log('Garment process endpoint failed, trying general order update...');
+                // Fallback: use general orders endpoint
+                response = await api.patch(`/orders/${orderCode}/`, { status: 'COMPLETED' });
+            }
+
             if (response.status === 200) {
                 loadOrders();
                 setSelectedOrder(null);
-                alert('Order marked as completed successfully!');
+                alert('Order marked as completed successfully! Reception has been notified.');
             }
         } catch (error) {
             console.error('Error completing order:', error);
@@ -98,11 +190,19 @@ const GarmentDashboard = () => {
     const handleStartOrder = async (orderCode) => {
         try {
             // For garment, starting an order means marking it as IN_PROGRESS
-            const response = await processGarmentOrder(orderCode, { status: 'IN_PROGRESS' });
+            let response;
+            try {
+                response = await processGarmentOrder(orderCode, { status: 'IN_PROGRESS' });
+            } catch (err) {
+                console.log('Garment process endpoint failed, trying general order update...');
+                // Fallback: use general orders endpoint
+                response = await api.patch(`/orders/${orderCode}/`, { status: 'IN_PROGRESS' });
+            }
+
             if (response.status === 200) {
                 loadOrders();
                 setSelectedOrder(null);
-                alert('Order started successfully!');
+                alert('Order started successfully! The customer will be notified.');
             }
         } catch (error) {
             console.error('Error starting order:', error);
@@ -213,6 +313,13 @@ const GarmentDashboard = () => {
                                 <div className="text-xl font-bold text-yellow-600 dark:text-yellow-400">{stats.pending}</div>
                                 <div className="text-[9px] uppercase text-gray-500">Pending</div>
                             </div>
+                            <button
+                                onClick={() => navigate('/garment/messages')}
+                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-2xl flex items-center gap-2 transition-all"
+                            >
+                                <HiOutlineChatBubbleLeftRight size={18} />
+                                <div className="text-[9px] font-bold uppercase">Messages</div>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -274,21 +381,21 @@ const GarmentDashboard = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 className="bg-white dark:bg-[#0a0a0a] rounded-3xl border border-gray-100 dark:border-white/5 p-5 shadow-lg hover:shadow-xl transition-all cursor-pointer overflow-hidden"
                                 onClick={async () => {
-                                  setSelectedOrder(order);
-                                  // Fetch material details for display
-                                  if (order.material) {
-                                    try {
-                                      const matRes = await getMaterialDetail(order.material);
-                                      const mat = matRes.data;
-                                      setSelectedOrder(prev => ({
-                                        ...prev,
-                                        material_image: mat.image_url,
-                                        material_colors: mat.colors || []
-                                      }));
-                                    } catch (err) {
-                                      console.error('Failed to fetch material details:', err);
+                                    setSelectedOrder(order);
+                                    // Fetch material details for display
+                                    if (order.material) {
+                                        try {
+                                            const matRes = await getMaterialDetail(order.material);
+                                            const mat = matRes.data;
+                                            setSelectedOrder(prev => ({
+                                                ...prev,
+                                                material_image: mat.image_url,
+                                                material_colors: mat.colors || []
+                                            }));
+                                        } catch (err) {
+                                            console.error('Failed to fetch material details:', err);
+                                        }
                                     }
-                                  }
                                 }}
                             >
                                 {/* Material Image */}
@@ -453,8 +560,8 @@ const GarmentDashboard = () => {
                                         <p className="text-xs text-gray-500 uppercase mb-1">Material</p>
                                         {selectedOrder.material_image ? (
                                             <div className="relative">
-                                                <img 
-                                                    src={selectedOrder.material_image} 
+                                                <img
+                                                    src={selectedOrder.material_image}
                                                     alt={selectedOrder.material_name || 'Material'}
                                                     className="w-full h-32 object-cover rounded-xl"
                                                 />
@@ -475,11 +582,11 @@ const GarmentDashboard = () => {
                                                 <p className="text-[10px] text-gray-400 mb-1">Available Colors:</p>
                                                 <div className="flex flex-wrap gap-2">
                                                     {selectedOrder.material_colors.map((color, idx) => (
-                                                        <div 
+                                                        <div
                                                             key={idx}
                                                             className="flex items-center gap-1 px-2 py-1 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
                                                         >
-                                                            <div 
+                                                            <div
                                                                 className="w-4 h-4 rounded-full border border-gray-300"
                                                                 style={{ backgroundColor: getHexColor(color.name) }}
                                                             />

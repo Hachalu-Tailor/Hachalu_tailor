@@ -7,7 +7,7 @@ import {
   HiOutlineCurrencyDollar, HiOutlineCheckCircle, HiOutlineXCircle,
   HiOutlineExclamationTriangle, HiOutlineCalendar,
   HiOutlineClipboardDocumentList, HiOutlineBell,
-  HiOutlineArrowPath, HiOutlineTruck
+  HiOutlineArrowPath, HiOutlineTruck, HiOutlineChatBubbleLeftRight
 } from 'react-icons/hi2';
 import api, { getOrders, getMaterials, getPayments } from '../api/api';
 import { useAuth } from '../hooks/useAuth';
@@ -277,8 +277,8 @@ const ReceptionDashboard = () => {
                 key={range}
                 onClick={() => setTimeRange(range)}
                 className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all ${timeRange === range
-                    ? 'bg-red-600 text-white'
-                    : 'text-gray-400 hover:text-white'
+                  ? 'bg-red-600 text-white'
+                  : 'text-gray-400 hover:text-white'
                   }`}
               >
                 {range}
@@ -444,8 +444,8 @@ const ReceptionDashboard = () => {
                   <div
                     key={material.id}
                     className={`flex items-center gap-3 p-3 rounded-xl transition-colors cursor-pointer ${isOut ? 'bg-red-500/10 border border-red-500/20' :
-                        isLow ? 'bg-yellow-500/10 border border-yellow-500/20' :
-                          'bg-gray-50 dark:bg-white/5'
+                      isLow ? 'bg-yellow-500/10 border border-yellow-500/20' :
+                        'bg-gray-50 dark:bg-white/5'
                       }`}
                     onClick={() => navigate('/reception/inventory')}
                   >
@@ -510,6 +510,13 @@ const ReceptionDashboard = () => {
             >
               <HiOutlineCurrencyDollar className="mx-auto mb-2 text-red-600" size={22} />
               <p className="text-[10px] font-black uppercase tracking-widest dark:text-white">Payments</p>
+            </button>
+            <button
+              onClick={() => navigate('/reception/messages')}
+              className="p-4 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-2xl text-center hover:bg-gray-50 dark:hover:bg-white/10 transition-all"
+            >
+              <HiOutlineChatBubbleLeftRight className="mx-auto mb-2 text-red-600" size={22} />
+              <p className="text-[10px] font-black uppercase tracking-widest dark:text-white">Messages</p>
             </button>
           </motion.div>
         </div>

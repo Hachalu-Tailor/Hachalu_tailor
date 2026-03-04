@@ -121,6 +121,12 @@ export const listStaff = () => api.get('/accounts/admin/staff/');
 
 export const getStaffDetail = (id) => api.get(`/accounts/admin/staff/${id}/`);
 
+export const getStaffByRole = (role) => api.get(`/accounts/admin/staff/`, { params: { role } });
+
+export const getGarmentStaff = () => api.get('/accounts/admin/staff/', { params: { role: 'GARMENT' } });
+
+export const getReceptionStaff = () => api.get('/accounts/admin/staff/', { params: { role: 'RECEPTIONIST' } });
+
 export const updateStaff = (id, data) => api.patch(`/accounts/admin/staff/${id}/`, data);
 
 export const deleteStaff = (id) => api.delete(`/accounts/admin/staff/${id}/`);

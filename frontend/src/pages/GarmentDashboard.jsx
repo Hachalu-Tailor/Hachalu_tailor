@@ -41,10 +41,11 @@ const GarmentDashboard = () => {
             selected_color: 'Navy Blue',
             selected_color_name: 'Navy Blue',
             quantity: 2,
-            status: 'IN_PROGRESS',
+            status: 'IN_PROGRESS', // Paid and verified - garment working on it
             due_date: '2026-03-15',
             created_at: '2026-03-01',
             total_price: 15000,
+            payment_status: 'verified',
             material: 1,
             material_image: null
         },
@@ -58,10 +59,11 @@ const GarmentDashboard = () => {
             selected_color: 'Cream',
             selected_color_name: 'Cream',
             quantity: 1,
-            status: 'IN_PROGRESS',
+            status: 'IN_PROGRESS', // Paid and verified
             due_date: '2026-03-20',
             created_at: '2026-03-02',
             total_price: 8000,
+            payment_status: 'verified',
             material: 2,
             material_image: null
         },
@@ -75,10 +77,11 @@ const GarmentDashboard = () => {
             selected_color: 'Black',
             selected_color_name: 'Black',
             quantity: 1,
-            status: 'PENDING_APPROVAL',
+            status: 'PENDING_APPROVAL', // Payment submitted, waiting for verification
             due_date: '2026-04-01',
             created_at: '2026-03-03',
             total_price: 25000,
+            payment_status: 'pending',
             material: 3,
             material_image: null
         },
@@ -96,6 +99,7 @@ const GarmentDashboard = () => {
             due_date: '2026-02-28',
             created_at: '2026-02-15',
             total_price: 12000,
+            payment_status: 'verified',
             material: 4,
             material_image: null
         },
@@ -113,7 +117,62 @@ const GarmentDashboard = () => {
             due_date: '2026-02-25',
             created_at: '2026-02-10',
             total_price: 10000,
+            payment_status: 'verified',
             material: 5,
+            material_image: null
+        },
+        {
+            id: '6',
+            order_code: 'HTL-2026-006',
+            customer_name: 'Hailu Lemma',
+            customer_phone: '+251917890123',
+            suit_type_name: 'Executive Suit',
+            material_name: 'Italian Wool Black',
+            selected_color: 'Black',
+            selected_color_name: 'Black',
+            quantity: 1,
+            status: 'AWAITING_PAYMENT', // Price set, waiting for customer to pay
+            due_date: '2026-03-25',
+            created_at: '2026-03-04',
+            total_price: 18000,
+            payment_status: 'awaiting',
+            material: 6,
+            material_image: null
+        },
+        {
+            id: '7',
+            order_code: 'HP-40951845',
+            customer_name: 'Demo Customer 1',
+            customer_phone: '+251910000001',
+            suit_type_name: 'Business Suit',
+            material_name: 'Premium Wool Navy',
+            selected_color: 'Navy',
+            selected_color_name: 'Navy',
+            quantity: 1,
+            status: 'IN_PROGRESS',
+            due_date: '2026-03-20',
+            created_at: '2026-03-01',
+            total_price: 50,
+            payment_status: 'verified',
+            material: 7,
+            material_image: null
+        },
+        {
+            id: '8',
+            order_code: 'HP-44385832',
+            customer_name: 'Demo Customer 2',
+            customer_phone: '+251910000002',
+            suit_type_name: 'Traditional Suit',
+            material_name: 'Ethiopian Cotton',
+            selected_color: 'White',
+            selected_color_name: 'White',
+            quantity: 1,
+            status: 'IN_PROGRESS',
+            due_date: '2026-03-18',
+            created_at: '2026-02-28',
+            total_price: 2500,
+            payment_status: 'verified',
+            material: 8,
             material_image: null
         }
     ];
@@ -338,6 +397,8 @@ const GarmentDashboard = () => {
         inProgress: orders.filter(o => o.status === 'IN_PROGRESS').length,
         completed: orders.filter(o => o.status === 'COMPLETED').length,
         pending: orders.filter(o => o.status === 'INITIATED' || o.status === 'PENDING_APPROVAL' || o.status === 'AWAITING_PAYMENT').length,
+        paid: orders.filter(o => o.payment_status === 'verified' || o.status === 'IN_PROGRESS' || o.status === 'COMPLETED').length,
+        awaitingPayment: orders.filter(o => o.status === 'AWAITING_PAYMENT').length,
         total: orders.length
     };
 
@@ -531,14 +592,30 @@ const GarmentDashboard = () => {
                                         <h3 className="text-lg font-bold dark:text-white">{order.order_code}</h3>
                                         <p className="text-sm text-gray-500">{order.customer_name || 'Unknown Customer'}</p>
                                     </div>
-                                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${order.status === 'IN_PROGRESS'
-                                        ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-                                        : order.status === 'COMPLETED'
-                                            ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
-                                            : 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400'
-                                        }`}>
-                                        {order.status?.replace('_', ' ')}
-                                    </span>
+                                    <div className="flex flex-col items-end gap-1">
+                                        {/* Payment Status Badge */}
+                                        {order.payment_status && (
+                                            <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase ${
+                                                order.payment_status === 'verified' 
+                                                    ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
+                                                    : order.payment_status === 'pending'
+                                                        ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                                        : 'bg-gray-100 text-gray-500 dark:bg-gray-900/30 dark:text-gray-400'
+                                            }`}>
+                                                {order.payment_status === 'verified' ? '✓ Paid' : 
+                                                 order.payment_status === 'pending' ? '⏳ Pending' : 
+                                                 order.payment_status === 'awaiting' ? '💰 Awaiting' : ''}
+                                            </span>
+                                        )}
+                                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${order.status === 'IN_PROGRESS'
+                                            ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                                            : order.status === 'COMPLETED'
+                                                ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
+                                                : 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                            }`}>
+                                            {order.status?.replace('_', ' ')}
+                                        </span>
+                                    </div>
                                 </div>
 
                                 <div className="space-y-1 text-sm">

@@ -443,15 +443,29 @@ const Items = ({ isHomePage = false }) => {
                       <div className="space-y-4">
                         <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Select Color</p>
                         <div className="grid grid-cols-4 gap-3">
-                          {activeItem.colors.map((color) => (
-                            <button
-                              key={color.id || color.name}
-                              onClick={() => handleInputChange('selected_color', color.name)}
-                              className={`py-3 border text-[10px] font-black uppercase tracking-widest transition-all ${formData.selected_color === color.name ? 'bg-red-600 border-red-600 text-white shadow-lg' : 'border-gray-200 dark:border-white/10 dark:text-white hover:border-gray-400'}`}
-                            >
-                              {color.name}
-                            </button>
-                          ))}
+                          {activeItem.colors.map((color) => {
+                            // Get hex color from utility
+                            const hexColor = color.hex_color || getHexColor(color.name);
+                            const isSelected = formData.selected_color === color.name;
+                            const isLight = isLightColor(hexColor);
+                            
+                            return (
+                              <button
+                                key={color.id || color.name}
+                                onClick={() => handleInputChange('selected_color', color.name)}
+                                className={`py-3 border text-[10px] font-black uppercase tracking-widest transition-all flex flex-col items-center gap-2 ${isSelected ? 'bg-red-600 border-red-600 text-white shadow-lg' : 'border-gray-200 dark:border-white/10 dark:text-white hover:border-gray-400'}`}
+                              >
+                                <div 
+                                  className="w-6 h-6 rounded-full border-2 shadow-inner" 
+                                  style={{ 
+                                    backgroundColor: hexColor,
+                                    borderColor: isSelected ? '#fff' : (isLight ? '#ccc' : hexColor)
+                                  }}
+                                />
+                                <span>{color.name}</span>
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     )}

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_BASE_URL, STORAGE_KEYS } from '../utils/constants';
+import { getHexColor } from '../utils/colors';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -188,12 +189,14 @@ export const getColorsFromMaterials = (materials) => {
     if (material.colors && Array.isArray(material.colors)) {
       material.colors.forEach(color => {
         if (color.id && color.name && !colorsMap.has(color.id)) {
-          colorsMap.set(color.id, color.name);
+          // Use hex_color from backend if available, otherwise use our utility
+          const hexColor = color.hex_color || getHexColor(color.name);
+          colorsMap.set(color.id, { id: color.id, name: color.name, hex_color: hexColor });
         }
       });
     }
   });
-  return Array.from(colorsMap.entries()).map(([id, name]) => ({ id, name }));
+  return Array.from(colorsMap.values());
 };
 
 // ============================================

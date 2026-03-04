@@ -16,7 +16,8 @@ import {
   HiOutlineTrash,
   HiOutlinePencil
 } from "react-icons/hi2";
-import api from "../../api/api";
+import api, { getMaterials, createMaterial, adjustStock, getColorsFromMaterials } from "../../api/api";
+import { getHexColor, isLightColor, getAvailableColors } from "../../utils/colors";
 
 const Inventory = () => {
   const [inventory, setInventory] = useState([]);
@@ -49,8 +50,13 @@ const Inventory = () => {
   const fetchInventory = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/invetory/materials/");
-      setInventory(response.data || []);
+      const response = await getMaterials();
+      // Handle both array and paginated responses
+      let materialsData = response.data;
+      if (materialsData && typeof materialsData === 'object' && !Array.isArray(materialsData)) {
+        materialsData = materialsData.results || materialsData.data || materialsData.items || [];
+      }
+      setInventory(materialsData || []);
     } catch (error) {
       console.error("Error fetching inventory:", error);
     } finally {
@@ -72,7 +78,7 @@ const Inventory = () => {
         },
         quantity_meters: parseFloat(newMaterial.quantity_meters) || 0
       };
-      await api.post("/invetory/materials/", materialData);
+      await createMaterial(materialData);
       setNewMaterial({ name: "", color: "", texture: "", quantity_meters: "", image_url: "", imageFile: null, category: "", description: "" });
       setImagePreview(null);
       setShowAddModal(false);
@@ -86,7 +92,7 @@ const Inventory = () => {
   const handleStockUpdate = async () => {
     if (!selectedItem) return;
     try {
-      await api.post(`/invetory/materials/${selectedItem.id}/stock/`, stockUpdate);
+      await adjustStock(selectedItem.id, stockUpdate);
       setSelectedItem(null);
       fetchInventory();
     } catch (error) {
@@ -96,8 +102,13 @@ const Inventory = () => {
   };
 
   const filteredData = inventory.filter((item) => {
+    // Handle both old format (color string) and new format (colors array)
+    const materialColors = item.colors && Array.isArray(item.colors)
+      ? item.colors.map(c => c.name || c).join(' ').toLowerCase()
+      : (item.color || '').toLowerCase();
+
     const matchSearch = item.name?.toLowerCase().includes(search.toLowerCase()) ||
-      item.color?.toLowerCase().includes(search.toLowerCase()) ||
+      materialColors.includes(search.toLowerCase()) ||
       item.category?.toLowerCase().includes(search.toLowerCase());
     const qty = parseFloat(item.inventory?.quantity_meters || 0);
     const matchStatus =
@@ -194,7 +205,33 @@ const Inventory = () => {
                             </div>
                             <div>
                               <h3 className="text-sm md:text-base font-black uppercase italic tracking-tight">{item.name}</h3>
-                              <p className="text-[10px] text-zinc-400 uppercase font-bold">{item.color} • {item.texture}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                {/* Color swatch */}
+                                {(item.color || (item.colors && item.colors.length > 0)) && (
+                                  <div className="flex items-center gap-1">
+                                    {item.colors && item.colors.length > 0 ? (
+                                      item.colors.slice(0, 3).map((c, idx) => (
+                                        <div
+                                          key={idx}
+                                          className="w-3 h-3 rounded-full border border-zinc-300"
+                                          style={{ backgroundColor: getHexColor(c.name || c) }}
+                                          title={c.name || c}
+                                        />
+                                      ))
+                                    ) : (
+                                      <div
+                                        className="w-3 h-3 rounded-full border border-zinc-300"
+                                        style={{ backgroundColor: getHexColor(item.color) }}
+                                        title={item.color}
+                                      />
+                                    )}
+                                    <span className="text-[10px] text-zinc-400 uppercase font-bold">
+                                      {item.color || (item.colors && item.colors[0]?.name) || ''}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-zinc-400 uppercase font-bold">{item.texture}</p>
                               {item.category && <p className="text-[9px] text-red-500 uppercase font-bold mt-1">{item.category}</p>}
                               {item.description && <p className="text-[9px] text-zinc-500 mt-1 max-w-xs truncate">{item.description}</p>}
                             </div>
@@ -369,7 +406,41 @@ const Inventory = () => {
                 )}
 
                 <h2 className="text-2xl font-black uppercase italic tracking-tighter">{selectedItem.name}</h2>
-                <p className="text-[10px] text-zinc-400 uppercase font-bold mt-1">{selectedItem.color} • {selectedItem.texture}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  {/* Color display with visual swatches */}
+                  {(selectedItem.color || (selectedItem.colors && selectedItem.colors.length > 0)) && (
+                    <div className="flex items-center gap-2">
+                      {selectedItem.colors && selectedItem.colors.length > 0 ? (
+                        <div className="flex items-center gap-1">
+                          <div className="flex -space-x-2">
+                            {selectedItem.colors.map((c, idx) => (
+                              <div
+                                key={idx}
+                                className="w-5 h-5 rounded-full border-2 border-white dark:border-zinc-800"
+                                style={{ backgroundColor: getHexColor(c.name || c), zIndex: selectedItem.colors.length - idx }}
+                                title={c.name || c}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-[10px] text-zinc-400 uppercase font-bold">
+                            {selectedItem.colors.map(c => c.name || c).join(', ')}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <div
+                            className="w-4 h-4 rounded-full border border-zinc-300"
+                            style={{ backgroundColor: getHexColor(selectedItem.color) }}
+                          />
+                          <span className="text-[10px] text-zinc-400 uppercase font-bold">
+                            {selectedItem.color}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <p className="text-[10px] text-zinc-400 uppercase font-bold mt-1">{selectedItem.texture}</p>
 
                 {/* Category and Description Section - Improved Design */}
                 <div className="mt-4 space-y-3">
@@ -418,8 +489,8 @@ const Inventory = () => {
                           >
                             Save
                           </button>
-                          <button 
-                            onClick={() => setEditingField(null)} 
+                          <button
+                            onClick={() => setEditingField(null)}
                             className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 rounded-xl text-[10px] font-black uppercase"
                           >
                             Cancel
@@ -427,7 +498,7 @@ const Inventory = () => {
                         </div>
                       </div>
                     ) : (
-                      <p 
+                      <p
                         className="mt-2 text-sm font-bold text-zinc-700 dark:text-zinc-300"
                       >
                         {selectedItem.category || <span className="text-zinc-400 italic">Not set</span>}
@@ -477,8 +548,8 @@ const Inventory = () => {
                           >
                             Save
                           </button>
-                          <button 
-                            onClick={() => setEditingField(null)} 
+                          <button
+                            onClick={() => setEditingField(null)}
                             className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 rounded-xl text-[10px] font-black uppercase"
                           >
                             Cancel
@@ -486,7 +557,7 @@ const Inventory = () => {
                         </div>
                       </div>
                     ) : (
-                      <p 
+                      <p
                         className="mt-2 text-sm font-medium text-zinc-600 dark:text-zinc-400"
                       >
                         {selectedItem.description || <span className="text-zinc-400 italic">No description provided</span>}
@@ -576,13 +647,60 @@ const Inventory = () => {
                 </div>
                 <div>
                   <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Color *</label>
-                  <input
-                    type="text"
-                    value={newMaterial.color}
-                    onChange={(e) => setNewMaterial({ ...newMaterial, color: e.target.value })}
-                    className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2"
-                    required
-                  />
+                  
+                  {/* Color Picker - Visual Selection */}
+                  <div className="mt-2 space-y-2">
+                    {/* Predefined Colors Grid */}
+                    <div className="grid grid-cols-5 gap-2">
+                      {getAvailableColors().slice(0, 15).map((color) => (
+                        <button
+                          key={color.name}
+                          type="button"
+                          onClick={() => setNewMaterial({ ...newMaterial, color: color.name })}
+                          className={`w-10 h-10 rounded-xl border-2 transition-all hover:scale-110 ${
+                            newMaterial.color.toLowerCase() === color.name.toLowerCase()
+                              ? 'border-red-600 ring-2 ring-red-600/30'
+                              : 'border-zinc-200 dark:border-zinc-700'
+                          }`}
+                          style={{ backgroundColor: color.hex }}
+                          title={color.name}
+                        />
+                      ))}
+                    </div>
+                    
+                    {/* Custom Color Input */}
+                    <div className="flex items-center gap-2 mt-2">
+                      <input
+                        type="color"
+                        value={getHexColor(newMaterial.color) || '#6b7280'}
+                        onChange={(e) => {
+                          // Find closest color name or use custom
+                          setNewMaterial({ ...newMaterial, color: e.target.value });
+                        }}
+                        className="w-10 h-10 rounded-lg cursor-pointer border-2 border-zinc-200 dark:border-zinc-700"
+                      />
+                      <input
+                        type="text"
+                        value={newMaterial.color}
+                        onChange={(e) => setNewMaterial({ ...newMaterial, color: e.target.value })}
+                        placeholder="Or type color name..."
+                        className="flex-1 bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20"
+                      />
+                    </div>
+                    
+                    {/* Selected Color Preview */}
+                    {newMaterial.color && (
+                      <div className="flex items-center gap-2 p-2 bg-zinc-50 dark:bg-zinc-900 rounded-xl">
+                        <div
+                          className="w-6 h-6 rounded-lg border border-zinc-300"
+                          style={{ backgroundColor: getHexColor(newMaterial.color) }}
+                        />
+                        <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400">
+                          Selected: {newMaterial.color}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Texture *</label>

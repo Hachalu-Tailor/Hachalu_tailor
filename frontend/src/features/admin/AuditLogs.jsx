@@ -41,7 +41,12 @@ const AuditLogs = () => {
     try {
       setLoading(true);
       const response = await getAuditLogs(params);
-      setLogs(response.data || []);
+      // Handle both array and paginated responses
+      let logsData = response.data;
+      if (logsData && typeof logsData === 'object' && !Array.isArray(logsData)) {
+        logsData = logsData.results || logsData.data || logsData.items || [];
+      }
+      setLogs(logsData || []);
     } catch (error) {
       console.error('Error fetching audit logs:', error);
     } finally {

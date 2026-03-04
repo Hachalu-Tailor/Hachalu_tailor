@@ -6,25 +6,80 @@ import {
     HiOutlineMagnifyingGlass,
     HiOutlineEllipsisVertical,
     HiOutlinePhone,
-    HiOutlineVideoCamera
+    HiOutlineVideoCamera,
+    HiOutlineUsers,
+    HiOutlineArrowRight
 } from 'react-icons/hi2';
 import { useApi } from '../../hooks/useApi';
+import { getGarmentStaff, getReceptionStaff } from '../../api/api';
+import { useAuth } from '../../hooks/useAuth';
 
 const Messages = () => {
-    const { data: staffData, loading } = useApi('/accounts/staff/');
+    const { user } = useAuth();
     const [selectedChat, setSelectedChat] = useState(null);
     const [message, setMessage] = useState('');
     const [messagesList, setMessagesList] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [staffList, setStaffList] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [filterRole, setFilterRole] = useState('all'); // all, garment, receptionist
 
-    // Mock initial data - in production this would come from API
-    const mockStaff = [
-        { id: 1, name: 'John Tailor', role: 'Tailor', online: true },
-        { id: 2, name: 'Sarah Designer', role: 'Designer', online: true },
-        { id: 3, name: 'Mike Cutter', role: 'Cutter', online: false },
-        { id: 4, name: 'Emma Stitcher', role: 'Stitcher', online: true },
-    ];
+    // Get current user role
+    const currentRole = user?.role || user?.user_type;
 
+    useEffect(() => {
+        fetchStaff();
+    }, [filterRole]);
+
+    const fetchStaff = async () => {
+        setLoading(true);
+        try {
+            let response;
+            if (filterRole === 'garment') {
+                response = await getGarmentStaff();
+            } else if (filterRole === 'receptionist') {
+                response = await getReceptionStaff();
+            } else {
+                // Get all staff
+                response = await useApi('/accounts/admin/staff/');
+            }
+            
+            // Handle paginated response
+            let data = response.data;
+            if (data && typeof data === 'object' && !Array.isArray(data)) {
+                data = data.results || data.data || data.items || [];
+            }
+            
+            // Filter out current user from list
+            const filteredStaff = (data || []).filter(staff => staff.id !== user?.id);
+            setStaffList(filteredStaff.map(staff => ({
+                id: staff.id,
+                name: staff.name || staff.username || 'Unknown',
+                role: staff.role || staff.user_type || 'Staff',
+                online: Math.random() > 0.5 // Mock - in real app would come from backend
+            })));
+        } catch (error) {
+            console.error('Error fetching staff:', error);
+            // Fallback to mock data if API fails
+            setStaffList([
+                { id: 1, name: 'John Tailor', role: 'GARMENT', online: true },
+                { id: 2, name: 'Sarah Designer', role: 'GARMENT', online: true },
+                { id: 3, name: 'Mike Cutter', role: 'GARMENT', online: false },
+                { id: 4, name: 'Emma Stitcher', role: 'GARMENT', online: true },
+                { id: 5, name: 'Reception Desk', role: 'RECEPTIONIST', online: true },
+                { id: 6, name: 'Front Desk', role: 'RECEPTIONIST', online: true },
+            ].filter(staff => {
+                // Filter based on role selection
+                if (filterRole === 'garment') return staff.role === 'GARMENT';
+                if (filterRole === 'receptionist') return staff.role === 'RECEPTIONIST';
+                return staff.role !== currentRole; // Exclude current user's role
+            }));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Mock messages for demonstration
     const mockMessages = [
         { id: 1, from: 1, text: 'The suit measurements are ready for review', time: '10:30 AM' },
         { id: 2, from: 'me', text: 'Great! I\'ll check them now', time: '10:32 AM' },
@@ -32,7 +87,9 @@ const Messages = () => {
     ];
 
     useEffect(() => {
-        setMessagesList(mockMessages);
+        if (selectedChat) {
+            setMessagesList(mockMessages);
+        }
     }, [selectedChat]);
 
     const handleSendMessage = (e) => {
@@ -50,10 +107,30 @@ const Messages = () => {
         setMessage('');
     };
 
-    const filteredStaff = mockStaff.filter(staff =>
+    const filteredStaff = staffList.filter(staff =>
         staff.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         staff.role.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    // Get role display name
+    const getRoleDisplay = (role) => {
+        const roleNames = {
+            'GARMENT': 'Tailor',
+            'RECEPTIONIST': 'Reception',
+            'ADMIN': 'Admin'
+        };
+        return roleNames[role] || role;
+    };
+
+    // Get role badge color
+    const getRoleBadgeColor = (role) => {
+        const colors = {
+            'GARMENT': 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
+            'RECEPTIONIST': 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+            'ADMIN': 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400'
+        };
+        return colors[role] || 'bg-gray-100 text-gray-600';
+    };
 
     return (
         <div className="h-[calc(100vh-120px)] flex gap-6">
@@ -72,6 +149,34 @@ const Messages = () => {
                         </div>
                     </div>
 
+                    {/* Role Filter */}
+                    <div className="flex gap-1 mb-4 p-1 bg-gray-100 dark:bg-white/5 rounded-xl">
+                        <button
+                            onClick={() => setFilterRole('all')}
+                            className={`flex-1 px-3 py-2 text-[9px] font-bold uppercase tracking-wider rounded-lg transition-all ${
+                                filterRole === 'all' ? 'bg-white dark:bg-white/10 text-red-600 dark:text-red-400 shadow-sm' : 'text-gray-500 dark:text-gray-400'
+                            }`}
+                        >
+                            All
+                        </button>
+                        <button
+                            onClick={() => setFilterRole('garment')}
+                            className={`flex-1 px-3 py-2 text-[9px] font-bold uppercase tracking-wider rounded-lg transition-all ${
+                                filterRole === 'garment' ? 'bg-white dark:bg-white/10 text-red-600 dark:text-red-400 shadow-sm' : 'text-gray-500 dark:text-gray-400'
+                            }`}
+                        >
+                            Tailors
+                        </button>
+                        <button
+                            onClick={() => setFilterRole('receptionist')}
+                            className={`flex-1 px-3 py-2 text-[9px] font-bold uppercase tracking-wider rounded-lg transition-all ${
+                                filterRole === 'receptionist' ? 'bg-white dark:bg-white/10 text-red-600 dark:text-red-400 shadow-sm' : 'text-gray-500 dark:text-gray-400'
+                            }`}
+                        >
+                            Reception
+                        </button>
+                    </div>
+
                     {/* Search */}
                     <div className="relative">
                         <HiOutlineMagnifyingGlass className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
@@ -87,34 +192,56 @@ const Messages = () => {
 
                 {/* Staff List */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                    {filteredStaff.map((staff) => (
-                        <button
-                            key={staff.id}
-                            onClick={() => setSelectedChat(staff)}
-                            className={`w-full p-4 rounded-2xl flex items-center gap-3 transition-all ${selectedChat?.id === staff.id
-                                ? 'bg-red-600 text-white'
-                                : 'hover:bg-gray-50 dark:hover:bg-white/5 dark:text-white'
+                    {loading ? (
+                        <div className="flex items-center justify-center py-8">
+                            <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                        </div>
+                    ) : filteredStaff.length === 0 ? (
+                        <div className="text-center py-8">
+                            <HiOutlineUsers className="mx-auto text-gray-400 mb-2" size={32} />
+                            <p className="text-sm text-gray-400">No staff found</p>
+                        </div>
+                    ) : (
+                        filteredStaff.map((staff) => (
+                            <button
+                                key={staff.id}
+                                onClick={() => setSelectedChat(staff)}
+                                className={`w-full p-4 rounded-2xl flex items-center gap-3 transition-all ${
+                                    selectedChat?.id === staff.id
+                                        ? 'bg-red-600 text-white'
+                                        : 'hover:bg-gray-50 dark:hover:bg-white/5 dark:text-white'
                                 }`}
-                        >
-                            <div className="relative">
-                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${selectedChat?.id === staff.id
-                                    ? 'bg-white/20'
-                                    : 'bg-gray-100 dark:bg-white/5'
+                            >
+                                <div className="relative">
+                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                                        selectedChat?.id === staff.id
+                                            ? 'bg-white/20'
+                                            : 'bg-gray-100 dark:bg-white/5'
                                     }`}>
-                                    <HiOutlineUser size={24} />
+                                        <HiOutlineUser size={24} />
+                                    </div>
+                                    {staff.online && (
+                                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-[#080808]" />
+                                    )}
                                 </div>
-                                {staff.online && (
-                                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-[#080808]" />
+                                <div className="flex-1 text-left">
+                                    <p className="text-[10px] font-black uppercase tracking-wider">{staff.name}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className={`text-[8px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                                            selectedChat?.id === staff.id ? 'bg-white/20 text-white' : getRoleBadgeColor(staff.role)
+                                        }`}>
+                                            {getRoleDisplay(staff.role)}
+                                        </span>
+                                    </div>
+                                </div>
+                                {staff.role !== currentRole && (
+                                    <div className={`text-[8px] ${selectedChat?.id === staff.id ? 'text-white/60' : 'text-gray-400'}`}>
+                                        {staff.role === 'GARMENT' ? '👔' : '🖥️'}
+                                    </div>
                                 )}
-                            </div>
-                            <div className="flex-1 text-left">
-                                <p className="text-[10px] font-black uppercase tracking-wider">{staff.name}</p>
-                                <p className={`text-[9px] ${selectedChat?.id === staff.id ? 'text-white/70' : 'text-gray-400'}`}>
-                                    {staff.role}
-                                </p>
-                            </div>
-                        </button>
-                    ))}
+                            </button>
+                        ))
+                    )}
                 </div>
             </div>
 
@@ -135,7 +262,17 @@ const Messages = () => {
                                 </div>
                                 <div>
                                     <h3 className="text-sm font-black dark:text-white uppercase">{selectedChat.name}</h3>
-                                    <p className="text-[10px] text-gray-400 uppercase">{selectedChat.role}</p>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`text-[8px] px-2 py-0.5 rounded-full font-bold uppercase ${getRoleBadgeColor(selectedChat.role)}`}>
+                                            {getRoleDisplay(selectedChat.role)}
+                                        </span>
+                                        {selectedChat.role !== currentRole && (
+                                            <span className="text-[8px] text-green-500 flex items-center gap-1">
+                                                <HiOutlineArrowRight size={10} />
+                                                {currentRole === 'GARMENT' ? 'Reception' : 'Tailor'}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
@@ -153,25 +290,38 @@ const Messages = () => {
 
                         {/* Messages */}
                         <div className="flex-1 p-6 overflow-y-auto space-y-4">
-                            {messagesList.map((msg) => (
-                                <div
-                                    key={msg.id}
-                                    className={`flex ${msg.from === 'me' ? 'justify-end' : 'justify-start'}`}
-                                >
-                                    <div
-                                        className={`max-w-md p-4 rounded-3xl ${msg.from === 'me'
-                                            ? 'bg-red-600 text-white rounded-br-md'
-                                            : 'bg-gray-100 dark:bg-white/5 dark:text-white rounded-bl-md'
-                                            }`}
-                                    >
-                                        <p className="text-sm font-medium">{msg.text}</p>
-                                        <p className={`text-[9px] mt-2 ${msg.from === 'me' ? 'text-white/70' : 'text-gray-400'
-                                            }`}>
-                                            {msg.time}
-                                        </p>
+                            {messagesList.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-full text-center">
+                                    <div className="w-16 h-16 bg-gray-100 dark:bg-white/5 rounded-full flex items-center justify-center mb-4">
+                                        <HiOutlineChatBubbleLeftRight size={32} className="text-gray-300 dark:text-white/20" />
                                     </div>
+                                    <h4 className="text-sm font-bold dark:text-white mb-1">Start a conversation</h4>
+                                    <p className="text-xs text-gray-400 max-w-md">
+                                        Send a message to {selectedChat.name} about orders, materials, or any updates.
+                                    </p>
                                 </div>
-                            ))}
+                            ) : (
+                                messagesList.map((msg) => (
+                                    <div
+                                        key={msg.id}
+                                        className={`flex ${msg.from === 'me' ? 'justify-end' : 'justify-start'}`}
+                                    >
+                                        <div
+                                            className={`max-w-md p-4 rounded-3xl ${
+                                                msg.from === 'me'
+                                                    ? 'bg-red-600 text-white rounded-br-md'
+                                                    : 'bg-gray-100 dark:bg-white/5 dark:text-white rounded-bl-md'
+                                            }`}
+                                        >
+                                            <p className="text-sm font-medium">{msg.text}</p>
+                                            <p className={`text-[9px] mt-2 ${msg.from === 'me' ? 'text-white/70' : 'text-gray-400'
+                                                }`}>
+                                                {msg.time}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
                         </div>
 
                         {/* Message Input */}
@@ -181,7 +331,7 @@ const Messages = () => {
                                     type="text"
                                     value={message}
                                     onChange={(e) => setMessage(e.target.value)}
-                                    placeholder="Type your message..."
+                                    placeholder={`Message ${selectedChat.name}...`}
                                     className="flex-1 px-6 py-4 bg-gray-50 dark:bg-white/5 border-0 rounded-3xl text-sm dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-red-600/20"
                                 />
                                 <button
@@ -200,8 +350,20 @@ const Messages = () => {
                         </div>
                         <h3 className="text-lg font-black dark:text-white uppercase mb-2">Select a Conversation</h3>
                         <p className="text-sm text-gray-400 max-w-md">
-                            Choose a staff member from the list to start or continue a conversation
+                            Choose a {currentRole === 'GARMENT' ? 'receptionist' : 'tailor'} from the list to start or continue a conversation about orders and updates.
                         </p>
+                        
+                        {/* Quick Contact Suggestion */}
+                        <div className="mt-6 p-4 bg-gray-50 dark:bg-white/5 rounded-2xl max-w-md">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+                                Quick Contact
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {currentRole === 'GARMENT' 
+                                    ? 'Need to confirm an order status? Message the reception desk directly.'
+                                    : 'Need updates on garment progress? Message the tailor workshop.'}
+                            </p>
+                        </div>
                     </div>
                 )}
             </div>

@@ -86,7 +86,7 @@ Body
 }
 
 ```
-
+#### Role can also be GARMENT_ADMIN
 ##### Response: 201
 
 ```
@@ -283,7 +283,7 @@ Body: None
 
 #### Note Here that both admin and receptionist can login
 
-##### Endpoint: POST /api/invetory/materials/
+##### Endpoint: POST /api/invetory/materials/create/
 
 Body
 
@@ -334,7 +334,7 @@ Body
 
 #### Note Here that both admin and receptionist can login
 
-##### Endpoint: GET /api/invetory/materials/
+##### Endpoint: GET /api/invetory/materials/list/
 
 Body: NONE
 
@@ -843,4 +843,148 @@ Body: None
         "created_at": "2026-02-16T09:26:51.286556Z"
     }
 ]
+```
+# ===============================================================
+### Garment Management
+
+#### 1. List Orders in Progress
+##### Endpoint: GET /api/garment/orders/in-progress/
+
+##### Make sure to login with a garment admin
+
+Body: NONE
+
+##### Response: 201
+
+```
+[
+    {
+        "id": "42c10b47-37af-494e-b924-cdb9bbb8b084",
+        "order_code": "HP-44385832",
+        "status": "IN_PROGRESS",
+        "quantity": 2,
+        "total_price": "2500.00",
+        "due_date": "2026-03-01",
+        "payment_reference": "TXN_998877",
+        ....
+        "material_name": "Silk",
+        "measurements": {
+            "chest": 40.0,
+            ".......
+            "height": 170.0
+        }
+    }
+]
+```
+
+#### 2. Get Orders in Progress
+##### Endpoint: GET /api/garment/orders/in-progress/detail
+
+##### Make sure to login with a garment admin
+##### QUERY PARAM: code: order_code 
+
+Body: NONE
+
+##### Response: 201
+
+```
+    {
+        "id": "42c10b47-37af-494e-b924-cdb9bbb8b084",
+        "order_code": "HP-44385832",
+        "status": "IN_PROGRESS",
+        "quantity": 2,
+        "total_price": "2500.00"
+        .....
+        }
+```
+
+#### 2. Update Orders status
+##### Endpoint: GET /api/garment/orders/<str:code>/process/
+
+##### Make sure to login with a garment admin
+
+Body: 
+```
+{
+  "status": "COMPLETED" // or "SHIPPED"
+}
+```
+##### Response: 201
+
+```
+{
+    "id": "c6316733-a3a2-4a69-a843-5c9f3e9c7698",
+    "order_code": "HP-42281708",
+    "status": "COMPLETED",
+    ...
+    "suit_type": 1,
+    "suit_type_name": "Single Lapel Suit",
+    "material": 5,
+    "material_name": "Silk",
+    "measurements": {
+        "chest": 40.0,
+        "shoulder": 18.0,
+        "waist": 32.0,
+        "hips": 38.0,
+        "arm_length": 25.0,
+        "height": 170.0
+    }
+```
+
+#### 4. List Shipped Orders
+##### Endpoint: GET /api/garment/orders/shipped/
+
+##### Make sure to login with a garment admin
+
+Body: NONE
+
+##### Response: 201
+
+```
+[
+    {
+        "id": "c6316733-a3a2-4a69-a843-5c9f3e9c7698",
+        "order_code": "HP-42281708",
+        "payment_amount": "2500.00",
+        "payment_received_at": "2026-02-12T10:00:00Z",
+      ...
+        "material_name": "Silk",
+        "measurements": {
+            "chest": 40.0,
+        ....
+            "arm_length": 25.0,
+            "height": 170.0
+        }
+    }
+]
+```
+#### 5. Shipped Order Detail
+##### Endpoint: GET /api/garment/orders/detail/
+
+##### Make sure to login with a garment admin
+#### Query Param :: code: <ordercode>
+Body: NONE
+
+##### Response: 201
+P
+```
+{
+    "id": "c6316733-a3a2-4a69-a843-5c9f3e9c7698",
+    "order_code": "HP-42281708",
+    "status": "SHIPPED",
+    "quantity": 5,
+    ....
+    "suit_type": 1,
+    "suit_type_name": "Single Lapel Suit",
+    "material": 5,
+    "material_name": "Silk",
+    "measurements": {
+        "chest": 40.0,
+        "shoulder": 18.0,
+        "waist": 32.0,
+        "hips": 38.0,
+        "arm_length": 25.0,
+        "height": 170.0
+    }
+}
 ```

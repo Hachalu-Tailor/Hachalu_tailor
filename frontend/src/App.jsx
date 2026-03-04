@@ -93,6 +93,7 @@ function App() {
         <Route element={<ProtectedRoute allowedRoles={[ROLES.GARMENT]} />}>
           <Route path="/garment" element={<DashboardLayout />}>
             <Route index element={<GarmentDashboard />} />
+            <Route path="messages" element={<Messages />} />
             <Route path="profile" element={<Profile />} />
           </Route>
         </Route>

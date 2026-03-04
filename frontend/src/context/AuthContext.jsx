@@ -101,7 +101,7 @@ export const AuthProvider = ({ children }) => {
   // Update user profile
   const updateProfile = async (data) => {
     try {
-      const response = await api.patch(`/accounts/admin/users/${user.id}/update-profile/`, data);
+      const response = await api.post(`/accounts/admin/users/${user.id}/update-profile/`, data);
 
       if (response.data) {
         setUser(prev => ({ ...prev, ...response.data }));
@@ -130,7 +130,7 @@ export const AuthProvider = ({ children }) => {
   // Change password
   const changePassword = async (data) => {
     try {
-      await api.post('/accounts/auth/change-password/', data);
+      await api.post('/accounts/user/change-password/', data);
       return { success: true, message: 'Password changed successfully' };
     } catch (error) {
       console.error('Password change failed:', error);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
     HiOutlineScissors,
     HiOutlineCheckCircle,
@@ -11,27 +12,179 @@ import {
     HiOutlineEye,
     HiOutlineClipboardDocumentCheck,
     HiOutlineExclamationCircle,
-    HiOutlineBell
+    HiOutlineBell,
+    HiOutlineChatBubbleLeftRight
 } from 'react-icons/hi2';
-import api from '../api/api';
+import api, { getGarmentOrdersInProgress, getGarmentShippedOrders, processGarmentOrder, getNotifications, getMaterialDetail } from '../api/api';
+import { getHexColor } from '../utils/colors';
 
 const GarmentDashboard = () => {
+    const navigate = useNavigate();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [activeTab, setActiveTab] = useState('in_progress');
+    const [activeTab, setActiveTab] = useState('all'); // Changed default to 'all' to show orders
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [notifications, setNotifications] = useState([]);
     const [showNotifications, setShowNotifications] = useState(false);
+    const [isDemoMode, setIsDemoMode] = useState(false); // Track if using demo data
+
+    // Demo data for garment workshop - shows what real data should look like
+    const DEMO_ORDERS = [
+        {
+            id: '1',
+            order_code: 'HTL-2026-001',
+            customer_name: 'Abebe Kebede',
+            customer_phone: '+251912345678',
+            suit_type_name: 'Business Suit',
+            material_name: 'Italian Wool Navy',
+            selected_color: 'Navy Blue',
+            selected_color_name: 'Navy Blue',
+            quantity: 2,
+            status: 'IN_PROGRESS', // Paid and verified - garment working on it
+            due_date: '2026-03-15',
+            created_at: '2026-03-01',
+            total_price: 15000,
+            payment_status: 'verified',
+            material: 1,
+            material_image: null
+        },
+        {
+            id: '2',
+            order_code: 'HTL-2026-002',
+            customer_name: 'Tadesse Hailu',
+            customer_phone: '+251913456789',
+            suit_type_name: 'Traditional Suit',
+            material_name: 'Ethiopian Cotton Cream',
+            selected_color: 'Cream',
+            selected_color_name: 'Cream',
+            quantity: 1,
+            status: 'IN_PROGRESS', // Paid and verified
+            due_date: '2026-03-20',
+            created_at: '2026-03-02',
+            total_price: 8000,
+            payment_status: 'verified',
+            material: 2,
+            material_image: null
+        },
+        {
+            id: '3',
+            order_code: 'HTL-2026-003',
+            customer_name: 'Meron Demissie',
+            customer_phone: '+251914567890',
+            suit_type_name: 'Wedding Suit',
+            material_name: 'Premium Silk Black',
+            selected_color: 'Black',
+            selected_color_name: 'Black',
+            quantity: 1,
+            status: 'PENDING_APPROVAL', // Payment submitted, waiting for verification
+            due_date: '2026-04-01',
+            created_at: '2026-03-03',
+            total_price: 25000,
+            payment_status: 'pending',
+            material: 3,
+            material_image: null
+        },
+        {
+            id: '4',
+            order_code: 'HTL-2026-004',
+            customer_name: 'Desta Wolde',
+            customer_phone: '+251915678901',
+            suit_type_name: 'Business Suit',
+            material_name: 'British Wool Grey',
+            selected_color: 'Grey',
+            selected_color_name: 'Grey',
+            quantity: 1,
+            status: 'COMPLETED',
+            due_date: '2026-02-28',
+            created_at: '2026-02-15',
+            total_price: 12000,
+            payment_status: 'verified',
+            material: 4,
+            material_image: null
+        },
+        {
+            id: '5',
+            order_code: 'HTL-2026-005',
+            customer_name: 'Sisay Gebre',
+            customer_phone: '+251916789012',
+            suit_type_name: 'Casual Suit',
+            material_name: 'Linen Beige',
+            selected_color: 'Beige',
+            selected_color_name: 'Beige',
+            quantity: 2,
+            status: 'COMPLETED',
+            due_date: '2026-02-25',
+            created_at: '2026-02-10',
+            total_price: 10000,
+            payment_status: 'verified',
+            material: 5,
+            material_image: null
+        },
+        {
+            id: '6',
+            order_code: 'HTL-2026-006',
+            customer_name: 'Hailu Lemma',
+            customer_phone: '+251917890123',
+            suit_type_name: 'Executive Suit',
+            material_name: 'Italian Wool Black',
+            selected_color: 'Black',
+            selected_color_name: 'Black',
+            quantity: 1,
+            status: 'AWAITING_PAYMENT', // Price set, waiting for customer to pay
+            due_date: '2026-03-25',
+            created_at: '2026-03-04',
+            total_price: 18000,
+            payment_status: 'awaiting',
+            material: 6,
+            material_image: null
+        },
+        {
+            id: '7',
+            order_code: 'HP-40951845',
+            customer_name: 'Demo Customer 1',
+            customer_phone: '+251910000001',
+            suit_type_name: 'Business Suit',
+            material_name: 'Premium Wool Navy',
+            selected_color: 'Navy',
+            selected_color_name: 'Navy',
+            quantity: 1,
+            status: 'IN_PROGRESS',
+            due_date: '2026-03-20',
+            created_at: '2026-03-01',
+            total_price: 50,
+            payment_status: 'verified',
+            material: 7,
+            material_image: null
+        },
+        {
+            id: '8',
+            order_code: 'HP-44385832',
+            customer_name: 'Demo Customer 2',
+            customer_phone: '+251910000002',
+            suit_type_name: 'Traditional Suit',
+            material_name: 'Ethiopian Cotton',
+            selected_color: 'White',
+            selected_color_name: 'White',
+            quantity: 1,
+            status: 'IN_PROGRESS',
+            due_date: '2026-03-18',
+            created_at: '2026-02-28',
+            total_price: 2500,
+            payment_status: 'verified',
+            material: 8,
+            material_image: null
+        }
+    ];
 
     useEffect(() => {
         loadOrders();
         loadNotifications();
-    }, []);
+    }, [activeTab]);
 
     const loadNotifications = async () => {
         try {
-            const response = await api.get('/accounts/user/notifications/', { params: { limit: 10 } });
+            const response = await getNotifications({ limit: 10 });
             setNotifications(response.data?.results || []);
         } catch (error) {
             console.error('Error loading notifications:', error);
@@ -40,30 +193,160 @@ const GarmentDashboard = () => {
 
     const loadOrders = async () => {
         setLoading(true);
+        setOrders([]); // Clear previous orders
+        console.log('Loading orders for tab:', activeTab);
+
         try {
-            const response = await api.get('/orders/list/', { params: { active_only: true } });
-            setOrders(response.data || []);
+            let response;
+            let errorMessage = '';
+
+            if (activeTab === 'in_progress' || activeTab === 'pending') {
+                try {
+                    console.log('Fetching garment orders in progress...');
+                    response = await getGarmentOrdersInProgress();
+                    console.log('In-progress response:', response);
+                } catch (err) {
+                    console.log('Garment in-progress endpoint failed, trying general orders...', err.message);
+                    // Fallback: try to get orders from general orders endpoint
+                    try {
+                        console.log('Trying general orders list with IN_PROGRESS filter...');
+                        const allOrdersResponse = await getOrders({ status: 'IN_PROGRESS' });
+                        console.log('General orders response:', allOrdersResponse);
+                        let data = allOrdersResponse.data;
+                        if (data && typeof data === 'object' && !Array.isArray(data)) {
+                            data = data.results || data.data || data.items || [];
+                        }
+                        console.log('Parsed in-progress orders:', data);
+                        setOrders(data || []);
+                        setLoading(false);
+                        return;
+                    } catch (fallbackErr) {
+                        console.error('Fallback also failed:', fallbackErr);
+                        setOrders([]);
+                        setLoading(false);
+                        return;
+                    }
+                }
+            } else if (activeTab === 'completed' || activeTab === 'shipped') {
+                try {
+                    console.log('Fetching garment shipped orders...');
+                    response = await getGarmentShippedOrders();
+                    console.log('Shipped response:', response);
+                } catch (err) {
+                    console.log('Garment shipped endpoint failed, trying general orders...', err.message);
+                    // Fallback: try to get completed orders
+                    try {
+                        console.log('Trying general orders list with COMPLETED filter...');
+                        const allOrdersResponse = await getOrders({ status: 'COMPLETED' });
+                        let data = allOrdersResponse.data;
+                        if (data && typeof data === 'object' && !Array.isArray(data)) {
+                            data = data.results || data.data || data.items || [];
+                        }
+                        setOrders(data || []);
+                        setLoading(false);
+                        return;
+                    } catch (fallbackErr) {
+                        console.error('Fallback also failed:', fallbackErr);
+                        setOrders([]);
+                        setLoading(false);
+                        return;
+                    }
+                }
+            } else {
+                // For 'all' tab, get both in-progress and shipped
+                try {
+                    console.log('Fetching all orders (in-progress + shipped)...');
+                    const [inProgressResponse, shippedResponse] = await Promise.all([
+                        getGarmentOrdersInProgress().catch(err => ({ data: [] })),
+                        getGarmentShippedOrders().catch(err => ({ data: [] }))
+                    ]);
+                    // Handle both array and paginated responses
+                    let inProgressData = inProgressResponse.data;
+                    let shippedData = shippedResponse.data;
+                    if (inProgressData && typeof inProgressData === 'object' && !Array.isArray(inProgressData)) {
+                        inProgressData = inProgressData.results || inProgressData.data || inProgressData.items || [];
+                    }
+                    if (shippedData && typeof shippedData === 'object' && !Array.isArray(shippedData)) {
+                        shippedData = shippedData.results || shippedData.data || shippedData.items || [];
+                    }
+                    setOrders([...(inProgressData || []), ...(shippedData || [])]);
+                    setLoading(false);
+                    return;
+                } catch (err) {
+                    console.error('Error loading all orders:', err);
+                    setOrders([]);
+                    setLoading(false);
+                    return;
+                }
+            }
+
+            // Handle both array and paginated responses
+            let ordersData = response?.data;
+            if (ordersData && typeof ordersData === 'object' && !Array.isArray(ordersData)) {
+                ordersData = ordersData.results || ordersData.data || ordersData.items || [];
+            }
+            console.log('Final parsed orders:', ordersData);
+
+            // If no real data, use demo data
+            if (!ordersData || ordersData.length === 0) {
+                console.log('No orders from API, using demo data');
+                setOrders(DEMO_ORDERS);
+                setIsDemoMode(true);
+            } else {
+                setOrders(ordersData);
+                setIsDemoMode(false);
+            }
         } catch (error) {
             console.error('Error loading orders:', error);
-            // Try without params if that fails
+            // Try one more fallback - get all orders
             try {
-                const response = await api.get('/orders/list/');
-                setOrders(response.data || []);
-            } catch (retryError) {
-                console.error('Retry failed:', retryError);
+                console.log('Final fallback - getting all orders...');
+                const allResponse = await getOrders();
+                let data = allResponse.data;
+                if (data && typeof data === 'object' && !Array.isArray(data)) {
+                    data = data.results || data.data || data.items || [];
+                }
+                // Filter for garment-relevant statuses
+                const filteredOrders = (data || []).filter(order =>
+                    ['IN_PROGRESS', 'COMPLETED', 'SHIPPED', 'INITIATED', 'PENDING_APPROVAL', 'AWAITING_PAYMENT'].includes(order.status)
+                );
+                console.log('Filtered orders for garment:', filteredOrders);
+
+                // If still no data, use demo data
+                if (!filteredOrders || filteredOrders.length === 0) {
+                    console.log('No orders from fallback, using demo data');
+                    setOrders(DEMO_ORDERS);
+                    setIsDemoMode(true);
+                } else {
+                    setOrders(filteredOrders);
+                    setIsDemoMode(false);
+                }
+            } catch (finalErr) {
+                console.error('Final fallback also failed, using demo data:', finalErr);
+                setOrders(DEMO_ORDERS);
+                setIsDemoMode(true);
             }
         } finally {
             setLoading(false);
         }
     };
 
-    const handleCompleteOrder = async (orderId) => {
+    const handleCompleteOrder = async (orderCode) => {
         try {
-            const response = await api.patch(`/orders/${orderId}/`, { status: 'COMPLETED' });
+            // Try garment-specific endpoint first
+            let response;
+            try {
+                response = await processGarmentOrder(orderCode, { status: 'COMPLETED' });
+            } catch (err) {
+                console.log('Garment process endpoint failed, trying general order update...');
+                // Fallback: use general orders endpoint
+                response = await api.patch(`/orders/${orderCode}/`, { status: 'COMPLETED' });
+            }
+
             if (response.status === 200) {
                 loadOrders();
                 setSelectedOrder(null);
-                alert('Order marked as completed successfully!');
+                alert('Order marked as completed successfully! Reception has been notified.');
             }
         } catch (error) {
             console.error('Error completing order:', error);
@@ -72,13 +355,22 @@ const GarmentDashboard = () => {
         }
     };
 
-    const handleStartOrder = async (orderId) => {
+    const handleStartOrder = async (orderCode) => {
         try {
-            const response = await api.patch(`/orders/${orderId}/`, { status: 'IN_PROGRESS' });
+            // For garment, starting an order means marking it as IN_PROGRESS
+            let response;
+            try {
+                response = await processGarmentOrder(orderCode, { status: 'IN_PROGRESS' });
+            } catch (err) {
+                console.log('Garment process endpoint failed, trying general order update...');
+                // Fallback: use general orders endpoint
+                response = await api.patch(`/orders/${orderCode}/`, { status: 'IN_PROGRESS' });
+            }
+
             if (response.status === 200) {
                 loadOrders();
                 setSelectedOrder(null);
-                alert('Order started successfully!');
+                alert('Order started successfully! The customer will be notified.');
             }
         } catch (error) {
             console.error('Error starting order:', error);
@@ -105,6 +397,8 @@ const GarmentDashboard = () => {
         inProgress: orders.filter(o => o.status === 'IN_PROGRESS').length,
         completed: orders.filter(o => o.status === 'COMPLETED').length,
         pending: orders.filter(o => o.status === 'INITIATED' || o.status === 'PENDING_APPROVAL' || o.status === 'AWAITING_PAYMENT').length,
+        paid: orders.filter(o => o.payment_status === 'verified' || o.status === 'IN_PROGRESS' || o.status === 'COMPLETED').length,
+        awaitingPayment: orders.filter(o => o.status === 'AWAITING_PAYMENT').length,
         total: orders.length
     };
 
@@ -126,14 +420,21 @@ const GarmentDashboard = () => {
                                 <HiOutlineScissors className="text-red-600" />
                                 Garment <span className="text-red-600">Workshop</span>
                             </h1>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.4em] mt-1 flex items-center gap-2">
-                                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" /> Tailor Management System
-                            </p>
+                            <div className="flex items-center gap-3 mt-1">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.4em] flex items-center gap-2">
+                                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" /> Tailor Management System
+                                </p>
+                                {isDemoMode && (
+                                    <span className="px-2 py-1 bg-yellow-500/20 text-yellow-600 text-[8px] font-bold uppercase rounded-full">
+                                        Demo Data
+                                    </span>
+                                )}
+                            </div>
                         </div>
 
                         {/* Notification Bell */}
                         <div className="relative">
-                            <button 
+                            <button
                                 onClick={() => setShowNotifications(!showNotifications)}
                                 className="relative p-3 rounded-2xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
                             >
@@ -144,7 +445,7 @@ const GarmentDashboard = () => {
                                     </span>
                                 )}
                             </button>
-                            
+
                             {/* Notification Dropdown */}
                             <AnimatePresence>
                                 {showNotifications && (
@@ -189,6 +490,13 @@ const GarmentDashboard = () => {
                                 <div className="text-xl font-bold text-yellow-600 dark:text-yellow-400">{stats.pending}</div>
                                 <div className="text-[9px] uppercase text-gray-500">Pending</div>
                             </div>
+                            <button
+                                onClick={() => navigate('/garment/messages')}
+                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-2xl flex items-center gap-2 transition-all"
+                            >
+                                <HiOutlineChatBubbleLeftRight size={18} />
+                                <div className="text-[9px] font-bold uppercase">Messages</div>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -202,8 +510,8 @@ const GarmentDashboard = () => {
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${activeTab === tab.id
-                                    ? 'bg-red-600 text-white'
-                                    : 'bg-white dark:bg-[#0a0a0a] text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5'
+                                ? 'bg-red-600 text-white'
+                                : 'bg-white dark:bg-[#0a0a0a] text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5'
                                 }`}
                         >
                             {tab.label}
@@ -248,22 +556,66 @@ const GarmentDashboard = () => {
                                 key={order.id}
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="bg-white dark:bg-[#0a0a0a] rounded-3xl border border-gray-100 dark:border-white/5 p-5 shadow-lg hover:shadow-xl transition-all cursor-pointer"
-                                onClick={() => setSelectedOrder(order)}
+                                className="bg-white dark:bg-[#0a0a0a] rounded-3xl border border-gray-100 dark:border-white/5 p-5 shadow-lg hover:shadow-xl transition-all cursor-pointer overflow-hidden"
+                                onClick={async () => {
+                                    setSelectedOrder(order);
+                                    // Fetch material details for display
+                                    if (order.material) {
+                                        try {
+                                            const matRes = await getMaterialDetail(order.material);
+                                            const mat = matRes.data;
+                                            setSelectedOrder(prev => ({
+                                                ...prev,
+                                                material_image: mat.image_url,
+                                                material_colors: mat.colors || []
+                                            }));
+                                        } catch (err) {
+                                            console.error('Failed to fetch material details:', err);
+                                        }
+                                    }
+                                }}
                             >
+                                {/* Material Image */}
+                                {(order.material_image || order.material?.image_url) && (
+                                    <div className="mb-3 -mx-5 -mt-5 relative h-32 overflow-hidden">
+                                        <img
+                                            src={order.material_image || order.material?.image_url}
+                                            alt={order.material_name}
+                                            className="w-full h-full object-cover"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                                    </div>
+                                )}
+
                                 <div className="flex justify-between items-start mb-3">
                                     <div>
                                         <h3 className="text-lg font-bold dark:text-white">{order.order_code}</h3>
                                         <p className="text-sm text-gray-500">{order.customer_name || 'Unknown Customer'}</p>
                                     </div>
-                                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${order.status === 'IN_PROGRESS'
+                                    <div className="flex flex-col items-end gap-1">
+                                        {/* Payment Status Badge */}
+                                        {order.payment_status && (
+                                            <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase ${
+                                                order.payment_status === 'verified' 
+                                                    ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
+                                                    : order.payment_status === 'pending'
+                                                        ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                                        : 'bg-gray-100 text-gray-500 dark:bg-gray-900/30 dark:text-gray-400'
+                                            }`}>
+                                                {order.payment_status === 'verified' ? '✓ Paid' : 
+                                                 order.payment_status === 'pending' ? '⏳ Pending' : 
+                                                 order.payment_status === 'awaiting' ? '💰 Awaiting' : ''}
+                                            </span>
+                                        )}
+                                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${order.status === 'IN_PROGRESS'
                                             ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
                                             : order.status === 'COMPLETED'
                                                 ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
                                                 : 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400'
-                                        }`}>
-                                        {order.status?.replace('_', ' ')}
-                                    </span>
+                                            }`}>
+                                            {order.status?.replace('_', ' ')}
+                                        </span>
+                                    </div>
                                 </div>
 
                                 <div className="space-y-1 text-sm">
@@ -274,15 +626,26 @@ const GarmentDashboard = () => {
                                     <div className="flex justify-between items-center">
                                         <span className="text-gray-500">Material:</span>
                                         <div className="flex items-center gap-1">
-                                            {order.material_color && (
+                                            {(order.selected_color_name || order.selected_color || order.material_color) && (
                                                 <span
                                                     className="w-3 h-3 rounded-full border border-gray-400"
-                                                    style={{ backgroundColor: order.material_color }}
+                                                    style={{
+                                                        backgroundColor: order.selected_color_name ?
+                                                            order.selected_color_name.toLowerCase() :
+                                                            (order.selected_color || order.material_color || '#888')
+                                                    }}
                                                 />
                                             )}
                                             <span className="dark:text-white font-medium">{order.material_name || 'N/A'}</span>
                                         </div>
                                     </div>
+                                    {/* Show selected color name if available */}
+                                    {(order.selected_color_name || order.selected_color) && (
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-500">Color:</span>
+                                            <span className="dark:text-white font-medium">{order.selected_color_name || order.selected_color}</span>
+                                        </div>
+                                    )}
                                     <div className="flex justify-between">
                                         <span className="text-gray-500">Qty:</span>
                                         <span className="dark:text-white font-medium">{order.quantity}</span>
@@ -370,10 +733,10 @@ const GarmentDashboard = () => {
                                 <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 rounded-2xl">
                                     <span className="text-gray-500">Status</span>
                                     <span className={`px-4 py-1 rounded-full text-xs font-bold uppercase ${selectedOrder.status === 'IN_PROGRESS'
-                                            ? 'bg-blue-100 text-blue-600'
-                                            : selectedOrder.status === 'COMPLETED'
-                                                ? 'bg-green-100 text-green-600'
-                                                : 'bg-yellow-100 text-yellow-600'
+                                        ? 'bg-blue-100 text-blue-600'
+                                        : selectedOrder.status === 'COMPLETED'
+                                            ? 'bg-green-100 text-green-600'
+                                            : 'bg-yellow-100 text-yellow-600'
                                         }`}>
                                         {selectedOrder.status?.replace('_', ' ')}
                                     </span>
@@ -385,21 +748,47 @@ const GarmentDashboard = () => {
                                         <p className="text-xs text-gray-500 uppercase mb-1">Suit Type</p>
                                         <p className="font-bold dark:text-white">{selectedOrder.suit_type_name || 'N/A'}</p>
                                     </div>
-                                    <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-2xl">
+                                    {/* Material Image - Prominent Display */}
+                                    <div className="col-span-2">
                                         <p className="text-xs text-gray-500 uppercase mb-1">Material</p>
-                                        <p className="font-bold dark:text-white">{selectedOrder.material_name || 'N/A'}</p>
-                                    </div>
-                                    <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-2xl">
-                                        <p className="text-xs text-gray-500 uppercase mb-1">Material Color</p>
-                                        <div className="flex items-center gap-2">
-                                            {selectedOrder.material_color && (
-                                                <span
-                                                    className="w-4 h-4 rounded-full border border-gray-300"
-                                                    style={{ backgroundColor: selectedOrder.material_color }}
+                                        {selectedOrder.material_image ? (
+                                            <div className="relative">
+                                                <img
+                                                    src={selectedOrder.material_image}
+                                                    alt={selectedOrder.material_name || 'Material'}
+                                                    className="w-full h-32 object-cover rounded-xl"
                                                 />
-                                            )}
-                                            <span className="font-bold dark:text-white">{selectedOrder.material_color || 'N/A'}</span>
-                                        </div>
+                                                <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 rounded-lg">
+                                                    <p className="text-xs font-bold text-white">{selectedOrder.material_name}</p>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="w-full h-20 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 rounded-xl flex items-center justify-center">
+                                                <p className="font-bold text-gray-500 dark:text-gray-400">
+                                                    {selectedOrder.material_name || 'No Image'}
+                                                </p>
+                                            </div>
+                                        )}
+                                        {/* Color swatches */}
+                                        {selectedOrder.material_colors?.length > 0 && (
+                                            <div className="mt-2">
+                                                <p className="text-[10px] text-gray-400 mb-1">Available Colors:</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {selectedOrder.material_colors.map((color, idx) => (
+                                                        <div
+                                                            key={idx}
+                                                            className="flex items-center gap-1 px-2 py-1 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+                                                        >
+                                                            <div
+                                                                className="w-4 h-4 rounded-full border border-gray-300"
+                                                                style={{ backgroundColor: getHexColor(color.name) }}
+                                                            />
+                                                            <span className="text-[9px] text-gray-600 dark:text-gray-300">{color.name}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-2xl">
                                         <p className="text-xs text-gray-500 uppercase mb-1">Quantity</p>

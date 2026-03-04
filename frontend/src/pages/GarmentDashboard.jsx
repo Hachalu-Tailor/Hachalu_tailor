@@ -23,10 +23,100 @@ const GarmentDashboard = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [activeTab, setActiveTab] = useState('in_progress');
+    const [activeTab, setActiveTab] = useState('all'); // Changed default to 'all' to show orders
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [notifications, setNotifications] = useState([]);
     const [showNotifications, setShowNotifications] = useState(false);
+    const [isDemoMode, setIsDemoMode] = useState(false); // Track if using demo data
+
+    // Demo data for garment workshop - shows what real data should look like
+    const DEMO_ORDERS = [
+        {
+            id: '1',
+            order_code: 'HTL-2026-001',
+            customer_name: 'Abebe Kebede',
+            customer_phone: '+251912345678',
+            suit_type_name: 'Business Suit',
+            material_name: 'Italian Wool Navy',
+            selected_color: 'Navy Blue',
+            selected_color_name: 'Navy Blue',
+            quantity: 2,
+            status: 'IN_PROGRESS',
+            due_date: '2026-03-15',
+            created_at: '2026-03-01',
+            total_price: 15000,
+            material: 1,
+            material_image: null
+        },
+        {
+            id: '2',
+            order_code: 'HTL-2026-002',
+            customer_name: 'Tadesse Hailu',
+            customer_phone: '+251913456789',
+            suit_type_name: 'Traditional Suit',
+            material_name: 'Ethiopian Cotton Cream',
+            selected_color: 'Cream',
+            selected_color_name: 'Cream',
+            quantity: 1,
+            status: 'IN_PROGRESS',
+            due_date: '2026-03-20',
+            created_at: '2026-03-02',
+            total_price: 8000,
+            material: 2,
+            material_image: null
+        },
+        {
+            id: '3',
+            order_code: 'HTL-2026-003',
+            customer_name: 'Meron Demissie',
+            customer_phone: '+251914567890',
+            suit_type_name: 'Wedding Suit',
+            material_name: 'Premium Silk Black',
+            selected_color: 'Black',
+            selected_color_name: 'Black',
+            quantity: 1,
+            status: 'PENDING_APPROVAL',
+            due_date: '2026-04-01',
+            created_at: '2026-03-03',
+            total_price: 25000,
+            material: 3,
+            material_image: null
+        },
+        {
+            id: '4',
+            order_code: 'HTL-2026-004',
+            customer_name: 'Desta Wolde',
+            customer_phone: '+251915678901',
+            suit_type_name: 'Business Suit',
+            material_name: 'British Wool Grey',
+            selected_color: 'Grey',
+            selected_color_name: 'Grey',
+            quantity: 1,
+            status: 'COMPLETED',
+            due_date: '2026-02-28',
+            created_at: '2026-02-15',
+            total_price: 12000,
+            material: 4,
+            material_image: null
+        },
+        {
+            id: '5',
+            order_code: 'HTL-2026-005',
+            customer_name: 'Sisay Gebre',
+            customer_phone: '+251916789012',
+            suit_type_name: 'Casual Suit',
+            material_name: 'Linen Beige',
+            selected_color: 'Beige',
+            selected_color_name: 'Beige',
+            quantity: 2,
+            status: 'COMPLETED',
+            due_date: '2026-02-25',
+            created_at: '2026-02-10',
+            total_price: 10000,
+            material: 5,
+            material_image: null
+        }
+    ];
 
     useEffect(() => {
         loadOrders();
@@ -137,7 +227,16 @@ const GarmentDashboard = () => {
                 ordersData = ordersData.results || ordersData.data || ordersData.items || [];
             }
             console.log('Final parsed orders:', ordersData);
-            setOrders(ordersData || []);
+
+            // If no real data, use demo data
+            if (!ordersData || ordersData.length === 0) {
+                console.log('No orders from API, using demo data');
+                setOrders(DEMO_ORDERS);
+                setIsDemoMode(true);
+            } else {
+                setOrders(ordersData);
+                setIsDemoMode(false);
+            }
         } catch (error) {
             console.error('Error loading orders:', error);
             // Try one more fallback - get all orders
@@ -153,10 +252,20 @@ const GarmentDashboard = () => {
                     ['IN_PROGRESS', 'COMPLETED', 'SHIPPED', 'INITIATED', 'PENDING_APPROVAL', 'AWAITING_PAYMENT'].includes(order.status)
                 );
                 console.log('Filtered orders for garment:', filteredOrders);
-                setOrders(filteredOrders);
+
+                // If still no data, use demo data
+                if (!filteredOrders || filteredOrders.length === 0) {
+                    console.log('No orders from fallback, using demo data');
+                    setOrders(DEMO_ORDERS);
+                    setIsDemoMode(true);
+                } else {
+                    setOrders(filteredOrders);
+                    setIsDemoMode(false);
+                }
             } catch (finalErr) {
-                console.error('Final fallback also failed:', finalErr);
-                setOrders([]);
+                console.error('Final fallback also failed, using demo data:', finalErr);
+                setOrders(DEMO_ORDERS);
+                setIsDemoMode(true);
             }
         } finally {
             setLoading(false);
@@ -250,9 +359,16 @@ const GarmentDashboard = () => {
                                 <HiOutlineScissors className="text-red-600" />
                                 Garment <span className="text-red-600">Workshop</span>
                             </h1>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.4em] mt-1 flex items-center gap-2">
-                                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" /> Tailor Management System
-                            </p>
+                            <div className="flex items-center gap-3 mt-1">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.4em] flex items-center gap-2">
+                                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" /> Tailor Management System
+                                </p>
+                                {isDemoMode && (
+                                    <span className="px-2 py-1 bg-yellow-500/20 text-yellow-600 text-[8px] font-bold uppercase rounded-full">
+                                        Demo Data
+                                    </span>
+                                )}
+                            </div>
                         </div>
 
                         {/* Notification Bell */}

@@ -19,7 +19,8 @@ import {
   HiOutlineTag
 } from 'react-icons/hi2';
 import ItemCard from '../components/ItemCard';
-import { createOrder, getMaterials } from '../api/api';
+import { createOrder, getMaterials, getSuitTypes } from '../api/api';
+import { getAvailableColors, getHexColor, extractColorsFromMaterials, formatColorName, isLightColor } from '../utils/colors';
 import { useParams, useNavigate } from 'react-router-dom';
 
 const Items = ({ isHomePage = false }) => {
@@ -34,16 +35,18 @@ const Items = ({ isHomePage = false }) => {
   const [categories, setCategories] = useState(['All']);
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  const [selectedColor, setSelectedColor] = useState(null); 
+
+  const [selectedColor, setSelectedColor] = useState(null);
   const [orderSuccess, setOrderSuccess] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [suitTypes, setSuitTypes] = useState([]);
 
   const [formData, setFormData] = useState({
     customer_name: "",
     customer_phone: "",
     suit_type: "Full Suit",
     material: "",
+    selected_color: "",
     quantity: 1,
     measurements: {
       height: "", chest: "", shoulder: "", waist: "", hips: "", arm_length: ""
@@ -65,6 +68,15 @@ const Items = ({ isHomePage = false }) => {
       try {
         setLoading(true);
         const response = await getMaterials();
+        // Handle both array and paginated responses
+        let materialsData = response.data;
+        if (materialsData && typeof materialsData === 'object' && !Array.isArray(materialsData)) {
+          // Check for common pagination patterns
+          materialsData = materialsData.results || materialsData.data || materialsData.items || [];
+        }
+        if (!Array.isArray(materialsData)) {
+          materialsData = [];
+        }
         const normalizeCategory = (cat) => {
           if (!cat) return null;
           const lower = cat.toLowerCase();
@@ -73,14 +85,14 @@ const Items = ({ isHomePage = false }) => {
           if (lower === 'children' || lower === 'child' || lower === 'kids') return 'Children';
           return cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
         };
-        
-        const mappedData = response.data.map(m => ({
+
+        const mappedData = materialsData.map(m => ({
           ...m,
           category: normalizeCategory(m.category),
           img: m.image_url || 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?q=80&w=1480',
-          desc: m.description || `A premium ${m.texture} fabric in a sophisticated ${m.color} finish.`,
+          desc: m.description || `A premium ${m.texture} fabric in a sophisticated ${m.color || m.colors?.[0]?.name || 'varied'} finish.`,
           price: m.inventory ? `${m.inventory.quantity_meters}m Available` : "Check Stock",
-          colors: m.colors || [
+          colors: m.colors || m.color || [
             { name: 'Classic Black', hex: '#1a1a1a' },
             { name: 'Earth Brown', hex: '#7d6e5d' },
             { name: 'Navy Blue', hex: '#1e293b' },
@@ -95,7 +107,7 @@ const Items = ({ isHomePage = false }) => {
         if (uniqueCategories.includes('Women')) orderedCategories.push('Women');
         if (uniqueCategories.includes('Children')) orderedCategories.push('Children');
         uniqueCategories.forEach(cat => { if (!orderedCategories.includes(cat)) orderedCategories.push(cat); });
-        
+
         setCategories(['All', ...orderedCategories]);
         if (mappedData.length > 0) {
           const firstAvailable = mappedData.find(m => m.inventory?.is_available);
@@ -108,6 +120,28 @@ const Items = ({ isHomePage = false }) => {
       }
     };
     fetchBackendMaterials();
+
+    // Fetch suit types
+    const fetchSuitTypes = async () => {
+      try {
+        const response = await getSuitTypes();
+        let suitTypesData = response.data;
+        if (suitTypesData && typeof suitTypesData === 'object' && !Array.isArray(suitTypesData)) {
+          suitTypesData = suitTypesData.results || suitTypesData.data || suitTypesData.items || [];
+        }
+        if (!Array.isArray(suitTypesData)) {
+          suitTypesData = [];
+        }
+        setSuitTypes(suitTypesData);
+        // Set default suit type
+        if (suitTypesData.length > 0) {
+          setFormData(prev => ({ ...prev, suit_type: suitTypesData[0].id }));
+        }
+      } catch (error) {
+        console.error("Failed to load suit types:", error);
+      }
+    };
+    fetchSuitTypes();
   }, []);
 
   const filteredProducts = filter === 'All'
@@ -120,7 +154,7 @@ const Items = ({ isHomePage = false }) => {
     if (isPaused || selectedItem || orderSuccess || filteredProducts.length <= 1) return;
     const timer = setInterval(() => {
       setActiveIdx((prev) => (prev + 1) % filteredProducts.length);
-      setSelectedColor(null); 
+      setSelectedColor(null);
     }, 6000);
     return () => clearInterval(timer);
   }, [isPaused, selectedItem, orderSuccess, filteredProducts]);
@@ -151,24 +185,70 @@ const Items = ({ isHomePage = false }) => {
       alert('Please complete contact information');
       return;
     }
+
+    // Build payload - only include fields with values
     const payload = {
-      ...formData,
-      suit_type: formData.suit_type === "Full Suit" ? 1 : 2,
+      customer_name: formData.customer_name,
+      customer_phone: formData.customer_phone,
+      suit_type: formData.suit_type,
       material: activeItem?.id,
-      quantity: parseInt(formData.quantity),
-      measurements: Object.fromEntries(
-        Object.entries(formData.measurements).map(([k, v]) => [k, parseFloat(v) || 0])
-      )
+      quantity: parseInt(formData.quantity) || 1,
+      measurements: {
+        height: parseFloat(formData.measurements.height) || 0,
+        chest: parseFloat(formData.measurements.chest) || 0,
+        shoulder: parseFloat(formData.measurements.shoulder) || 0,
+        waist: parseFloat(formData.measurements.waist) || 0,
+        hips: parseFloat(formData.measurements.hips) || 0,
+        arm_length: parseFloat(formData.measurements.arm_length) || 0,
+      }
     };
+
+    // Make selected_color required - get first color from material if available
+    let defaultColor = formData.selected_color;
+
+    if (!defaultColor && activeItem?.colors?.length > 0) {
+      defaultColor = typeof activeItem.colors[0] === 'object' ? activeItem.colors[0].name : activeItem.colors[0];
+    }
+
+    if (!defaultColor) {
+      alert('Please select a color for your order.');
+      return;
+    }
+
+    payload.selected_color = defaultColor;
+
+    console.log('Submitting order with data:', {
+      customer_name: payload.customer_name,
+      customer_phone: payload.customer_phone,
+      suit_type: payload.suit_type,
+      material: payload.material,
+      selected_color: payload.selected_color,
+      quantity: payload.quantity,
+      measurements: payload.measurements
+    });
+
     try {
       const response = await createOrder(payload);
+      console.log('Order response:', response);
       if (response.status === 201 || response.status === 200) {
-        // Instead of alert, we set the order code to show the Success Overlay
         setOrderSuccess(response.data.order_code || "ORDER-SUCCESS");
         setSelectedItem(null);
       }
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to place order');
+      console.error('Order error:', error);
+      const errorData = error.response?.data;
+      let errorMsg = 'Failed to place order. Please check:\n';
+      if (errorData) {
+        if (typeof errorData === 'string') {
+          errorMsg = errorData;
+        } else if (typeof errorData === 'object') {
+          errorMsg = 'Failed to place order. Errors:\n' +
+            Object.entries(errorData).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`).join('\n');
+        }
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+      alert(errorMsg);
     }
   };
 
@@ -181,7 +261,7 @@ const Items = ({ isHomePage = false }) => {
   return (
     <div className="min-h-screen bg-white dark:bg-[#080808] pt-20 md:pt-28 pb-20 px-4 md:px-16 transition-colors duration-500 overflow-x-hidden">
       <div className="max-w-[1600px] mx-auto">
-        
+
         {/* TOP NAVIGATION */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6">
           <header>
@@ -214,22 +294,22 @@ const Items = ({ isHomePage = false }) => {
           <div className="flex-[2] flex flex-col gap-6">
             <div className="relative overflow-hidden bg-zinc-50 dark:bg-zinc-900 rounded-sm border dark:border-white/5 aspect-[4/5] lg:h-[65vh]" onMouseEnter={() => setIsPaused(true)} onMouseLeave={() => setIsPaused(false)}>
               <AnimatePresence mode="wait">
-                <motion.div 
-                  key={`${activeItem?.id}-${selectedColor}`} 
-                  initial={{ opacity: 0 }} 
-                  animate={{ opacity: 1 }} 
-                  exit={{ opacity: 0 }} 
-                  transition={{ duration: 0.7 }} 
+                <motion.div
+                  key={`${activeItem?.id}-${selectedColor}`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.7 }}
                   className="absolute inset-0 p-4 md:p-12 flex items-center justify-center"
                 >
                   <div className="relative w-full h-full">
-                    <img 
-                      src={activeItem?.img} 
-                      className={`w-full h-full object-contain transition-all duration-1000 ${!activeItem?.inventory?.is_available ? 'grayscale blur-sm' : ''}`} 
-                      alt="" 
+                    <img
+                      src={activeItem?.img}
+                      className={`w-full h-full object-contain transition-all duration-1000 ${!activeItem?.inventory?.is_available ? 'grayscale blur-sm' : ''}`}
+                      alt=""
                     />
                     {selectedColor !== null && (
-                      <div 
+                      <div
                         className="absolute inset-0 mix-blend-color pointer-events-none opacity-60"
                         style={{ backgroundColor: activeItem.colors[selectedColor].hex }}
                       />
@@ -260,20 +340,28 @@ const Items = ({ isHomePage = false }) => {
                 <button onClick={() => setSelectedColor(null)} className="text-[8px] font-black uppercase text-red-600 underline">Reset to True Color</button>
               </div>
               <div className="flex flex-nowrap md:grid md:grid-cols-4 lg:grid-cols-6 gap-3 overflow-x-auto no-scrollbar">
-                {activeItem?.colors?.map((clr, idx) => (
-                  <button 
-                    key={idx}
-                    onClick={() => setSelectedColor(idx)}
-                    className={`flex-shrink-0 group relative p-3 rounded-sm border transition-all duration-300 ${selectedColor === idx ? 'bg-white dark:bg-white/10 border-red-600' : 'bg-transparent border-gray-200 dark:border-white/5'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full shadow-inner" style={{ backgroundColor: clr.hex }} />
-                      <div className="text-left">
-                        <p className={`text-[9px] font-black uppercase ${selectedColor === idx ? 'text-red-600' : 'text-gray-500'}`}>{clr.name}</p>
+                {activeItem?.colors?.map((clr, idx) => {
+                  const hexColor = clr.hex || getHexColor(clr.name);
+                  const isLight = isLightColor(hexColor);
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => setSelectedColor(idx)}
+                      className={`flex-shrink-0 group relative p-3 rounded-sm border transition-all duration-300 ${selectedColor === idx ? 'bg-white dark:bg-white/10 border-red-600' : 'bg-transparent border-gray-200 dark:border-white/5'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-8 h-8 rounded-full shadow-inner ${isLight ? 'border border-gray-300' : ''}`}
+                          style={{ backgroundColor: hexColor }}
+                        />
+                        <div className="text-left">
+                          <p className={`text-[9px] font-black uppercase ${selectedColor === idx ? 'text-red-600' : 'text-gray-500'}`}>{clr.name}</p>
+                          <p className="text-[7px] text-gray-400">{hexColor}</p>
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -300,7 +388,7 @@ const Items = ({ isHomePage = false }) => {
           <div className="fixed inset-0 z-[200] flex justify-end">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedItem(null)} className="absolute inset-0 bg-black/95 backdrop-blur-md" />
             <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: 'spring', damping: 30 }} className="relative w-full max-w-2xl h-full bg-white dark:bg-[#0c0c0c] flex flex-col shadow-2xl">
-              
+
               <div className="p-6 md:p-8 border-b dark:border-white/5 flex justify-between items-center bg-zinc-50 dark:bg-zinc-900/50">
                 <div className="flex gap-4">
                   <TabBtn active={activeTab === 'details'} onClick={() => setActiveTab('details')} label="Profile" icon={<HiOutlineInboxStack />} />
@@ -329,26 +417,44 @@ const Items = ({ isHomePage = false }) => {
                 ) : (
                   <div className="space-y-10">
                     <div className="flex items-center gap-4 py-3 px-4 bg-zinc-50 dark:bg-white/5 border dark:border-white/5 rounded-sm">
-                        <HiOutlineTag className="text-red-600" />
-                        <span className="text-[9px] font-black dark:text-white uppercase tracking-widest">
-                            Configuring: {selectedItem.category} / {selectedItem.name}
-                        </span>
+                      <HiOutlineTag className="text-red-600" />
+                      <span className="text-[9px] font-black dark:text-white uppercase tracking-widest">
+                        Configuring: {selectedItem.category} / {selectedItem.name}
+                      </span>
                     </div>
 
                     <div className="space-y-4">
-                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Select Crafting Type</p>
-                        <div className="grid grid-cols-2 gap-3">
-                            {['Full Suit', 'Single Piece'].map((type) => (
-                                <button 
-                                    key={type}
-                                    onClick={() => handleInputChange('suit_type', type)}
-                                    className={`py-4 border text-[10px] font-black uppercase tracking-widest transition-all ${formData.suit_type === type ? 'bg-red-600 border-red-600 text-white shadow-lg' : 'border-gray-200 dark:border-white/10 dark:text-white hover:border-gray-400'}`}
-                                >
-                                    {type}
-                                </button>
-                            ))}
-                        </div>
+                      <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Select Crafting Type</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {['Full Suit', 'Single Piece'].map((type) => (
+                          <button
+                            key={type}
+                            onClick={() => handleInputChange('suit_type', type)}
+                            className={`py-4 border text-[10px] font-black uppercase tracking-widest transition-all ${formData.suit_type === type ? 'bg-red-600 border-red-600 text-white shadow-lg' : 'border-gray-200 dark:border-white/10 dark:text-white hover:border-gray-400'}`}
+                          >
+                            {type}
+                          </button>
+                        ))}
+                      </div>
                     </div>
+
+                    {/* Color Selection */}
+                    {activeItem?.colors && activeItem.colors.length > 0 && (
+                      <div className="space-y-4">
+                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Select Color</p>
+                        <div className="grid grid-cols-4 gap-3">
+                          {activeItem.colors.map((color) => (
+                            <button
+                              key={color.id || color.name}
+                              onClick={() => handleInputChange('selected_color', color.name)}
+                              className={`py-3 border text-[10px] font-black uppercase tracking-widest transition-all ${formData.selected_color === color.name ? 'bg-red-600 border-red-600 text-white shadow-lg' : 'border-gray-200 dark:border-white/10 dark:text-white hover:border-gray-400'}`}
+                            >
+                              {color.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="flex items-center justify-between bg-zinc-100 dark:bg-white/5 p-6 rounded-sm border dark:border-white/5">
                       <div>
@@ -391,9 +497,9 @@ const Items = ({ isHomePage = false }) => {
               <HiOutlineCheckBadge className="mx-auto text-green-500 mb-6" size={60} />
               <h3 className="text-2xl font-black dark:text-white uppercase tracking-tighter">Order Successfully Created</h3>
               <p className="text-gray-400 text-[10px] uppercase tracking-widest mt-2 mb-8">Save your Order ID for tracking</p>
-              
+
               {/* Copy Section */}
-              <div 
+              <div
                 onClick={() => handleCopy(orderSuccess)}
                 className="bg-zinc-100 dark:bg-white/5 p-6 border-2 border-dashed border-zinc-200 dark:border-white/10 cursor-pointer group active:scale-95 transition-all"
               >
@@ -407,8 +513,8 @@ const Items = ({ isHomePage = false }) => {
                 </p>
               </div>
 
-              <button 
-                onClick={() => setOrderSuccess(null)} 
+              <button
+                onClick={() => setOrderSuccess(null)}
                 className="mt-8 w-full py-4 bg-red-600 text-white font-black uppercase text-[10px] tracking-widest hover:bg-black transition-colors"
               >
                 Done

@@ -4,7 +4,8 @@ import {
   HiOutlineCheck, HiOutlineEye, HiOutlineNoSymbol, HiOutlinePlus,
   HiOutlineShoppingBag, HiOutlineClock, HiOutlineXMark, HiOutlineClipboardDocumentCheck
 } from 'react-icons/hi2';
-import api from '../../api/api';
+import api, { getOrders, getSuitTypes, createOrder, processOrder, getMaterials, getMaterialDetail, getColorsFromMaterials } from '../../api/api';
+import { getHexColor } from '../../utils/colors';
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
@@ -15,11 +16,13 @@ const Orders = () => {
   const [receiveData, setReceiveData] = useState({ total_price: '', expected_price: '', due_date: '' });
   const [suitTypes, setSuitTypes] = useState([]);
   const [materials, setMaterials] = useState([]);
+  const [selectedMaterialColors, setSelectedMaterialColors] = useState([]);
   const [newOrder, setNewOrder] = useState({
     customer_name: '',
     customer_phone: '',
     suit_type: '',
     material: '',
+    selected_color: '',
     quantity: 1,
     measurements: { height: '', chest: '', shoulder: '', waist: '', hips: '', arm_length: '' }
   });
@@ -34,8 +37,13 @@ const Orders = () => {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/orders/list/', { params: { active_only: true } });
-      setOrders(response.data || []);
+      const response = await getOrders({ active_only: true });
+      // Handle both array and paginated responses
+      let ordersData = response.data;
+      if (ordersData && typeof ordersData === 'object' && !Array.isArray(ordersData)) {
+        ordersData = ordersData.results || ordersData.data || ordersData.items || [];
+      }
+      setOrders(ordersData || []);
     } catch (error) {
       console.error('Error fetching orders:', error);
     } finally {
@@ -45,7 +53,7 @@ const Orders = () => {
 
   const fetchSuitTypes = async () => {
     try {
-      const response = await api.get('/suit-types/');
+      const response = await getSuitTypes();
       setSuitTypes(response.data || []);
     } catch (error) {
       console.error('Error fetching suit types:', error);
@@ -54,45 +62,90 @@ const Orders = () => {
 
   const fetchMaterials = async () => {
     try {
-      const response = await api.get('/invetory/materials/');
-      setMaterials(response.data || []);
+      const response = await getMaterials();
+      // Handle both array and paginated responses
+      let materialsData = response.data;
+      if (materialsData && typeof materialsData === 'object' && !Array.isArray(materialsData)) {
+        materialsData = materialsData.results || materialsData.data || materialsData.items || [];
+      }
+      setMaterials(materialsData || []);
     } catch (error) {
       console.error('Error fetching materials:', error);
     }
   };
 
+  // Update colors when material is selected
+  const handleMaterialChange = (materialId) => {
+    const material = materials.find(m => m.id === parseInt(materialId));
+    // Handle both old format (color string) and new format (colors array)
+    let colors = [];
+    if (material?.colors && Array.isArray(material.colors)) {
+      colors = material.colors.map(c => typeof c === 'object' ? c.name : c);
+    } else if (material?.color) {
+      colors = [material.color];
+    }
+    setSelectedMaterialColors(colors);
+    setNewOrder({
+      ...newOrder,
+      material: materialId,
+      selected_color: colors.length > 0 ? colors[0] : ''
+    });
+  };
+
   const handleCreateOrder = async (e) => {
     e.preventDefault();
+
+    // Build order data - color is optional in frontend
+    const orderData = {
+      customer_name: newOrder.customer_name,
+      customer_phone: newOrder.customer_phone,
+      suit_type: parseInt(newOrder.suit_type),
+      material: parseInt(newOrder.material),
+      quantity: newOrder.quantity || 1,
+      measurements: {
+        height: parseFloat(newOrder.measurements.height) || 0,
+        chest: parseFloat(newOrder.measurements.chest) || 0,
+        shoulder: parseFloat(newOrder.measurements.shoulder) || 0,
+        waist: parseFloat(newOrder.measurements.waist) || 0,
+        hips: parseFloat(newOrder.measurements.hips) || 0,
+        arm_length: parseFloat(newOrder.measurements.arm_length) || 0,
+      }
+    };
+
+    // Add selected_color only if it has a value
+    if (newOrder.selected_color && newOrder.selected_color.trim()) {
+      orderData.selected_color = newOrder.selected_color;
+    }
+
     try {
-      const response = await api.post('/orders/', {
-        ...newOrder,
-        suit_type: parseInt(newOrder.suit_type),
-        material: parseInt(newOrder.material),
-        measurements: {
-          height: parseFloat(newOrder.measurements.height) || 0,
-          chest: parseFloat(newOrder.measurements.chest) || 0,
-          shoulder: parseFloat(newOrder.measurements.shoulder) || 0,
-          waist: parseFloat(newOrder.measurements.waist) || 0,
-          hips: parseFloat(newOrder.measurements.hips) || 0,
-          arm_length: parseFloat(newOrder.measurements.arm_length) || 0,
-        }
-      });
+      const response = await createOrder(orderData);
       setCreatedOrder(response.data);
       setNewOrder({
-        customer_name: '', customer_phone: '', suit_type: '', material: '', quantity: 1,
+        customer_name: '', customer_phone: '', suit_type: '', material: '', selected_color: '', quantity: 1,
         measurements: { height: '', chest: '', shoulder: '', waist: '', hips: '', arm_length: '' }
       });
       fetchOrders();
     } catch (error) {
       console.error('Error creating order:', error);
-      alert('Something went wrong. Please try again or contact support.');
+      // Show detailed error message
+      const errorData = error.response?.data;
+      let errorMsg = 'Something went wrong. Please try again.';
+
+      if (errorData) {
+        if (typeof errorData === 'string') {
+          errorMsg = errorData;
+        } else if (typeof errorData === 'object') {
+          errorMsg = Object.entries(errorData).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`).join('\n');
+        }
+      }
+      alert(errorMsg);
     }
   };
 
   const handleProcessOrder = async (action, data = {}) => {
     if (!selectedOrder) return;
     try {
-      await api.post(`/orders/${selectedOrder.id}/process`, { action, ...data });
+      await processOrder(selectedOrder.id, { action, ...data });
       setSelectedOrder(null);
       setShowReceiveModal(false);
       setReceiveData({ total_price: '', expected_price: '', due_date: '' });
@@ -162,7 +215,24 @@ const Orders = () => {
               <div
                 key={order.id}
                 className="p-6 flex flex-col md:flex-row items-center justify-between gap-6 hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors cursor-pointer"
-                onClick={() => setSelectedOrder(order)}
+                onClick={async () => {
+                  setSelectedOrder(order);
+                  // Fetch material details for display
+                  if (order.material) {
+                    try {
+                      const matRes = await getMaterialDetail(order.material);
+                      const mat = matRes.data;
+                      setSelectedOrder(prev => ({
+                        ...prev,
+                        material_image: mat.image_url,
+                        material_colors: mat.colors || [],
+                        material_hex: mat.colors?.[0] ? getHexColor(mat.colors[0].name) : null
+                      }));
+                    } catch (err) {
+                      console.error('Failed to fetch material details:', err);
+                    }
+                  }
+                }}
               >
                 <div className="flex items-center gap-6">
                   <div className="h-16 w-16 bg-red-600/10 rounded-xl flex items-center justify-center">
@@ -174,6 +244,12 @@ const Orders = () => {
                       {order.customer_name} • {order.suit_type_name}
                     </p>
                     <p className="text-[10px] text-gray-500 mt-1">{order.customer_phone}</p>
+                    {/* Show color if available */}
+                    {(order.selected_color_name || order.selected_color) && (
+                      <p className="text-[10px] text-gray-500 mt-1">
+                        Color: <span className="font-bold">{order.selected_color_name || order.selected_color}</span>
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
@@ -226,6 +302,59 @@ const Orders = () => {
                   <p className="text-[9px] font-black text-zinc-400 uppercase">Material</p>
                   <p className="text-sm font-bold dark:text-white">{selectedOrder.material_name}</p>
                 </div>
+                {/* Selected Color */}
+                {selectedOrder.selected_color_name && (
+                  <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4">
+                    <p className="text-[9px] font-black text-zinc-400 uppercase">Selected Color</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div 
+                        className="w-5 h-5 rounded-full border border-gray-300" 
+                        style={{ backgroundColor: getHexColor(selectedOrder.selected_color_name) }}
+                      />
+                      <p className="text-sm font-bold dark:text-white">{selectedOrder.selected_color_name}</p>
+                    </div>
+                  </div>
+                )}
+                {/* Material Image - if available */}
+                {(selectedOrder.material_image || selectedOrder.material_colors?.length > 0) && (
+                  <div className="col-span-2">
+                    <p className="text-[9px] font-black text-zinc-400 uppercase mb-2">Material & Color</p>
+                    {selectedOrder.material_image ? (
+                      <div className="relative">
+                        <img
+                          src={selectedOrder.material_image}
+                          alt={selectedOrder.material_name}
+                          className="w-full h-32 object-cover rounded-xl"
+                        />
+                        <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 rounded-lg">
+                          <p className="text-xs font-bold text-white">{selectedOrder.material_name}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-full h-20 bg-gradient-to-r from-zinc-200 to-zinc-300 dark:from-zinc-800 dark:to-zinc-700 rounded-xl flex items-center justify-center">
+                        <p className="text-sm font-bold text-zinc-500 dark:text-zinc-400">
+                          {selectedOrder.material_name}
+                        </p>
+                      </div>
+                    )}
+                    {selectedOrder.material_colors?.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-[10px] text-gray-400 mb-1">Available Colors:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedOrder.material_colors.map((color, idx) => (
+                            <div key={idx} className="flex items-center gap-1 px-2 py-1 bg-white dark:bg-zinc-800 rounded-lg border border-gray-200 dark:border-zinc-700">
+                              <div 
+                                className="w-4 h-4 rounded-full border border-gray-300" 
+                                style={{ backgroundColor: getHexColor(color.name) }}
+                              />
+                              <span className="text-[9px] text-gray-600 dark:text-gray-300">{color.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4">
                   <p className="text-[9px] font-black text-zinc-400 uppercase">Total Price (ETB)</p>
                   <p className="text-sm font-bold dark:text-white">{selectedOrder.total_price}</p>
@@ -387,14 +516,37 @@ const Orders = () => {
                     <label className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Material *</label>
                     <select
                       value={newOrder.material}
-                      onChange={(e) => setNewOrder({ ...newOrder, material: e.target.value })}
+                      onChange={(e) => {
+                        const material = materials.find(m => m.id === parseInt(e.target.value));
+                        const colors = material?.colors || [];
+                        setSelectedMaterialColors(colors);
+                        setNewOrder({
+                          ...newOrder,
+                          material: e.target.value,
+                          selected_color: colors.length > 0 ? colors[0].name : ''
+                        });
+                      }}
                       className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 dark:text-white cursor-pointer"
                       required
                     >
                       <option value="">Select Material</option>
-                      {materials.map(m => <option key={m.id} value={m.id}>{m.name} ({m.color})</option>)}
+                      {materials.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                     </select>
                   </div>
+                  {selectedMaterialColors.length > 0 && (
+                    <div>
+                      <label className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Color *</label>
+                      <select
+                        value={newOrder.selected_color}
+                        onChange={(e) => setNewOrder({ ...newOrder, selected_color: e.target.value })}
+                        className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 dark:text-white cursor-pointer"
+                        required
+                      >
+                        <option value="">Select Color</option>
+                        {selectedMaterialColors.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      </select>
+                    </div>
+                  )}
                   <div>
                     <label className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Quantity</label>
                     <input

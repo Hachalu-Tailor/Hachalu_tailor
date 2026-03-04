@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  HiOutlineUserPlus, HiOutlineTrash, HiOutlineEnvelope, 
-  HiOutlinePhone, HiOutlineShieldCheck, HiOutlineXMark, 
+import {
+  HiOutlineUserPlus, HiOutlineTrash, HiOutlineEnvelope,
+  HiOutlinePhone, HiOutlineShieldCheck, HiOutlineXMark,
   HiOutlineClipboardDocumentCheck, HiOutlineMagnifyingGlass,
   HiOutlineIdentification, HiOutlineEllipsisVertical,
   HiOutlineEnvelopeOpen, HiOutlineChatBubbleBottomCenterText,
   HiOutlineBriefcase, HiOutlineFingerPrint, HiOutlineCalendarDays, HiOutlineChevronDown,
   HiOutlineSignal
 } from 'react-icons/hi2';
-import { listStaff, addStaff, deleteStaff } from '../../api/api'; 
+import { listStaff, addStaff, deleteStaff } from '../../api/api';
 
 const StaffManagement = () => {
   const [staff, setStaff] = useState([]);
@@ -18,7 +18,7 @@ const StaffManagement = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [createdUser, setCreatedUser] = useState(null);
-  
+
   const [formData, setFormData] = useState({
     email: '',
     full_name: '',
@@ -32,7 +32,12 @@ const StaffManagement = () => {
     setLoading(true);
     try {
       const res = await listStaff();
-      setStaff(res.data);
+      // Handle both array and paginated responses
+      let staffData = res.data;
+      if (staffData && typeof staffData === 'object' && !Array.isArray(staffData)) {
+        staffData = staffData.results || staffData.data || staffData.items || [];
+      }
+      setStaff(staffData || []);
     } catch (err) {
       console.error("Failed to load staff");
     } finally {
@@ -43,26 +48,73 @@ const StaffManagement = () => {
   const handleCreate = async (e) => {
     e.preventDefault();
     setLoading(true);
+
+    // Validate form data first
+    if (!formData.email || !formData.full_name || !formData.phone_number) {
+      alert("Please fill in all required fields.");
+      setLoading(false);
+      return;
+    }
+
+    // Check if email already exists in staff list
+    const emailExists = staff.some(s => s.email.toLowerCase() === formData.email.toLowerCase());
+    if (emailExists) {
+      alert("A staff member with this email already exists. Please use a different email.");
+      setLoading(false);
+      return;
+    }
+
+    // Check if phone number already exists in staff list
+    const phoneExists = staff.some(s => s.phone_number === formData.phone_number);
+    if (phoneExists) {
+      alert("A staff member with this phone number already exists. Please use a different phone number.");
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await addStaff(formData);
       setCreatedUser({ ...res.data, email: formData.email });
       setFormData({ email: '', full_name: '', phone_number: '', role: 'RECEPTIONIST' });
       loadStaff();
     } catch (err) {
-      alert("Creation failed. Ensure email is unique.");
+      // Show more specific error message based on the error response
+      const errorData = err.response?.data;
+      let errorMsg = "Creation failed. Please try again.";
+
+      if (errorData) {
+        if (errorData.error) {
+          errorMsg = errorData.error;
+        } else if (typeof errorData === 'string') {
+          errorMsg = errorData;
+        } else if (typeof errorData === 'object') {
+          // Check for specific field errors
+          if (errorData.email) {
+            errorMsg = `Email error: ${Array.isArray(errorData.email) ? errorData.email.join(', ') : errorData.email}`;
+          } else if (errorData.phone_number) {
+            errorMsg = `Phone error: ${Array.isArray(errorData.phone_number) ? errorData.phone_number.join(', ') : errorData.phone_number}`;
+          } else {
+            // Format all field errors
+            errorMsg = Object.entries(errorData).map(([key, value]) =>
+              `${key}: ${Array.isArray(value) ? value.join(', ') : value}`
+            ).join('\n');
+          }
+        }
+      }
+      alert(errorMsg);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredStaff = staff.filter(s => 
-    s.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filteredStaff = staff.filter(s =>
+    s.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#050505] p-4 md:p-8 lg:p-12 transition-colors duration-500">
-      
+
       {/* --- HUD HEADER --- */}
       <div className="max-w-7xl mx-auto mb-10">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-white dark:bg-[#0a0a0a] p-8 rounded-[3rem] border border-gray-100 dark:border-white/5 shadow-2xl shadow-black/5">
@@ -78,15 +130,15 @@ const StaffManagement = () => {
           <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
             <div className="relative flex-1 lg:min-w-[350px]">
               <HiOutlineMagnifyingGlass className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input 
-                type="text" 
-                placeholder="SEARCH STAFF IDENTITY..." 
+              <input
+                type="text"
+                placeholder="SEARCH STAFF IDENTITY..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-gray-100 dark:bg-white/5 border border-transparent focus:border-red-600/30 rounded-2xl py-4 pl-14 pr-6 text-[10px] font-black uppercase tracking-widest outline-none transition-all dark:text-white" 
+                className="w-full bg-gray-100 dark:bg-white/5 border border-transparent focus:border-red-600/30 rounded-2xl py-4 pl-14 pr-6 text-[10px] font-black uppercase tracking-widest outline-none transition-all dark:text-white"
               />
             </div>
-            <button 
+            <button
               onClick={() => { setCreatedUser(null); setShowAddModal(true); }}
               className="bg-red-600 text-white px-8 py-4 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] hover:bg-black transition-all shadow-xl shadow-red-600/30 flex items-center gap-3"
             >
@@ -109,7 +161,7 @@ const StaffManagement = () => {
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-white/5">
               {filteredStaff.map((person) => (
-                <tr 
+                <tr
                   key={person.id}
                   onClick={() => setSelectedStaff(person)}
                   className="group cursor-pointer hover:bg-red-600/5 transition-all"
@@ -126,11 +178,10 @@ const StaffManagement = () => {
                     </div>
                   </td>
                   <td className="px-10 py-6 hidden md:table-cell">
-                    <span className={`px-4 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest ${
-                      person.role === 'ADMIN' ? 'bg-red-600/10 text-red-600' : 
-                      person.role === 'GARMENT' ? 'bg-blue-600/10 text-blue-600' : 
-                      'bg-gray-100 dark:bg-white/5 text-gray-400'
-                    }`}>
+                    <span className={`px-4 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest ${person.role === 'ADMIN' ? 'bg-red-600/10 text-red-600' :
+                      person.role === 'GARMENT' ? 'bg-blue-600/10 text-blue-600' :
+                        'bg-gray-100 dark:bg-white/5 text-gray-400'
+                      }`}>
                       {person.role}
                     </span>
                   </td>
@@ -150,15 +201,15 @@ const StaffManagement = () => {
       <AnimatePresence>
         {selectedStaff && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 md:p-8">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setSelectedStaff(null)}
               className="absolute inset-0 bg-black/80 backdrop-blur-md"
             />
-            
-            <motion.div 
-              initial={{ scale: 0.9, y: 40, opacity: 0 }} 
-              animate={{ scale: 1, y: 0, opacity: 1 }} 
+
+            <motion.div
+              initial={{ scale: 0.9, y: 40, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.9, y: 40, opacity: 0 }}
               className="relative w-full max-w-2xl bg-white dark:bg-[#0c0c0c] rounded-[4rem] shadow-[0_0_80px_rgba(0,0,0,0.5)] overflow-hidden border dark:border-white/10"
             >
@@ -187,9 +238,9 @@ const StaffManagement = () => {
                   <button className="flex-1 py-5 bg-black dark:bg-white text-white dark:text-black rounded-3xl text-[11px] font-black uppercase tracking-widest hover:bg-red-600 dark:hover:bg-red-600 dark:hover:text-white transition-all flex items-center justify-center gap-3">
                     <HiOutlineChatBubbleBottomCenterText size={20} /> Establish Comms
                   </button>
-                  <button 
+                  <button
                     onClick={() => {
-                      if(window.confirm(`REVOKE ALL ACCESS FOR ${selectedStaff.full_name}?`)) {
+                      if (window.confirm(`REVOKE ALL ACCESS FOR ${selectedStaff.full_name}?`)) {
                         deleteStaff(selectedStaff.id).then(() => {
                           setSelectedStaff(null);
                           loadStaff();
@@ -211,49 +262,49 @@ const StaffManagement = () => {
       <AnimatePresence>
         {showAddModal && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-             {/* Backdrop & Content for Add Modal - Keeping your logic here */}
-             <motion.div 
+            {/* Backdrop & Content for Add Modal - Keeping your logic here */}
+            <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => { if (!loading) setShowAddModal(false); }}
               className="absolute inset-0 bg-black/95 backdrop-blur-xl"
             />
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
               className="relative w-full max-w-xl bg-white dark:bg-[#080808] rounded-[4rem] p-10 md:p-14 border dark:border-white/10"
             >
-               {!createdUser ? (
+              {!createdUser ? (
                 <form onSubmit={handleCreate} className="space-y-8">
                   <div className="text-center md:text-left">
                     <h2 className="text-3xl font-black dark:text-white uppercase italic tracking-tighter">Authorize <span className="text-red-600">Personnel</span></h2>
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2">Generate new security credentials</p>
                   </div>
                   <div className="space-y-5">
-                    <Input label="Full Identity" type="text" placeholder="RECEP NAME" value={formData.full_name} onChange={(v) => setFormData({...formData, full_name: v})} />
-                    <Input label="System Node Email" type="email" placeholder="STAFF@SYSTEM.COM" value={formData.email} onChange={(v) => setFormData({...formData, email: v})} />
-                    <Input label="Terminal Phone" type="text" placeholder="+251..." value={formData.phone_number} onChange={(v) => setFormData({...formData, phone_number: v})} />
+                    <Input label="Full Identity" type="text" placeholder="RECEP NAME" value={formData.full_name} onChange={(v) => setFormData({ ...formData, full_name: v })} />
+                    <Input label="System Node Email" type="email" placeholder="STAFF@SYSTEM.COM" value={formData.email} onChange={(v) => setFormData({ ...formData, email: v })} />
+                    <Input label="Terminal Phone" type="text" placeholder="+251..." value={formData.phone_number} onChange={(v) => setFormData({ ...formData, phone_number: v })} />
                     {/* Select button from admin or receptionist */}
-                  {/* --- ROLE DROP SELECT --- */}
-                      <div className="space-y-2">
-                        <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-1">Access Level</label>
-                        <div className="relative">
-                          <select 
-                            value={formData.role} 
-                            onChange={(e) => setFormData({...formData, role: e.target.value})}
-                            className="w-full bg-gray-100 dark:bg-white/5 border-none p-5 rounded-none text-xs font-bold tracking-widest outline-none appearance-none cursor-pointer focus:ring-1 focus:ring-[#BA181B] uppercase"
-                          >
-                            <option value="RECEPTIONIST">Receptionist (Standard)</option>
-                            <option value="GARMENT">Garment (Tailor)</option>
-                            <option value="ADMIN">Admin (Root Access)</option>
-                          </select>
-                          <HiOutlineChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-[#BA181B]" size={18} />
-                        </div>
+                    {/* --- ROLE DROP SELECT --- */}
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-1">Access Level</label>
+                      <div className="relative">
+                        <select
+                          value={formData.role}
+                          onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                          className="w-full bg-gray-100 dark:bg-white/5 border-none p-5 rounded-none text-xs font-bold tracking-widest outline-none appearance-none cursor-pointer focus:ring-1 focus:ring-[#BA181B] uppercase"
+                        >
+                          <option value="RECEPTIONIST">Receptionist (Standard)</option>
+                          <option value="GARMENT">Garment (Tailor)</option>
+                          <option value="ADMIN">Admin (Root Access)</option>
+                        </select>
+                        <HiOutlineChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-[#BA181B]" size={18} />
                       </div>
+                    </div>
                   </div>
                   <button disabled={loading} className="w-full py-6 bg-red-600 text-white rounded-3xl text-[12px] font-black uppercase tracking-[0.3em] shadow-xl hover:bg-black transition-all">
                     {loading ? 'SYNCING...' : 'INITIATE AUTHORIZATION'}
                   </button>
                 </form>
-               ) : (
+              ) : (
                 <div className="text-center py-6">
                   <div className="w-20 h-20 bg-green-500/10 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6"><HiOutlineShieldCheck size={40} /></div>
                   <h3 className="text-2xl font-black dark:text-white uppercase tracking-tighter italic mb-8">{createdUser.message}</h3>
@@ -263,7 +314,7 @@ const StaffManagement = () => {
                   </div>
                   <button onClick={() => { setShowAddModal(false); setCreatedUser(null); }} className="w-full py-5 bg-black dark:bg-white text-white dark:text-black rounded-3xl text-[11px] font-black uppercase tracking-widest">CLOSE TERMINAL</button>
                 </div>
-               )}
+              )}
             </motion.div>
           </div>
         )}
@@ -289,7 +340,7 @@ const DetailCard = ({ icon, label, value }) => (
 const Input = ({ label, type, placeholder, value, onChange }) => (
   <div className="space-y-2">
     <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">{label}</label>
-    <input 
+    <input
       required type={type} placeholder={placeholder} value={value}
       onChange={(e) => onChange(e.target.value)}
       className="w-full bg-gray-50 dark:bg-black border border-transparent focus:border-red-600 p-5 rounded-2xl text-[11px] font-bold tracking-widest outline-none dark:text-white transition-all"

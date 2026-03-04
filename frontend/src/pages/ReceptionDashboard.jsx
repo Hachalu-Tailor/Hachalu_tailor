@@ -9,13 +9,13 @@ import {
   HiOutlineClipboardDocumentList, HiOutlineBell,
   HiOutlineArrowPath, HiOutlineTruck
 } from 'react-icons/hi2';
-import api from '../api/api';
+import api, { getOrders, getMaterials, getPayments } from '../api/api';
 import { useAuth } from '../hooks/useAuth';
 import { formatCurrency, formatDate, formatRelativeTime } from '../utils/helpers';
-import { 
-  ORDER_STATUS_LABELS, 
+import {
+  ORDER_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
-  CURRENCY 
+  CURRENCY
 } from '../utils/constants';
 
 const ReceptionDashboard = () => {
@@ -34,17 +34,26 @@ const ReceptionDashboard = () => {
     return () => clearInterval(interval);
   }, [timeRange]);
 
+  // Helper function to handle pagination
+  const handlePaginatedResponse = (response) => {
+    let data = response.data;
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      data = data.results || data.data || data.items || [];
+    }
+    return data || [];
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
       const [ordersRes, materialsRes, paymentsRes] = await Promise.all([
-        api.get('/orders/list/', { params: { active_only: true } }),
-        api.get('/inventory/materials/'),
-        api.get('/payments/list/').catch(() => ({ data: [] }))
+        getOrders({ active_only: true }),
+        getMaterials(),
+        getPayments().catch(() => ({ data: [] }))
       ]);
-      setOrders(ordersRes.data || []);
-      setMaterials(materialsRes.data || []);
-      setPayments(paymentsRes.data?.results || paymentsRes.data || []);
+      setOrders(handlePaginatedResponse(ordersRes));
+      setMaterials(handlePaginatedResponse(materialsRes));
+      setPayments(handlePaginatedResponse(paymentsRes));
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -54,19 +63,19 @@ const ReceptionDashboard = () => {
 
   // Calculate order statistics
   const getOrderStats = () => {
-    const pending = orders.filter(o => 
+    const pending = orders.filter(o =>
       ['INITIATED', 'AWAITING_PAYMENT', 'PENDING_APPROVAL', 'pending'].includes(o.status)
     );
-    const inProgress = orders.filter(o => 
+    const inProgress = orders.filter(o =>
       ['IN_PROGRESS', 'processing'].includes(o.status)
     );
-    const readyForPickup = orders.filter(o => 
+    const readyForPickup = orders.filter(o =>
       ['READY_FOR_PICKUP', 'ready_for_pickup'].includes(o.status)
     );
-    const completed = orders.filter(o => 
+    const completed = orders.filter(o =>
       ['COMPLETED', 'completed'].includes(o.status)
     );
-    const expired = orders.filter(o => 
+    const expired = orders.filter(o =>
       ['EXPIRED', 'expired'].includes(o.status)
     );
 
@@ -84,10 +93,10 @@ const ReceptionDashboard = () => {
   const getRevenueStats = () => {
     const today = new Date();
     const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-    
+
     const todayOrders = orders.filter(o => new Date(o.created_at) >= startOfDay);
     const todayRevenue = todayOrders.reduce((sum, o) => sum + parseFloat(o.total_price || 0), 0);
-    
+
     const totalRevenue = orders.reduce((sum, o) => sum + parseFloat(o.total_price || 0), 0);
     const pendingPayments = payments.filter(p => p.status === 'pending');
     const pendingAmount = pendingPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
@@ -132,7 +141,7 @@ const ReceptionDashboard = () => {
       const startOfDay = new Date(today.setHours(0, 0, 0, 0));
       return new Date(o.created_at) >= startOfDay;
     });
-    
+
     return {
       total: uniqueClients.size,
       newToday: new Set(newClientsToday.map(o => o.customer_phone)).size
@@ -146,38 +155,38 @@ const ReceptionDashboard = () => {
 
   // Main stats cards
   const mainStats = [
-    { 
-      label: 'Pending Orders', 
-      value: orderStats.pending, 
-      icon: HiOutlineClock, 
-      color: 'text-orange-500', 
+    {
+      label: 'Pending Orders',
+      value: orderStats.pending,
+      icon: HiOutlineClock,
+      color: 'text-orange-500',
       bg: 'bg-orange-500/10',
       trend: orderStats.pending > 5 ? 'up' : 'down',
       description: 'Awaiting action'
     },
-    { 
-      label: 'In Progress', 
-      value: orderStats.inProgress, 
-      icon: HiOutlineArrowPath, 
-      color: 'text-blue-500', 
+    {
+      label: 'In Progress',
+      value: orderStats.inProgress,
+      icon: HiOutlineArrowPath,
+      color: 'text-blue-500',
       bg: 'bg-blue-500/10',
       trend: 'neutral',
       description: 'Being processed'
     },
-    { 
-      label: 'Ready for Pickup', 
-      value: orderStats.readyForPickup, 
-      icon: HiOutlineCheckCircle, 
-      color: 'text-green-500', 
+    {
+      label: 'Ready for Pickup',
+      value: orderStats.readyForPickup,
+      icon: HiOutlineCheckCircle,
+      color: 'text-green-500',
       bg: 'bg-green-500/10',
       trend: 'neutral',
       description: 'Completed orders'
     },
-    { 
-      label: 'Low Stock Items', 
-      value: inventoryStats.lowStock + inventoryStats.outOfStock, 
-      icon: HiOutlineExclamationTriangle, 
-      color: 'text-red-500', 
+    {
+      label: 'Low Stock Items',
+      value: inventoryStats.lowStock + inventoryStats.outOfStock,
+      icon: HiOutlineExclamationTriangle,
+      color: 'text-red-500',
       bg: 'bg-red-500/10',
       trend: inventoryStats.outOfStock > 0 ? 'up' : 'down',
       description: 'Needs attention'
@@ -267,17 +276,16 @@ const ReceptionDashboard = () => {
               <button
                 key={range}
                 onClick={() => setTimeRange(range)}
-                className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all ${
-                  timeRange === range
+                className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all ${timeRange === range
                     ? 'bg-red-600 text-white'
                     : 'text-gray-400 hover:text-white'
-                }`}
+                  }`}
               >
                 {range}
               </button>
             ))}
           </div>
-          
+
           <button
             onClick={() => navigate('/reception/orders')}
             className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
@@ -431,20 +439,18 @@ const ReceptionDashboard = () => {
                 const quantity = material.inventory?.quantity_meters || 0;
                 const isLow = parseFloat(quantity) < 5 && parseFloat(quantity) > 0;
                 const isOut = parseFloat(quantity) === 0;
-                
+
                 return (
                   <div
                     key={material.id}
-                    className={`flex items-center gap-3 p-3 rounded-xl transition-colors cursor-pointer ${
-                      isOut ? 'bg-red-500/10 border border-red-500/20' :
-                      isLow ? 'bg-yellow-500/10 border border-yellow-500/20' :
-                      'bg-gray-50 dark:bg-white/5'
-                    }`}
+                    className={`flex items-center gap-3 p-3 rounded-xl transition-colors cursor-pointer ${isOut ? 'bg-red-500/10 border border-red-500/20' :
+                        isLow ? 'bg-yellow-500/10 border border-yellow-500/20' :
+                          'bg-gray-50 dark:bg-white/5'
+                      }`}
                     onClick={() => navigate('/reception/inventory')}
                   >
-                    <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${
-                      isOut ? 'bg-red-500/20' : isLow ? 'bg-yellow-500/20' : 'bg-gray-200 dark:bg-white/10'
-                    }`}>
+                    <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${isOut ? 'bg-red-500/20' : isLow ? 'bg-yellow-500/20' : 'bg-gray-200 dark:bg-white/10'
+                      }`}>
                       <HiOutlineCube className={isOut ? 'text-red-500' : isLow ? 'text-yellow-500' : 'text-gray-500'} size={18} />
                     </div>
                     <div className="flex-1 min-w-0">

@@ -46,7 +46,7 @@ export const clearTokens = () => {
   localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
   localStorage.removeItem(STORAGE_KEYS.USER_DATA);
 };
-  
+
 /**
  * REQUEST INTERCEPTOR
  * We use a "fresh" get from localStorage every time to avoid stale tokens.
@@ -149,13 +149,23 @@ export const markNotificationRead = (id) => api.patch(`/accounts/user/notificati
 
 export const markAllNotificationsRead = () => api.post('/accounts/user/notifications/mark-all-read/');
 
+// Mark notification read endpoint doesn't exist in backend - create a helper to update locally
+export const getNotificationsSummary = (notifications) => {
+  const unread = notifications.filter(n => !n.read).length;
+  return {
+    total: notifications.length,
+    unread,
+    read: notifications.length - unread
+  };
+};
+
 // ============================================
 // INVENTORY ENDPOINTS
 // ============================================
 
-export const getMaterials = (params) => api.get('/invetory/materials/', { params });
+export const getMaterials = (params) => api.get('/invetory/materials/list/', { params });
 
-export const createMaterial = (data) => api.post('/invetory/materials/', data);
+export const createMaterial = (data) => api.post('/invetory/materials/create/', data);
 
 export const getMaterialDetail = (id) => api.get(`/invetory/materials/${id}/`);
 
@@ -164,6 +174,21 @@ export const updateMaterial = (id, data) => api.patch(`/invetory/materials/${id}
 export const deleteMaterial = (id) => api.delete(`/invetory/materials/${id}/`);
 
 export const adjustStock = (id, data) => api.post(`/invetory/materials/${id}/stock/`, data);
+
+export const getColorsFromMaterials = (materials) => {
+  // Extract unique colors from materials list
+  const colorsMap = new Map();
+  materials.forEach(material => {
+    if (material.colors && Array.isArray(material.colors)) {
+      material.colors.forEach(color => {
+        if (color.id && color.name && !colorsMap.has(color.id)) {
+          colorsMap.set(color.id, color.name);
+        }
+      });
+    }
+  });
+  return Array.from(colorsMap.entries()).map(([id, name]) => ({ id, name }));
+};
 
 // ============================================
 // ORDERS ENDPOINTS
@@ -189,9 +214,9 @@ export const getOrderByCode = (code) => api.get(`/orders/code/${code}/`);
 // SUIT TYPES ENDPOINTS
 // ============================================
 
-export const getSuitTypes = (params) => api.get('/orders/suit-types/', { params });
+export const getSuitTypes = (params) => api.get('/suit-types/', { params });
 
-export const createSuitType = (data) => api.post('/orders/suit-types/create/', data);
+export const createSuitType = (data) => api.post('/suit-types/create/', data);
 
 // ============================================
 // PAYMENTS ENDPOINTS
@@ -202,6 +227,20 @@ export const getPayments = (params) => api.get('/payments/list/', { params });
 export const createPayment = (data) => api.post('/payments/', data);
 
 export const verifyPayment = (id, data) => api.post(`/payments/${id}/verify/`, data);
+
+// ============================================
+// GARMENT ENDPOINTS
+// ============================================
+
+export const getGarmentOrdersInProgress = (params) => api.get('/garment/orders/in-progress/', { params });
+
+export const getGarmentInProgressDetail = (code) => api.get(`/garment/orders/in-progress/detail/?code=${code}`);
+
+export const getGarmentShippedOrders = (params) => api.get('/garment/orders/shipped/', { params });
+
+export const getGarmentShippedDetail = (code) => api.get(`/garment/orders/shipped/detail/?code=${code}`);
+
+export const processGarmentOrder = (code, data) => api.post(`/garment/orders/${code}/process/`, data);
 
 // ============================================
 // UTILITY FUNCTIONS

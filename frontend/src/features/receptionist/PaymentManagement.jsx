@@ -11,7 +11,7 @@ import {
     HiOutlineCheck,
     HiOutlineXMark
 } from 'react-icons/hi2';
-import api from '../../api/api';
+import api, { getPayments, verifyPayment } from '../../api/api';
 import { formatCurrency, formatDate, formatDateTime } from '../../utils/helpers';
 import { CURRENCY } from '../../utils/constants';
 
@@ -37,8 +37,13 @@ const PaymentManagement = () => {
             } else if (filterVerified === 'pending') {
                 params.is_verified = 'false';
             }
-            const response = await api.get('/payments/list/', { params });
-            setPayments(response.data || []);
+            const response = await getPayments(params);
+            // Handle both array and paginated responses
+            let paymentsData = response.data;
+            if (paymentsData && typeof paymentsData === 'object' && !Array.isArray(paymentsData)) {
+                paymentsData = paymentsData.results || paymentsData.data || paymentsData.items || [];
+            }
+            setPayments(paymentsData || []);
         } catch (error) {
             console.error('Error fetching payments:', error);
         } finally {
@@ -49,7 +54,7 @@ const PaymentManagement = () => {
     const handleVerifyPayment = async (paymentId, isVerified) => {
         try {
             setVerifyLoading(true);
-            await api.post(`/payments/${paymentId}/verify/`, {
+            await verifyPayment(paymentId, {
                 is_verified: isVerified
             });
             fetchPayments();

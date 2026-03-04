@@ -13,7 +13,8 @@ import {
     HiOutlineExclamationCircle,
     HiOutlineBell
 } from 'react-icons/hi2';
-import api from '../api/api';
+import api, { getGarmentOrdersInProgress, getGarmentShippedOrders, processGarmentOrder, getNotifications, getMaterialDetail } from '../api/api';
+import { getHexColor } from '../utils/colors';
 
 const GarmentDashboard = () => {
     const [orders, setOrders] = useState([]);
@@ -27,11 +28,11 @@ const GarmentDashboard = () => {
     useEffect(() => {
         loadOrders();
         loadNotifications();
-    }, []);
+    }, [activeTab]);
 
     const loadNotifications = async () => {
         try {
-            const response = await api.get('/accounts/user/notifications/', { params: { limit: 10 } });
+            const response = await getNotifications({ limit: 10 });
             setNotifications(response.data?.results || []);
         } catch (error) {
             console.error('Error loading notifications:', error);
@@ -41,25 +42,47 @@ const GarmentDashboard = () => {
     const loadOrders = async () => {
         setLoading(true);
         try {
-            const response = await api.get('/orders/list/', { params: { active_only: true } });
-            setOrders(response.data || []);
+            let response;
+            if (activeTab === 'in_progress' || activeTab === 'pending') {
+                response = await getGarmentOrdersInProgress();
+            } else if (activeTab === 'completed' || activeTab === 'shipped') {
+                response = await getGarmentShippedOrders();
+            } else {
+                // For 'all' tab, get both in-progress and shipped
+                const [inProgressResponse, shippedResponse] = await Promise.all([
+                    getGarmentOrdersInProgress(),
+                    getGarmentShippedOrders()
+                ]);
+                // Handle both array and paginated responses
+                let inProgressData = inProgressResponse.data;
+                let shippedData = shippedResponse.data;
+                if (inProgressData && typeof inProgressData === 'object' && !Array.isArray(inProgressData)) {
+                    inProgressData = inProgressData.results || inProgressData.data || inProgressData.items || [];
+                }
+                if (shippedData && typeof shippedData === 'object' && !Array.isArray(shippedData)) {
+                    shippedData = shippedData.results || shippedData.data || shippedData.items || [];
+                }
+                setOrders([...(inProgressData || []), ...(shippedData || [])]);
+                setLoading(false);
+                return;
+            }
+
+            // Handle both array and paginated responses
+            let ordersData = response?.data;
+            if (ordersData && typeof ordersData === 'object' && !Array.isArray(ordersData)) {
+                ordersData = ordersData.results || ordersData.data || ordersData.items || [];
+            }
+            setOrders(ordersData || []);
         } catch (error) {
             console.error('Error loading orders:', error);
-            // Try without params if that fails
-            try {
-                const response = await api.get('/orders/list/');
-                setOrders(response.data || []);
-            } catch (retryError) {
-                console.error('Retry failed:', retryError);
-            }
         } finally {
             setLoading(false);
         }
     };
 
-    const handleCompleteOrder = async (orderId) => {
+    const handleCompleteOrder = async (orderCode) => {
         try {
-            const response = await api.patch(`/orders/${orderId}/`, { status: 'COMPLETED' });
+            const response = await processGarmentOrder(orderCode, { status: 'COMPLETED' });
             if (response.status === 200) {
                 loadOrders();
                 setSelectedOrder(null);
@@ -72,9 +95,10 @@ const GarmentDashboard = () => {
         }
     };
 
-    const handleStartOrder = async (orderId) => {
+    const handleStartOrder = async (orderCode) => {
         try {
-            const response = await api.patch(`/orders/${orderId}/`, { status: 'IN_PROGRESS' });
+            // For garment, starting an order means marking it as IN_PROGRESS
+            const response = await processGarmentOrder(orderCode, { status: 'IN_PROGRESS' });
             if (response.status === 200) {
                 loadOrders();
                 setSelectedOrder(null);
@@ -133,7 +157,7 @@ const GarmentDashboard = () => {
 
                         {/* Notification Bell */}
                         <div className="relative">
-                            <button 
+                            <button
                                 onClick={() => setShowNotifications(!showNotifications)}
                                 className="relative p-3 rounded-2xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
                             >
@@ -144,7 +168,7 @@ const GarmentDashboard = () => {
                                     </span>
                                 )}
                             </button>
-                            
+
                             {/* Notification Dropdown */}
                             <AnimatePresence>
                                 {showNotifications && (
@@ -202,8 +226,8 @@ const GarmentDashboard = () => {
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${activeTab === tab.id
-                                    ? 'bg-red-600 text-white'
-                                    : 'bg-white dark:bg-[#0a0a0a] text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5'
+                                ? 'bg-red-600 text-white'
+                                : 'bg-white dark:bg-[#0a0a0a] text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5'
                                 }`}
                         >
                             {tab.label}
@@ -248,19 +272,47 @@ const GarmentDashboard = () => {
                                 key={order.id}
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="bg-white dark:bg-[#0a0a0a] rounded-3xl border border-gray-100 dark:border-white/5 p-5 shadow-lg hover:shadow-xl transition-all cursor-pointer"
-                                onClick={() => setSelectedOrder(order)}
+                                className="bg-white dark:bg-[#0a0a0a] rounded-3xl border border-gray-100 dark:border-white/5 p-5 shadow-lg hover:shadow-xl transition-all cursor-pointer overflow-hidden"
+                                onClick={async () => {
+                                  setSelectedOrder(order);
+                                  // Fetch material details for display
+                                  if (order.material) {
+                                    try {
+                                      const matRes = await getMaterialDetail(order.material);
+                                      const mat = matRes.data;
+                                      setSelectedOrder(prev => ({
+                                        ...prev,
+                                        material_image: mat.image_url,
+                                        material_colors: mat.colors || []
+                                      }));
+                                    } catch (err) {
+                                      console.error('Failed to fetch material details:', err);
+                                    }
+                                  }
+                                }}
                             >
+                                {/* Material Image */}
+                                {(order.material_image || order.material?.image_url) && (
+                                    <div className="mb-3 -mx-5 -mt-5 relative h-32 overflow-hidden">
+                                        <img
+                                            src={order.material_image || order.material?.image_url}
+                                            alt={order.material_name}
+                                            className="w-full h-full object-cover"
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                                    </div>
+                                )}
+
                                 <div className="flex justify-between items-start mb-3">
                                     <div>
                                         <h3 className="text-lg font-bold dark:text-white">{order.order_code}</h3>
                                         <p className="text-sm text-gray-500">{order.customer_name || 'Unknown Customer'}</p>
                                     </div>
                                     <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${order.status === 'IN_PROGRESS'
-                                            ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-                                            : order.status === 'COMPLETED'
-                                                ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
-                                                : 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                        ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                                        : order.status === 'COMPLETED'
+                                            ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
+                                            : 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400'
                                         }`}>
                                         {order.status?.replace('_', ' ')}
                                     </span>
@@ -274,15 +326,26 @@ const GarmentDashboard = () => {
                                     <div className="flex justify-between items-center">
                                         <span className="text-gray-500">Material:</span>
                                         <div className="flex items-center gap-1">
-                                            {order.material_color && (
+                                            {(order.selected_color_name || order.selected_color || order.material_color) && (
                                                 <span
                                                     className="w-3 h-3 rounded-full border border-gray-400"
-                                                    style={{ backgroundColor: order.material_color }}
+                                                    style={{
+                                                        backgroundColor: order.selected_color_name ?
+                                                            order.selected_color_name.toLowerCase() :
+                                                            (order.selected_color || order.material_color || '#888')
+                                                    }}
                                                 />
                                             )}
                                             <span className="dark:text-white font-medium">{order.material_name || 'N/A'}</span>
                                         </div>
                                     </div>
+                                    {/* Show selected color name if available */}
+                                    {(order.selected_color_name || order.selected_color) && (
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-500">Color:</span>
+                                            <span className="dark:text-white font-medium">{order.selected_color_name || order.selected_color}</span>
+                                        </div>
+                                    )}
                                     <div className="flex justify-between">
                                         <span className="text-gray-500">Qty:</span>
                                         <span className="dark:text-white font-medium">{order.quantity}</span>
@@ -370,10 +433,10 @@ const GarmentDashboard = () => {
                                 <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 rounded-2xl">
                                     <span className="text-gray-500">Status</span>
                                     <span className={`px-4 py-1 rounded-full text-xs font-bold uppercase ${selectedOrder.status === 'IN_PROGRESS'
-                                            ? 'bg-blue-100 text-blue-600'
-                                            : selectedOrder.status === 'COMPLETED'
-                                                ? 'bg-green-100 text-green-600'
-                                                : 'bg-yellow-100 text-yellow-600'
+                                        ? 'bg-blue-100 text-blue-600'
+                                        : selectedOrder.status === 'COMPLETED'
+                                            ? 'bg-green-100 text-green-600'
+                                            : 'bg-yellow-100 text-yellow-600'
                                         }`}>
                                         {selectedOrder.status?.replace('_', ' ')}
                                     </span>
@@ -385,21 +448,47 @@ const GarmentDashboard = () => {
                                         <p className="text-xs text-gray-500 uppercase mb-1">Suit Type</p>
                                         <p className="font-bold dark:text-white">{selectedOrder.suit_type_name || 'N/A'}</p>
                                     </div>
-                                    <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-2xl">
+                                    {/* Material Image - Prominent Display */}
+                                    <div className="col-span-2">
                                         <p className="text-xs text-gray-500 uppercase mb-1">Material</p>
-                                        <p className="font-bold dark:text-white">{selectedOrder.material_name || 'N/A'}</p>
-                                    </div>
-                                    <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-2xl">
-                                        <p className="text-xs text-gray-500 uppercase mb-1">Material Color</p>
-                                        <div className="flex items-center gap-2">
-                                            {selectedOrder.material_color && (
-                                                <span
-                                                    className="w-4 h-4 rounded-full border border-gray-300"
-                                                    style={{ backgroundColor: selectedOrder.material_color }}
+                                        {selectedOrder.material_image ? (
+                                            <div className="relative">
+                                                <img 
+                                                    src={selectedOrder.material_image} 
+                                                    alt={selectedOrder.material_name || 'Material'}
+                                                    className="w-full h-32 object-cover rounded-xl"
                                                 />
-                                            )}
-                                            <span className="font-bold dark:text-white">{selectedOrder.material_color || 'N/A'}</span>
-                                        </div>
+                                                <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 rounded-lg">
+                                                    <p className="text-xs font-bold text-white">{selectedOrder.material_name}</p>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="w-full h-20 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 rounded-xl flex items-center justify-center">
+                                                <p className="font-bold text-gray-500 dark:text-gray-400">
+                                                    {selectedOrder.material_name || 'No Image'}
+                                                </p>
+                                            </div>
+                                        )}
+                                        {/* Color swatches */}
+                                        {selectedOrder.material_colors?.length > 0 && (
+                                            <div className="mt-2">
+                                                <p className="text-[10px] text-gray-400 mb-1">Available Colors:</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {selectedOrder.material_colors.map((color, idx) => (
+                                                        <div 
+                                                            key={idx}
+                                                            className="flex items-center gap-1 px-2 py-1 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+                                                        >
+                                                            <div 
+                                                                className="w-4 h-4 rounded-full border border-gray-300"
+                                                                style={{ backgroundColor: getHexColor(color.name) }}
+                                                            />
+                                                            <span className="text-[9px] text-gray-600 dark:text-gray-300">{color.name}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-2xl">
                                         <p className="text-xs text-gray-500 uppercase mb-1">Quantity</p>

@@ -16,7 +16,7 @@ import {
   HiOutlineTrash,
   HiOutlinePencil
 } from "react-icons/hi2";
-import api from "../../api/api";
+import api, { getMaterials, createMaterial, adjustStock, getColorsFromMaterials } from "../../api/api";
 
 const Inventory = () => {
   const [inventory, setInventory] = useState([]);
@@ -49,8 +49,13 @@ const Inventory = () => {
   const fetchInventory = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/invetory/materials/");
-      setInventory(response.data || []);
+      const response = await getMaterials();
+      // Handle both array and paginated responses
+      let materialsData = response.data;
+      if (materialsData && typeof materialsData === 'object' && !Array.isArray(materialsData)) {
+        materialsData = materialsData.results || materialsData.data || materialsData.items || [];
+      }
+      setInventory(materialsData || []);
     } catch (error) {
       console.error("Error fetching inventory:", error);
     } finally {
@@ -72,7 +77,7 @@ const Inventory = () => {
         },
         quantity_meters: parseFloat(newMaterial.quantity_meters) || 0
       };
-      await api.post("/invetory/materials/", materialData);
+      await createMaterial(materialData);
       setNewMaterial({ name: "", color: "", texture: "", quantity_meters: "", image_url: "", imageFile: null, category: "", description: "" });
       setImagePreview(null);
       setShowAddModal(false);
@@ -86,7 +91,7 @@ const Inventory = () => {
   const handleStockUpdate = async () => {
     if (!selectedItem) return;
     try {
-      await api.post(`/invetory/materials/${selectedItem.id}/stock/`, stockUpdate);
+      await adjustStock(selectedItem.id, stockUpdate);
       setSelectedItem(null);
       fetchInventory();
     } catch (error) {
@@ -96,8 +101,13 @@ const Inventory = () => {
   };
 
   const filteredData = inventory.filter((item) => {
+    // Handle both old format (color string) and new format (colors array)
+    const materialColors = item.colors && Array.isArray(item.colors)
+      ? item.colors.map(c => c.name || c).join(' ').toLowerCase()
+      : (item.color || '').toLowerCase();
+
     const matchSearch = item.name?.toLowerCase().includes(search.toLowerCase()) ||
-      item.color?.toLowerCase().includes(search.toLowerCase()) ||
+      materialColors.includes(search.toLowerCase()) ||
       item.category?.toLowerCase().includes(search.toLowerCase());
     const qty = parseFloat(item.inventory?.quantity_meters || 0);
     const matchStatus =
@@ -418,8 +428,8 @@ const Inventory = () => {
                           >
                             Save
                           </button>
-                          <button 
-                            onClick={() => setEditingField(null)} 
+                          <button
+                            onClick={() => setEditingField(null)}
                             className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 rounded-xl text-[10px] font-black uppercase"
                           >
                             Cancel
@@ -427,7 +437,7 @@ const Inventory = () => {
                         </div>
                       </div>
                     ) : (
-                      <p 
+                      <p
                         className="mt-2 text-sm font-bold text-zinc-700 dark:text-zinc-300"
                       >
                         {selectedItem.category || <span className="text-zinc-400 italic">Not set</span>}
@@ -477,8 +487,8 @@ const Inventory = () => {
                           >
                             Save
                           </button>
-                          <button 
-                            onClick={() => setEditingField(null)} 
+                          <button
+                            onClick={() => setEditingField(null)}
                             className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 rounded-xl text-[10px] font-black uppercase"
                           >
                             Cancel
@@ -486,7 +496,7 @@ const Inventory = () => {
                         </div>
                       </div>
                     ) : (
-                      <p 
+                      <p
                         className="mt-2 text-sm font-medium text-zinc-600 dark:text-zinc-400"
                       >
                         {selectedItem.description || <span className="text-zinc-400 italic">No description provided</span>}

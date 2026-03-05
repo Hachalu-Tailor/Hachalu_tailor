@@ -18,6 +18,7 @@ import {
 } from "react-icons/hi2";
 import api, { getMaterials, createMaterial, adjustStock, getColorsFromMaterials } from "../../api/api";
 import { getHexColor, isLightColor, getAvailableColors } from "../../utils/colors";
+import { STORAGE_KEYS } from "../../utils/constants";
 
 const Inventory = () => {
   const [inventory, setInventory] = useState([]);
@@ -28,7 +29,8 @@ const Inventory = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newMaterial, setNewMaterial] = useState({
     name: "",
-    color: "",
+    colors: [], // Array of color names
+    colorInput: "", // For input field
     texture: "",
     quantity_meters: "",
     image_url: "",
@@ -65,29 +67,34 @@ const Inventory = () => {
   };
 
   const handleAddMaterial = async (e) => {
-    e.preventDefault();
-    try {
-      const materialData = {
-        material: {
-          name: newMaterial.name,
-          color: newMaterial.color,
-          texture: newMaterial.texture,
-          image_url: newMaterial.image_url || null,
-          category: newMaterial.category || null,
-          description: newMaterial.description || null
-        },
-        quantity_meters: parseFloat(newMaterial.quantity_meters) || 0
-      };
-      await createMaterial(materialData);
-      setNewMaterial({ name: "", color: "", texture: "", quantity_meters: "", image_url: "", imageFile: null, category: "", description: "" });
-      setImagePreview(null);
-      setShowAddModal(false);
-      fetchInventory();
-    } catch (error) {
-      console.error("Error adding material:", error);
-      alert("Operation failed. Please try again or refresh the page.");
-    }
-  };
+  e.preventDefault();
+  try {
+    // 1. Ensure colors is ONLY an array of strings (e.g., ["Red", "Blue"])
+    const cleanColors = Array.isArray(newMaterial.colors) 
+      ? newMaterial.colors.map(c => typeof c === 'object' ? c.value : c) 
+      : [];
+
+    const materialData = {
+      material: {
+        name: newMaterial.name,
+        colors: cleanColors, // Send the clean array
+        texture: newMaterial.texture,   
+        image_url: newMaterial.image_url || null,
+        category: newMaterial.category || null,
+        description: newMaterial.description || null
+      },
+      quantity_meters: parseFloat(newMaterial.quantity_meters) || 0
+    };
+
+    console.log("POSTING TO BACKEND:", JSON.stringify(materialData, null, 2));
+    await createMaterial(materialData);
+    
+    // Success Logic...
+  } catch (error) {
+    console.error("Backend Error:", error.response?.data);
+    alert(`Error: ${error.response?.data?.error || "Check console"}`);
+  }
+};
 
   const handleStockUpdate = async () => {
     if (!selectedItem) return;
@@ -646,9 +653,8 @@ const Inventory = () => {
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Color *</label>
-                  
-                  {/* Color Picker - Visual Selection */}
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Colors *</label>
+                  {/* Multi-Color Picker */}
                   <div className="mt-2 space-y-2">
                     {/* Predefined Colors Grid */}
                     <div className="grid grid-cols-5 gap-2">
@@ -656,9 +662,13 @@ const Inventory = () => {
                         <button
                           key={color.name}
                           type="button"
-                          onClick={() => setNewMaterial({ ...newMaterial, color: color.name })}
+                          onClick={() => {
+                            if (!newMaterial.colors.includes(color.name)) {
+                              setNewMaterial({ ...newMaterial, colors: [...newMaterial.colors, color.name] });
+                            }
+                          }}
                           className={`w-10 h-10 rounded-xl border-2 transition-all hover:scale-110 ${
-                            newMaterial.color.toLowerCase() === color.name.toLowerCase()
+                            newMaterial.colors.includes(color.name)
                               ? 'border-red-600 ring-2 ring-red-600/30'
                               : 'border-zinc-200 dark:border-zinc-700'
                           }`}
@@ -667,37 +677,50 @@ const Inventory = () => {
                         />
                       ))}
                     </div>
-                    
                     {/* Custom Color Input */}
                     <div className="flex items-center gap-2 mt-2">
                       <input
                         type="color"
-                        value={getHexColor(newMaterial.color) || '#6b7280'}
-                        onChange={(e) => {
-                          // Find closest color name or use custom
-                          setNewMaterial({ ...newMaterial, color: e.target.value });
-                        }}
+                        value={getHexColor(newMaterial.colorInput) || '#6b7280'}
+                        onChange={(e) => setNewMaterial({ ...newMaterial, colorInput: e.target.value })}
                         className="w-10 h-10 rounded-lg cursor-pointer border-2 border-zinc-200 dark:border-zinc-700"
                       />
                       <input
                         type="text"
-                        value={newMaterial.color}
-                        onChange={(e) => setNewMaterial({ ...newMaterial, color: e.target.value })}
+                        value={newMaterial.colorInput}
+                        onChange={(e) => setNewMaterial({ ...newMaterial, colorInput: e.target.value })}
                         placeholder="Or type color name..."
                         className="flex-1 bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20"
                       />
+                      <button
+                        type="button"
+                        className="px-3 py-2 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase"
+                        onClick={() => {
+                          const val = newMaterial.colorInput.trim();
+                          if (val && !newMaterial.colors.includes(val)) {
+                            setNewMaterial({ ...newMaterial, colors: [...newMaterial.colors, val], colorInput: "" });
+                          }
+                        }}
+                      >
+                        Add
+                      </button>
                     </div>
-                    
-                    {/* Selected Color Preview */}
-                    {newMaterial.color && (
-                      <div className="flex items-center gap-2 p-2 bg-zinc-50 dark:bg-zinc-900 rounded-xl">
-                        <div
-                          className="w-6 h-6 rounded-lg border border-zinc-300"
-                          style={{ backgroundColor: getHexColor(newMaterial.color) }}
-                        />
-                        <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400">
-                          Selected: {newMaterial.color}
-                        </span>
+                    {/* Selected Colors List */}
+                    {newMaterial.colors.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {newMaterial.colors.map((color, idx) => (
+                          <span key={idx} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-200 dark:bg-zinc-800 text-xs font-bold">
+                            <span style={{ backgroundColor: getHexColor(color) }} className="w-4 h-4 rounded-full border border-zinc-300 inline-block mr-1" />
+                            {color}
+                            <button
+                              type="button"
+                              className="ml-1 text-red-600 hover:text-red-800"
+                              onClick={() => setNewMaterial({ ...newMaterial, colors: newMaterial.colors.filter((c, i) => i !== idx) })}
+                            >
+                              &times;
+                            </button>
+                          </span>
+                        ))}
                       </div>
                     )}
                   </div>

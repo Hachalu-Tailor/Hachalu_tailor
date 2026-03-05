@@ -16,7 +16,9 @@ import {
   HiOutlineTrash,
   HiOutlinePencil
 } from "react-icons/hi2";
-import api from "../../api/api";
+import api, { getMaterials, createMaterial, adjustStock, getColorsFromMaterials } from "../../api/api";
+import { getHexColor, isLightColor, getAvailableColors } from "../../utils/colors";
+import { STORAGE_KEYS } from "../../utils/constants";
 
 const Inventory = () => {
   const [inventory, setInventory] = useState([]);
@@ -27,7 +29,8 @@ const Inventory = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newMaterial, setNewMaterial] = useState({
     name: "",
-    color: "",
+    colors: [], // Array of color names
+    colorInput: "", // For input field
     texture: "",
     quantity_meters: "",
     image_url: "",
@@ -49,8 +52,13 @@ const Inventory = () => {
   const fetchInventory = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/invetory/materials/");
-      setInventory(response.data || []);
+      const response = await getMaterials();
+      // Handle both array and paginated responses
+      let materialsData = response.data;
+      if (materialsData && typeof materialsData === 'object' && !Array.isArray(materialsData)) {
+        materialsData = materialsData.results || materialsData.data || materialsData.items || [];
+      }
+      setInventory(materialsData || []);
     } catch (error) {
       console.error("Error fetching inventory:", error);
     } finally {
@@ -59,34 +67,50 @@ const Inventory = () => {
   };
 
   const handleAddMaterial = async (e) => {
-    e.preventDefault();
-    try {
-      const materialData = {
-        material: {
-          name: newMaterial.name,
-          color: newMaterial.color,
-          texture: newMaterial.texture,
-          image_url: newMaterial.image_url || null,
-          category: newMaterial.category || null,
-          description: newMaterial.description || null
-        },
-        quantity_meters: parseFloat(newMaterial.quantity_meters) || 0
-      };
-      await api.post("/invetory/materials/", materialData);
-      setNewMaterial({ name: "", color: "", texture: "", quantity_meters: "", image_url: "", imageFile: null, category: "", description: "" });
-      setImagePreview(null);
-      setShowAddModal(false);
-      fetchInventory();
-    } catch (error) {
-      console.error("Error adding material:", error);
-      alert("Operation failed. Please try again or refresh the page.");
-    }
-  };
+  e.preventDefault();
+  try {
+    // 1. Ensure colors is ONLY an array of strings (e.g., ["Red", "Blue"])
+    const cleanColors = Array.isArray(newMaterial.colors) 
+      ? newMaterial.colors.map(c => typeof c === 'object' ? c.value : c) 
+      : [];
+
+    const materialData = {
+      material: {
+        name: newMaterial.name,
+        colors: cleanColors, // Send the clean array
+        texture: newMaterial.texture,   
+        image_url: newMaterial.image_url || null,
+        category: newMaterial.category || null,
+        description: newMaterial.description || null
+      },
+      quantity_meters: parseFloat(newMaterial.quantity_meters) || 0
+    };
+
+    console.log("POSTING TO BACKEND:", JSON.stringify(materialData, null, 2));
+    await createMaterial(materialData);
+
+    setShowAddModal(false);
+    setNewMaterial({
+      name: "",
+      colors: [],
+      colorInput: "",
+      texture: "",
+      quantity_meters: "",
+      image_url: "",
+      category: "",
+      description: ""
+    });
+    fetchInventory();
+  } catch (error) {
+    console.error("Backend Error:", error.response?.data);
+    alert(`Error: ${error.response?.data?.error || "Check console"}`);
+  }
+};
 
   const handleStockUpdate = async () => {
     if (!selectedItem) return;
     try {
-      await api.post(`/invetory/materials/${selectedItem.id}/stock/`, stockUpdate);
+      await adjustStock(selectedItem.id, stockUpdate);
       setSelectedItem(null);
       fetchInventory();
     } catch (error) {
@@ -96,8 +120,13 @@ const Inventory = () => {
   };
 
   const filteredData = inventory.filter((item) => {
+    // Handle both old format (color string) and new format (colors array)
+    const materialColors = item.colors && Array.isArray(item.colors)
+      ? item.colors.map(c => c.name || c).join(' ').toLowerCase()
+      : (item.color || '').toLowerCase();
+
     const matchSearch = item.name?.toLowerCase().includes(search.toLowerCase()) ||
-      item.color?.toLowerCase().includes(search.toLowerCase()) ||
+      materialColors.includes(search.toLowerCase()) ||
       item.category?.toLowerCase().includes(search.toLowerCase());
     const qty = parseFloat(item.inventory?.quantity_meters || 0);
     const matchStatus =
@@ -111,7 +140,7 @@ const Inventory = () => {
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#050505] text-zinc-900 dark:text-zinc-100 transition-colors duration-300">
-      <div className="max-w-7xl mx-auto px-4 py-6 md:py-10">
+      <div className="max-w-7xl mx-auto px-4 py-2 md:py-10">
         {/* HEADER & KPI HUD */}
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-10">
           <div>
@@ -194,7 +223,33 @@ const Inventory = () => {
                             </div>
                             <div>
                               <h3 className="text-sm md:text-base font-black uppercase italic tracking-tight">{item.name}</h3>
-                              <p className="text-[10px] text-zinc-400 uppercase font-bold">{item.color} • {item.texture}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                {/* Color swatch */}
+                                {(item.color || (item.colors && item.colors.length > 0)) && (
+                                  <div className="flex items-center gap-1">
+                                    {item.colors && item.colors.length > 0 ? (
+                                      item.colors.slice(0, 3).map((c, idx) => (
+                                        <div
+                                          key={idx}
+                                          className="w-3 h-3 rounded-full border border-zinc-300"
+                                          style={{ backgroundColor: getHexColor(c.name || c) }}
+                                          title={c.name || c}
+                                        />
+                                      ))
+                                    ) : (
+                                      <div
+                                        className="w-3 h-3 rounded-full border border-zinc-300"
+                                        style={{ backgroundColor: getHexColor(item.color) }}
+                                        title={item.color}
+                                      />
+                                    )}
+                                    <span className="text-[10px] text-zinc-400 uppercase font-bold">
+                                      {item.color || (item.colors && item.colors[0]?.name) || ''}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-zinc-400 uppercase font-bold">{item.texture}</p>
                               {item.category && <p className="text-[9px] text-red-500 uppercase font-bold mt-1">{item.category}</p>}
                               {item.description && <p className="text-[9px] text-zinc-500 mt-1 max-w-xs truncate">{item.description}</p>}
                             </div>
@@ -369,7 +424,41 @@ const Inventory = () => {
                 )}
 
                 <h2 className="text-2xl font-black uppercase italic tracking-tighter">{selectedItem.name}</h2>
-                <p className="text-[10px] text-zinc-400 uppercase font-bold mt-1">{selectedItem.color} • {selectedItem.texture}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  {/* Color display with visual swatches */}
+                  {(selectedItem.color || (selectedItem.colors && selectedItem.colors.length > 0)) && (
+                    <div className="flex items-center gap-2">
+                      {selectedItem.colors && selectedItem.colors.length > 0 ? (
+                        <div className="flex items-center gap-1">
+                          <div className="flex -space-x-2">
+                            {selectedItem.colors.map((c, idx) => (
+                              <div
+                                key={idx}
+                                className="w-5 h-5 rounded-full border-2 border-white dark:border-zinc-800"
+                                style={{ backgroundColor: getHexColor(c.name || c), zIndex: selectedItem.colors.length - idx }}
+                                title={c.name || c}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-[10px] text-zinc-400 uppercase font-bold">
+                            {selectedItem.colors.map(c => c.name || c).join(', ')}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <div
+                            className="w-4 h-4 rounded-full border border-zinc-300"
+                            style={{ backgroundColor: getHexColor(selectedItem.color) }}
+                          />
+                          <span className="text-[10px] text-zinc-400 uppercase font-bold">
+                            {selectedItem.color}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <p className="text-[10px] text-zinc-400 uppercase font-bold mt-1">{selectedItem.texture}</p>
 
                 {/* Category and Description Section - Improved Design */}
                 <div className="mt-4 space-y-3">
@@ -398,7 +487,7 @@ const Inventory = () => {
                           <option value="">Select Category</option>
                           <option value="Child">Child</option>
                           <option value="Men">Men</option>
-                          <option value="Woman">Woman</option>
+                          {/* <option value="Woman">Woman</option> */}
                         </select>
                         <div className="flex gap-2">
                           <button
@@ -418,8 +507,8 @@ const Inventory = () => {
                           >
                             Save
                           </button>
-                          <button 
-                            onClick={() => setEditingField(null)} 
+                          <button
+                            onClick={() => setEditingField(null)}
                             className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 rounded-xl text-[10px] font-black uppercase"
                           >
                             Cancel
@@ -427,7 +516,7 @@ const Inventory = () => {
                         </div>
                       </div>
                     ) : (
-                      <p 
+                      <p
                         className="mt-2 text-sm font-bold text-zinc-700 dark:text-zinc-300"
                       >
                         {selectedItem.category || <span className="text-zinc-400 italic">Not set</span>}
@@ -477,8 +566,8 @@ const Inventory = () => {
                           >
                             Save
                           </button>
-                          <button 
-                            onClick={() => setEditingField(null)} 
+                          <button
+                            onClick={() => setEditingField(null)}
                             className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 rounded-xl text-[10px] font-black uppercase"
                           >
                             Cancel
@@ -486,7 +575,7 @@ const Inventory = () => {
                         </div>
                       </div>
                     ) : (
-                      <p 
+                      <p
                         className="mt-2 text-sm font-medium text-zinc-600 dark:text-zinc-400"
                       >
                         {selectedItem.description || <span className="text-zinc-400 italic">No description provided</span>}
@@ -575,14 +664,77 @@ const Inventory = () => {
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Color *</label>
-                  <input
-                    type="text"
-                    value={newMaterial.color}
-                    onChange={(e) => setNewMaterial({ ...newMaterial, color: e.target.value })}
-                    className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2"
-                    required
-                  />
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Colors *</label>
+                  {/* Multi-Color Picker */}
+                  <div className="mt-2 space-y-2">
+                    {/* Predefined Colors Grid */}
+                    <div className="grid grid-cols-5 gap-2">
+                      {getAvailableColors().slice(0, 15).map((color) => (
+                        <button
+                          key={color.name}
+                          type="button"
+                          onClick={() => {
+                            if (!newMaterial.colors.includes(color.name)) {
+                              setNewMaterial({ ...newMaterial, colors: [...newMaterial.colors, color.name] });
+                            }
+                          }}
+                          className={`w-10 h-10 rounded-xl border-2 transition-all hover:scale-110 ${
+                            newMaterial.colors.includes(color.name)
+                              ? 'border-red-600 ring-2 ring-red-600/30'
+                              : 'border-zinc-200 dark:border-zinc-700'
+                          }`}
+                          style={{ backgroundColor: color.hex }}
+                          title={color.name}
+                        />
+                      ))}
+                    </div>
+                    {/* Custom Color Input */}
+                    <div className="flex items-center gap-2 mt-2">
+                      <input
+                        type="color"
+                        value={getHexColor(newMaterial.colorInput) || '#6b7280'}
+                        onChange={(e) => setNewMaterial({ ...newMaterial, colorInput: e.target.value })}
+                        className="w-10 h-10 rounded-lg cursor-pointer border-2 border-zinc-200 dark:border-zinc-700"
+                      />
+                      <input
+                        type="text"
+                        value={newMaterial.colorInput}
+                        onChange={(e) => setNewMaterial({ ...newMaterial, colorInput: e.target.value })}
+                        placeholder="Or type color name..."
+                        className="flex-1 bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20"
+                      />
+                      <button
+                        type="button"
+                        className="px-3 py-2 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase"
+                        onClick={() => {
+                          const val = newMaterial.colorInput.trim();
+                          if (val && !newMaterial.colors.includes(val)) {
+                            setNewMaterial({ ...newMaterial, colors: [...newMaterial.colors, val], colorInput: "" });
+                          }
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                    {/* Selected Colors List */}
+                    {newMaterial.colors.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {newMaterial.colors.map((color, idx) => (
+                          <span key={idx} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-200 dark:bg-zinc-800 text-xs font-bold">
+                            <span style={{ backgroundColor: getHexColor(color) }} className="w-4 h-4 rounded-full border border-zinc-300 inline-block mr-1" />
+                            {color}
+                            <button
+                              type="button"
+                              className="ml-1 text-red-600 hover:text-red-800"
+                              onClick={() => setNewMaterial({ ...newMaterial, colors: newMaterial.colors.filter((c, i) => i !== idx) })}
+                            >
+                              &times;
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Texture *</label>

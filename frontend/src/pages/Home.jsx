@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { HiOutlineShoppingBag, HiChevronRight, HiChevronLeft, HiOutlineArrowLongRight } from 'react-icons/hi2';
-import { products } from '../hooks/productData';
+import { getMaterials, getSuitTypes } from '../api/api';
 import Contact from './Contact';
 import { IMAGES } from '../constants/images';
 
@@ -20,14 +20,14 @@ const suits = [
     collection: "Men's Premium",
     image: IMAGES.UI.HERO02,
     desc: "A luxury three-piece suit crafted with heritage weaving and a contemporary fit. Ideal for executives, grooms, and high-level events."
-  },  
+  },
   {
     id: 3,
     title: "Family Ceremony Set",
     collection: "Group Package",
     image: IMAGES.UI.HERO03,
     desc: "Matching tailored suits for family members. Custom measurements, coordinated colors, and exclusive package discounts."
-  },    
+  },
   {
     id: 4,
     title: "Arctic White Wedding",
@@ -47,7 +47,51 @@ const suits = [
 const Home = () => {
   const [index, setIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [featuredItems, setFeaturedItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchFeaturedItems();
+  }, []);
+
+  const fetchFeaturedItems = async () => {
+    try {
+      setLoading(true);
+      const [materialsRes] = await Promise.all([
+        getMaterials()
+      ]);
+
+      // Handle paginated responses
+      let materials = materialsRes.data;
+      if (materials && typeof materials === 'object' && !Array.isArray(materials)) {
+        materials = materials.results || materials.data || materials.items || [];
+      }
+
+      // Create featured items from materials
+      const featured = (materials || []).slice(0, 5).map((material, idx) => ({
+        id: material.id,
+        title: material.name || 'Custom Suit',
+        collection: material.category || 'Premium Collection',
+        image: material.image_url || Object.values(IMAGES.UI)[idx % 5 + 1],
+        desc: material.description || `Premium ${material.texture || ''} fabric tailored to perfection.`
+      }));
+
+      setFeaturedItems(featured);
+    } catch (error) {
+      console.error('Error fetching featured items:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const suits = featuredItems.length > 0 ? featuredItems : [
+    { id: 1, title: "Executive Navy Classic", collection: "Men's Collection", image: IMAGES.UI.HERO01, desc: "Precision-cut premium wool suit." },
+    { id: 2, title: "Prestige Charcoal Set", collection: "Men's Premium", image: IMAGES.UI.HERO02, desc: "A luxury three-piece suit." },
+    { id: 3, title: "Family Ceremony Set", collection: "Group Package", image: IMAGES.UI.HERO03, desc: "Matching tailored suits." },
+    { id: 4, title: "Arctic White Wedding", collection: "Ceremony 2026", image: IMAGES.UI.HERO04, desc: "A bold tuxedo for weddings." },
+    { id: 5, title: "University Classic", collection: "Student Edition", image: IMAGES.UI.HERO05, desc: "For university students." }
+  ];
 
   useEffect(() => {
     if (isPaused) return;
@@ -55,16 +99,16 @@ const Home = () => {
       setIndex((prev) => (prev + 1) % suits.length);
     }, 6000);
     return () => clearInterval(interval);
-  }, [isPaused]);
+  }, [isPaused, suits.length]);
 
   const nextSlide = () => setIndex((prev) => (prev + 1) % suits.length);
   const prevSlide = () => setIndex((prev) => (prev - 1 + suits.length) % suits.length);
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#080808] transition-colors duration-500 overflow-x-hidden">
-      
+
       {/* HERO SECTION */}
-      <section 
+      <section
         className="relative min-h-[90vh] lg:h-screen flex flex-col lg:flex-row-reverse items-stretch overflow-hidden"
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
@@ -109,11 +153,11 @@ const Home = () => {
           <div className="absolute bottom-6 left-6 lg:left-12 flex items-center gap-4 z-30">
             <span className="text-[10px] font-black dark:text-white transition-all">0{index + 1}</span>
             <div className="w-32 h-[2px] bg-black/10 dark:bg-white/10 relative">
-               <motion.div 
+              <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${((index + 1) / suits.length) * 100}%` }}
                 className="absolute top-0 left-0 h-full bg-red-600"
-               />
+              />
             </div>
             <span className="text-[10px] font-black text-gray-400">0{suits.length}</span>
           </div>
@@ -131,10 +175,10 @@ const Home = () => {
                 transition={{ duration: 0.5, ease: "easeOut" }}
               >
                 <div className="flex items-center gap-3 mb-6">
-                   <div className="w-8 h-[2px] bg-red-600" />
-                   <span className="text-red-600 font-black tracking-[0.4em] uppercase text-[10px]">
+                  <div className="w-8 h-[2px] bg-red-600" />
+                  <span className="text-red-600 font-black tracking-[0.4em] uppercase text-[10px]">
                     {suits[index].collection}
-                   </span>
+                  </span>
                 </div>
 
                 <h1 className="text-[clamp(2.5rem,8vw,6rem)] font-black text-black dark:text-white leading-[0.9] uppercase tracking-tighter mb-8">
@@ -151,7 +195,7 @@ const Home = () => {
             </AnimatePresence>
 
             <div className="mt-12 flex flex-wrap gap-6 items-center">
-              <button 
+              <button
                 onClick={() => navigate('/items')}
                 className="group relative overflow-hidden bg-black dark:bg-white text-white dark:text-black px-10 py-5 font-black uppercase tracking-widest text-[10px] flex items-center gap-4 hover:text-white transition-colors"
               >
@@ -159,10 +203,10 @@ const Home = () => {
                 <HiOutlineShoppingBag size={18} className="relative z-10" />
                 <div className="absolute inset-0 bg-red-600 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
               </button>
-              
+
               <div className="flex items-center gap-2">
-                <NavBtn onClick={prevSlide} icon={<HiChevronLeft size={20}/>} />
-                <NavBtn onClick={nextSlide} icon={<HiChevronRight size={20}/>} />
+                <NavBtn onClick={prevSlide} icon={<HiChevronLeft size={20} />} />
+                <NavBtn onClick={nextSlide} icon={<HiChevronRight size={20} />} />
               </div>
             </div>
           </div>
@@ -172,9 +216,9 @@ const Home = () => {
       {/* FEATURE STRIP */}
       <section className="bg-zinc-50 dark:bg-[#0c0c0c] border-y border-gray-100 dark:border-white/5 py-10">
         <div className="max-w-[1600px] mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8">
-            <FeatureCard title="Ethiopian Craft" desc="Hand-stitched precision in Shashemene." />
-            <FeatureCard title="Bespoke Fit" desc="32 Unique body measurements per suit." />
-            <FeatureCard title="Global Logistics" desc="Luxury delivery to your doorstep." />
+          <FeatureCard title="Ethiopian Craft" desc="Hand-stitched precision in Shashemene." />
+          <FeatureCard title="Bespoke Fit" desc="32 Unique body measurements per suit." />
+          <FeatureCard title="Global Logistics" desc="Luxury delivery to your doorstep." />
         </div>
       </section>
 
@@ -191,8 +235,8 @@ const Home = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-16">
-          {products.slice(0, 4).map((product) => (
-            <ProductCard key={product.id} product={product} navigate={navigate} />
+          {suits.slice(0, 4).map((product) => (
+            <ProductCard key={product.id} product={{ ...product, price: product.desc }} navigate={navigate} />
           ))}
         </div>
       </section>
@@ -207,8 +251,8 @@ const Home = () => {
 /* --- MINI COMPONENTS --- */
 
 const NavBtn = ({ onClick, icon }) => (
-  <button 
-    onClick={onClick} 
+  <button
+    onClick={onClick}
     className="w-14 h-14 flex items-center justify-center border border-gray-200 dark:border-white/10 dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all active:scale-90"
   >
     {icon}
@@ -224,7 +268,7 @@ const FeatureCard = ({ title, desc }) => (
 );
 
 const ProductCard = ({ product, navigate }) => (
-  <motion.div 
+  <motion.div
     whileHover={{ y: -10 }}
     onClick={() => navigate('/items')}
     className="group cursor-pointer w-full"
@@ -234,15 +278,15 @@ const ProductCard = ({ product, navigate }) => (
       3. Kept aspect-[3/4] for a consistent grid, but the image will now fit entirely inside it.
     */}
     <div className="aspect-[3/4] overflow-hidden bg-zinc-50 dark:bg-zinc-900/50 mb-6 relative border border-transparent group-hover:border-gray-100 dark:group-hover:border-white/5 transition-all duration-500 rounded-sm">
-      <img 
-        src={product.img} 
-        className="w-full h-full object-contain p-2 transition-all duration-700" 
-        alt={product.name} 
+      <img
+        src={product.img}
+        className="w-full h-full object-contain p-2 transition-all duration-700"
+        alt={product.name}
       />
-      
+
       {/* Interactive Overlay */}
       <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-end pb-8 backdrop-blur-[1px]">
-        <motion.span 
+        <motion.span
           initial={{ y: 10, opacity: 0 }}
           whileHover={{ scale: 1.05 }}
           className="bg-white text-black px-8 py-3 text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl"
@@ -253,7 +297,7 @@ const ProductCard = ({ product, navigate }) => (
 
       {/* Availability indicator if needed */}
       <div className="absolute top-4 left-4">
-         <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
+        <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
       </div>
     </div>
 

@@ -13,7 +13,7 @@ import {
   HiOutlineFunnel,
   HiOutlineArrowPath
 } from 'react-icons/hi2';
-import api from '../../api/api';
+import api, { getNotifications } from '../../api/api';
 import { useAuth } from '../../hooks/useAuth';
 import { formatRelativeTime, formatDate } from '../../utils/helpers';
 
@@ -34,8 +34,13 @@ const Announcement = () => {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/accounts/user/notifications/');
-      setNotifications(response.data?.results || response.data || []);
+      const response = await getNotifications();
+      // Handle both array and paginated responses
+      let notificationsData = response.data;
+      if (notificationsData && typeof notificationsData === 'object' && !Array.isArray(notificationsData)) {
+        notificationsData = notificationsData.results || notificationsData.data || notificationsData.items || [];
+      }
+      setNotifications(notificationsData || []);
     } catch (error) {
       console.error('Error fetching notifications:', error);
       // Use mock data if API fails
@@ -148,7 +153,7 @@ const Announcement = () => {
   const getNotificationColor = (type, priority) => {
     if (priority === 'high') return { bg: 'bg-red-500/10', icon: 'text-red-500', border: 'border-red-500/20' };
     if (priority === 'medium') return { bg: 'bg-yellow-500/10', icon: 'text-yellow-500', border: 'border-yellow-500/20' };
-    
+
     switch (type) {
       case 'order':
         return { bg: 'bg-blue-500/10', icon: 'text-blue-500', border: 'border-blue-500/20' };
@@ -213,11 +218,10 @@ const Announcement = () => {
           <button
             key={tab.id}
             onClick={() => setFilter(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
-              filter === tab.id
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${filter === tab.id
                 ? 'bg-red-600 text-white'
                 : 'text-gray-400 hover:text-white hover:bg-white/5'
-            }`}
+              }`}
           >
             <tab.icon size={14} />
             {tab.label}
@@ -246,7 +250,7 @@ const Announcement = () => {
             {filteredNotifications.map((notification, index) => {
               const Icon = getNotificationIcon(notification.type);
               const colors = getNotificationColor(notification.type, notification.priority);
-              
+
               return (
                 <motion.div
                   key={notification.id}
@@ -256,8 +260,8 @@ const Announcement = () => {
                   transition={{ delay: index * 0.05 }}
                   className={`
                     relative p-5 rounded-2xl border transition-all cursor-pointer
-                    ${notification.read 
-                      ? 'bg-white/5 border-white/5' 
+                    ${notification.read
+                      ? 'bg-white/5 border-white/5'
                       : `${colors.bg} ${colors.border}`}
                   `}
                   onClick={() => {

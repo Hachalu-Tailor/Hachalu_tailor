@@ -9,7 +9,7 @@ import {
   HiOutlineCalendar,
   HiOutlineChartBar,
 } from 'react-icons/hi2';
-import api from '../../api/api';
+import api, { getOrders } from '../../api/api';
 
 const Analytics = () => {
   const [orders, setOrders] = useState([]);
@@ -23,8 +23,13 @@ const Analytics = () => {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/orders/list/');
-      setOrders(response.data || []);
+      const response = await getOrders();
+      // Handle both array and paginated responses
+      let ordersData = response.data;
+      if (ordersData && typeof ordersData === 'object' && !Array.isArray(ordersData)) {
+        ordersData = ordersData.results || ordersData.data || ordersData.items || [];
+      }
+      setOrders(ordersData || []);
     } catch (error) {
       console.error('Error fetching orders:', error);
     } finally {
@@ -86,9 +91,8 @@ const Analytics = () => {
         <div className={`p-3 rounded-2xl ${color}`}>{icon}</div>
         {trend !== undefined && (
           <div
-            className={`flex items-center gap-1 text-[10px] font-black ${
-              trend >= 0 ? 'text-green-500' : 'text-red-500'
-            }`}
+            className={`flex items-center gap-1 text-[10px] font-black ${trend >= 0 ? 'text-green-500' : 'text-red-500'
+              }`}
           >
             {trend >= 0 ? (
               <HiOutlineArrowTrendingUp size={14} />

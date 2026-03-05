@@ -26,7 +26,7 @@ import {
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon
 } from '@heroicons/react/24/outline';
-import api from '../api/api';
+import api, { getOrders, listStaff, getPayments, getNotifications, getMaterials } from '../api/api';
 import { formatCurrency, formatDateTime, formatRelativeTime } from '../utils/helpers';
 import { CURRENCY, ORDER_STATUS_LABELS } from '../utils/constants';
 
@@ -76,28 +76,31 @@ const AdminDashboard = () => {
     }
   }, [searchQuery, orders, staff]);
 
+  // Helper function to handle pagination
+  const handlePaginatedResponse = (response) => {
+    let data = response.data;
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      data = data.results || data.data || data.items || [];
+    }
+    return data || [];
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
       const [ordersRes, staffRes, paymentsRes, notificationsRes, inventoryRes] = await Promise.all([
-        api.get('/orders/list/'),
-        api.get('/accounts/admin/staff/'),
-        api.get('/payments/list/').catch(() => ({ data: [] })),
-        api.get('/accounts/user/notifications/').catch(() => ({ data: { results: [] } })),
-        api.get('/inventory/materials/').catch(() => ({ data: { results: [] } }))
+        getOrders(),
+        listStaff(),
+        getPayments().catch(() => ({ data: [] })),
+        getNotifications().catch(() => ({ data: [] })),
+        getMaterials().catch(() => ({ data: [] }))
       ]);
 
-      setOrders(ordersRes.data?.results || ordersRes.data || []);
-      setStaff(staffRes.data || []);
-      setPayments(paymentsRes.data?.results || paymentsRes.data || []);
-
-      // Handle notifications
-      const notifs = notificationsRes.data?.results || notificationsRes.data || [];
-      setNotifications(notifs.slice(0, 5));
-
-      // Handle inventory
-      const inv = inventoryRes.data?.results || inventoryRes.data || [];
-      setInventory(inv);
+      setOrders(handlePaginatedResponse(ordersRes));
+      setStaff(handlePaginatedResponse(staffRes));
+      setPayments(handlePaginatedResponse(paymentsRes));
+      setNotifications(handlePaginatedResponse(notificationsRes).slice(0, 5));
+      setInventory(handlePaginatedResponse(inventoryRes));
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -486,9 +489,9 @@ const AdminDashboard = () => {
                 className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-white/5 rounded-2xl"
               >
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black ${idx === 0 ? 'bg-yellow-500 text-white' :
-                    idx === 1 ? 'bg-gray-400 text-white' :
-                      idx === 2 ? 'bg-orange-400 text-white' :
-                        'bg-gray-200 dark:bg-white/10 dark:text-white'
+                  idx === 1 ? 'bg-gray-400 text-white' :
+                    idx === 2 ? 'bg-orange-400 text-white' :
+                      'bg-gray-200 dark:bg-white/10 dark:text-white'
                   }`}>
                   {idx + 1}
                 </div>

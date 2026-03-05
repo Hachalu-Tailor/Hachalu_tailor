@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   HiOutlineCheck, HiOutlineEye, HiOutlineNoSymbol, HiOutlinePlus,
-  HiOutlineShoppingBag, HiOutlineClock, HiOutlineXMark, HiOutlineClipboardDocumentCheck
+  HiOutlineShoppingBag, HiOutlineClock, HiOutlineXMark, 
+  HiOutlineClipboardDocumentCheck, HiOutlineBanknotes, HiOutlinePhoto
 } from 'react-icons/hi2';
-import api from '../../api/api';
+import api, { getOrders, getSuitTypes, createOrder, processOrder, getMaterials, getMaterialDetail, getColorsFromMaterials } from '../../api/api';
+import { getHexColor } from '../../utils/colors';
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
@@ -12,14 +14,17 @@ const Orders = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [receiveData, setReceiveData] = useState({ total_price: '', expected_price: '', due_date: '' });
   const [suitTypes, setSuitTypes] = useState([]);
   const [materials, setMaterials] = useState([]);
+  const [selectedMaterialColors, setSelectedMaterialColors] = useState([]);
   const [newOrder, setNewOrder] = useState({
     customer_name: '',
     customer_phone: '',
     suit_type: '',
     material: '',
+    selected_color: '',
     quantity: 1,
     measurements: { height: '', chest: '', shoulder: '', waist: '', hips: '', arm_length: '' }
   });
@@ -34,8 +39,13 @@ const Orders = () => {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/orders/list/', { params: { active_only: true } });
-      setOrders(response.data || []);
+      const response = await getOrders({ active_only: true });
+      // Handle both array and paginated responses
+      let ordersData = response.data;
+      if (ordersData && typeof ordersData === 'object' && !Array.isArray(ordersData)) {
+        ordersData = ordersData.results || ordersData.data || ordersData.items || [];
+      }
+      setOrders(ordersData || []);
     } catch (error) {
       console.error('Error fetching orders:', error);
     } finally {
@@ -45,7 +55,7 @@ const Orders = () => {
 
   const fetchSuitTypes = async () => {
     try {
-      const response = await api.get('/suit-types/');
+      const response = await getSuitTypes();
       setSuitTypes(response.data || []);
     } catch (error) {
       console.error('Error fetching suit types:', error);
@@ -54,45 +64,90 @@ const Orders = () => {
 
   const fetchMaterials = async () => {
     try {
-      const response = await api.get('/invetory/materials/');
-      setMaterials(response.data || []);
+      const response = await getMaterials();
+      // Handle both array and paginated responses
+      let materialsData = response.data;
+      if (materialsData && typeof materialsData === 'object' && !Array.isArray(materialsData)) {
+        materialsData = materialsData.results || materialsData.data || materialsData.items || [];
+      }
+      setMaterials(materialsData || []);
     } catch (error) {
       console.error('Error fetching materials:', error);
     }
   };
 
+  // Update colors when material is selected
+  const handleMaterialChange = (materialId) => {
+    const material = materials.find(m => m.id === parseInt(materialId));
+    // Handle both old format (color string) and new format (colors array)
+    let colors = [];
+    if (material?.colors && Array.isArray(material.colors)) {
+      colors = material.colors.map(c => typeof c === 'object' ? c.name : c);
+    } else if (material?.color) {
+      colors = [material.color];
+    }
+    setSelectedMaterialColors(colors);
+    setNewOrder({
+      ...newOrder,
+      material: materialId,
+      selected_color: colors.length > 0 ? colors[0] : ''
+    });
+  };
+
   const handleCreateOrder = async (e) => {
     e.preventDefault();
+
+    // Build order data - color is optional in frontend
+    const orderData = {
+      customer_name: newOrder.customer_name,
+      customer_phone: newOrder.customer_phone,
+      suit_type: parseInt(newOrder.suit_type),
+      material: parseInt(newOrder.material),
+      quantity: newOrder.quantity || 1,
+      measurements: {
+        height: parseFloat(newOrder.measurements.height) || 0,
+        chest: parseFloat(newOrder.measurements.chest) || 0,
+        shoulder: parseFloat(newOrder.measurements.shoulder) || 0,
+        waist: parseFloat(newOrder.measurements.waist) || 0,
+        hips: parseFloat(newOrder.measurements.hips) || 0,
+        arm_length: parseFloat(newOrder.measurements.arm_length) || 0,
+      }
+    };
+
+    // Add selected_color only if it has a value
+    if (newOrder.selected_color && newOrder.selected_color.trim()) {
+      orderData.selected_color = newOrder.selected_color;
+    }
+
     try {
-      const response = await api.post('/orders/', {
-        ...newOrder,
-        suit_type: parseInt(newOrder.suit_type),
-        material: parseInt(newOrder.material),
-        measurements: {
-          height: parseFloat(newOrder.measurements.height) || 0,
-          chest: parseFloat(newOrder.measurements.chest) || 0,
-          shoulder: parseFloat(newOrder.measurements.shoulder) || 0,
-          waist: parseFloat(newOrder.measurements.waist) || 0,
-          hips: parseFloat(newOrder.measurements.hips) || 0,
-          arm_length: parseFloat(newOrder.measurements.arm_length) || 0,
-        }
-      });
+      const response = await createOrder(orderData);
       setCreatedOrder(response.data);
       setNewOrder({
-        customer_name: '', customer_phone: '', suit_type: '', material: '', quantity: 1,
+        customer_name: '', customer_phone: '', suit_type: '', material: '', selected_color: '', quantity: 1,
         measurements: { height: '', chest: '', shoulder: '', waist: '', hips: '', arm_length: '' }
       });
       fetchOrders();
     } catch (error) {
       console.error('Error creating order:', error);
-      alert('Something went wrong. Please try again or contact support.');
+      // Show detailed error message
+      const errorData = error.response?.data;
+      let errorMsg = 'Something went wrong. Please try again.';
+
+      if (errorData) {
+        if (typeof errorData === 'string') {
+          errorMsg = errorData;
+        } else if (typeof errorData === 'object') {
+          errorMsg = Object.entries(errorData).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`).join('\n');
+        }
+      }
+      alert(errorMsg);
     }
   };
 
   const handleProcessOrder = async (action, data = {}) => {
     if (!selectedOrder) return;
     try {
-      await api.post(`/orders/${selectedOrder.id}/process`, { action, ...data });
+      await processOrder(selectedOrder.id, { action, ...data });
       setSelectedOrder(null);
       setShowReceiveModal(false);
       setReceiveData({ total_price: '', expected_price: '', due_date: '' });
@@ -162,7 +217,24 @@ const Orders = () => {
               <div
                 key={order.id}
                 className="p-6 flex flex-col md:flex-row items-center justify-between gap-6 hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors cursor-pointer"
-                onClick={() => setSelectedOrder(order)}
+                onClick={async () => {
+                  setSelectedOrder(order);
+                  // Fetch material details for display
+                  if (order.material) {
+                    try {
+                      const matRes = await getMaterialDetail(order.material);
+                      const mat = matRes.data;
+                      setSelectedOrder(prev => ({
+                        ...prev,
+                        material_image: mat.image_url,
+                        material_colors: mat.colors || [],
+                        material_hex: mat.colors?.[0] ? getHexColor(mat.colors[0].name) : null
+                      }));
+                    } catch (err) {
+                      console.error('Failed to fetch material details:', err);
+                    }
+                  }
+                }}
               >
                 <div className="flex items-center gap-6">
                   <div className="h-16 w-16 bg-red-600/10 rounded-xl flex items-center justify-center">
@@ -174,6 +246,12 @@ const Orders = () => {
                       {order.customer_name} • {order.suit_type_name}
                     </p>
                     <p className="text-[10px] text-gray-500 mt-1">{order.customer_phone}</p>
+                    {/* Show color if available */}
+                    {(order.selected_color_name || order.selected_color) && (
+                      <p className="text-[10px] text-gray-500 mt-1">
+                        Color: <span className="font-bold">{order.selected_color_name || order.selected_color}</span>
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
@@ -208,13 +286,22 @@ const Orders = () => {
               exit={{ scale: 0.9, opacity: 0 }}
               className="relative w-full max-w-2xl bg-white dark:bg-[#0c0c0c] rounded-[2rem] shadow-2xl border border-zinc-200 dark:border-white/10 p-8 max-h-[90vh] overflow-y-auto"
             >
-              <button onClick={() => setSelectedOrder(null)} className="absolute top-6 right-6 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all">
+              <button onClick={() => setSelectedOrder(null)} className="absolute top-6 right-6 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all dark:text-white">
                 <HiOutlineXMark size={20} />
               </button>
 
-              <div className="mb-6">
-                <h2 className="text-2xl font-black uppercase italic tracking-tighter">{selectedOrder.order_code}</h2>
-                <p className="text-[10px] text-zinc-400 uppercase font-bold mt-1">{selectedOrder.customer_name} • {selectedOrder.customer_phone}</p>
+              <div className="mb-6 flex justify-between items-start">
+                <div>
+                    <h2 className="text-2xl font-black uppercase italic tracking-tighter dark:text-white">{selectedOrder.order_code}</h2>
+                    <p className="text-[10px] text-zinc-400 uppercase font-bold mt-1">{selectedOrder.customer_name} • {selectedOrder.customer_phone}</p>
+                </div>
+                <button 
+                    onClick={(e) => { e.stopPropagation(); setShowPaymentModal(true); }}
+                    className="flex items-center gap-2 px-4 py-2 bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl transition-all border border-zinc-200 dark:border-white/5"
+                >
+                    <HiOutlineBanknotes className="text-emerald-500" />
+                    <span className="text-[9px] font-black uppercase tracking-tighter dark:text-white">View Payments</span>
+                </button>
               </div>
 
               <div className="grid grid-cols-2 gap-4 mb-6">
@@ -226,6 +313,59 @@ const Orders = () => {
                   <p className="text-[9px] font-black text-zinc-400 uppercase">Material</p>
                   <p className="text-sm font-bold dark:text-white">{selectedOrder.material_name}</p>
                 </div>
+                {/* Selected Color */}
+                {selectedOrder.selected_color_name && (
+                  <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4">
+                    <p className="text-[9px] font-black text-zinc-400 uppercase">Selected Color</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div 
+                        className="w-5 h-5 rounded-full border border-gray-300" 
+                        style={{ backgroundColor: getHexColor(selectedOrder.selected_color_name) }}
+                      />
+                      <p className="text-sm font-bold dark:text-white">{selectedOrder.selected_color_name}</p>
+                    </div>
+                  </div>
+                )}
+                {/* Material Image - if available */}
+                {(selectedOrder.material_image || selectedOrder.material_colors?.length > 0) && (
+                  <div className="col-span-2">
+                    <p className="text-[9px] font-black text-zinc-400 uppercase mb-2">Material & Color</p>
+                    {selectedOrder.material_image ? (
+                      <div className="relative">
+                        <img
+                          src={selectedOrder.material_image}
+                          alt={selectedOrder.material_name}
+                          className="w-full h-32 object-cover rounded-xl"
+                        />
+                        <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 rounded-lg">
+                          <p className="text-xs font-bold text-white">{selectedOrder.material_name}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-full h-20 bg-gradient-to-r from-zinc-200 to-zinc-300 dark:from-zinc-800 dark:to-zinc-700 rounded-xl flex items-center justify-center">
+                        <p className="text-sm font-bold text-zinc-500 dark:text-zinc-400">
+                          {selectedOrder.material_name}
+                        </p>
+                      </div>
+                    )}
+                    {selectedOrder.material_colors?.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-[10px] text-gray-400 mb-1">Available Colors:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedOrder.material_colors.map((color, idx) => (
+                            <div key={idx} className="flex items-center gap-1 px-2 py-1 bg-white dark:bg-zinc-800 rounded-lg border border-gray-200 dark:border-zinc-700">
+                              <div 
+                                className="w-4 h-4 rounded-full border border-gray-300" 
+                                style={{ backgroundColor: getHexColor(color.name) }}
+                              />
+                              <span className="text-[9px] text-gray-600 dark:text-gray-300">{color.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4">
                   <p className="text-[9px] font-black text-zinc-400 uppercase">Total Price (ETB)</p>
                   <p className="text-sm font-bold dark:text-white">{selectedOrder.total_price}</p>
@@ -256,7 +396,7 @@ const Orders = () => {
 
               <div className="flex gap-3">
                 {selectedOrder.status === 'INITIATED' && (
-                  <div className="flex gap-3">
+                  <div className="flex gap-3 w-full">
                     <button
                       onClick={() => handleProcessOrder('reject', { reason: 'Order cancelled by staff' })}
                       className="flex-1 py-4 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all"
@@ -272,7 +412,7 @@ const Orders = () => {
                   </div>
                 )}
                 {selectedOrder.status === 'AWAITING_PAYMENT' && (
-                  <div className="flex gap-3">
+                  <div className="flex gap-3 w-full">
                     <button
                       onClick={() => handleProcessOrder('reject', { reason: 'Payment not received' })}
                       className="flex-1 py-4 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all"
@@ -288,7 +428,7 @@ const Orders = () => {
                   </div>
                 )}
                 {selectedOrder.status === 'PENDING_APPROVAL' && (
-                  <div className="flex gap-3">
+                  <div className="flex gap-3 w-full">
                     <button
                       onClick={() => handleProcessOrder('reject', { reason: 'Payment verification failed' })}
                       className="flex-1 py-4 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all"
@@ -317,6 +457,71 @@ const Orders = () => {
         )}
       </AnimatePresence>
 
+      {/* Payment List Modal */}
+      <AnimatePresence>
+        {showPaymentModal && selectedOrder && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowPaymentModal(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-white dark:bg-[#0c0c0c] rounded-[2.5rem] shadow-3xl border border-zinc-200 dark:border-white/10 p-8 overflow-hidden"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-black uppercase italic dark:text-white">Payment Records</h3>
+                <button onClick={() => setShowPaymentModal(false)} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all dark:text-white">
+                    <HiOutlineXMark size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                {selectedOrder.payments && selectedOrder.payments.length > 0 ? (
+                    selectedOrder.payments.map((payment, idx) => (
+                        <div key={idx} className="bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl p-4 border border-zinc-100 dark:border-white/5">
+                            <div className="flex justify-between items-start mb-3">
+                                <div>
+                                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Transaction No (TIN)</p>
+                                    <p className="text-sm font-bold dark:text-white">{payment.transaction_id || payment.payment_reference || 'N/A'}</p>
+                                </div>
+                                <span className="bg-emerald-500/10 text-emerald-500 text-[10px] font-black px-3 py-1 rounded-full uppercase">
+                                    {payment.amount} ETB
+                                </span>
+                            </div>
+                            
+                            {payment.receipt_image && (
+                                <div className="mt-3 rounded-xl overflow-hidden border border-zinc-200 dark:border-white/10">
+                                    <img 
+                                        src={payment.receipt_image} 
+                                        alt="Receipt" 
+                                        className="w-full h-32 object-cover hover:scale-105 transition-transform duration-500"
+                                    />
+                                </div>
+                            )}
+                            <div className="flex items-center gap-2 mt-3 text-[9px] text-zinc-500 font-bold uppercase">
+                                <HiOutlineClock />
+                                <span>{new Date(payment.created_at).toLocaleDateString()}</span>
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <div className="py-12 text-center">
+                        <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <HiOutlineNoSymbol className="text-zinc-400" size={30} />
+                        </div>
+                        <p className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Payment is not received yet</p>
+                    </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Create Order Modal */}
       <AnimatePresence>
         {showCreateModal && (
@@ -332,7 +537,7 @@ const Orders = () => {
               exit={{ scale: 0.9, opacity: 0 }}
               className="relative w-full max-w-lg bg-white dark:bg-[#0c0c0c] rounded-[2rem] shadow-2xl border border-zinc-200 dark:border-white/10 p-8 max-h-[90vh] overflow-y-auto"
             >
-              <button onClick={() => { setShowCreateModal(false); setCreatedOrder(null); }} className="absolute top-6 right-6 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all">
+              <button onClick={() => { setShowCreateModal(false); setCreatedOrder(null); }} className="absolute top-6 right-6 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all dark:text-white">
                 <HiOutlineXMark size={20} />
               </button>
 
@@ -346,12 +551,12 @@ const Orders = () => {
                   <h3 className="text-lg font-black dark:text-white mb-2">Order Created!</h3>
                   <p className="text-[10px] text-zinc-400 uppercase mb-4">Order Code</p>
                   <p className="text-3xl font-black text-red-600 mb-6">{createdOrder.order_code}</p>
-                  <p className="text-[10px] text-zinc-400 dark:text-zinc-500">Please provide this code to the customer.</p>
+                  <p className="text-[10px] text-zinc-400 uppercase">Please provide this code to the customer.</p>
                 </div>
               ) : (
                 <form onSubmit={handleCreateOrder} className="space-y-4">
                   <div>
-                    <label className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Customer Name *</label>
+                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Customer Name *</label>
                     <input
                       type="text"
                       value={newOrder.customer_name}
@@ -361,7 +566,7 @@ const Orders = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Customer Phone *</label>
+                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Customer Phone *</label>
                     <input
                       type="text"
                       value={newOrder.customer_phone}
@@ -372,11 +577,11 @@ const Orders = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Suit Type *</label>
+                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Suit Type *</label>
                     <select
                       value={newOrder.suit_type}
                       onChange={(e) => setNewOrder({ ...newOrder, suit_type: e.target.value })}
-                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 dark:text-white cursor-pointer"
+                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 dark:text-white"
                       required
                     >
                       <option value="">Select Suit Type</option>
@@ -384,19 +589,42 @@ const Orders = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Material *</label>
+                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Material *</label>
                     <select
                       value={newOrder.material}
-                      onChange={(e) => setNewOrder({ ...newOrder, material: e.target.value })}
+                      onChange={(e) => {
+                        const material = materials.find(m => m.id === parseInt(e.target.value));
+                        const colors = material?.colors || [];
+                        setSelectedMaterialColors(colors);
+                        setNewOrder({
+                          ...newOrder,
+                          material: e.target.value,
+                          selected_color: colors.length > 0 ? colors[0].name : ''
+                        });
+                      }}
                       className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 dark:text-white cursor-pointer"
                       required
                     >
                       <option value="">Select Material</option>
-                      {materials.map(m => <option key={m.id} value={m.id}>{m.name} ({m.color})</option>)}
+                      {materials.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                     </select>
                   </div>
+                  {selectedMaterialColors.length > 0 && (
+                    <div>
+                      <label className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Color *</label>
+                      <select
+                        value={newOrder.selected_color}
+                        onChange={(e) => setNewOrder({ ...newOrder, selected_color: e.target.value })}
+                        className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 dark:text-white cursor-pointer"
+                        required
+                      >
+                        <option value="">Select Color</option>
+                        {selectedMaterialColors.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      </select>
+                    </div>
+                  )}
                   <div>
-                    <label className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Quantity</label>
+                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Quantity</label>
                     <input
                       type="number"
                       min="1"
@@ -406,7 +634,7 @@ const Orders = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Measurements (cm)</label>
+                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Measurements (cm)</label>
                     <div className="grid grid-cols-2 gap-2 mt-2">
                       {['height', 'chest', 'shoulder', 'waist', 'hips', 'arm_length'].map(m => (
                         <input
@@ -415,7 +643,7 @@ const Orders = () => {
                           placeholder={m.replace('_', ' ')}
                           value={newOrder.measurements[m]}
                           onChange={(e) => setNewOrder({ ...newOrder, measurements: { ...newOrder.measurements, [m]: e.target.value } })}
-                          className="bg-zinc-100 dark:bg-zinc-900 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 dark:text-white placeholder:text-zinc-400"
+                          className="bg-zinc-100 dark:bg-zinc-900 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 dark:text-white"
                         />
                       ))}
                     </div>
@@ -448,7 +676,7 @@ const Orders = () => {
               exit={{ scale: 0.9, opacity: 0 }}
               className="relative w-full max-w-md bg-white dark:bg-[#0c0c0c] rounded-[2rem] shadow-2xl border border-zinc-200 dark:border-white/10 p-8"
             >
-              <button onClick={() => setShowReceiveModal(false)} className="absolute top-6 right-6 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all">
+              <button onClick={() => setShowReceiveModal(false)} className="absolute top-6 right-6 p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all dark:text-white">
                 <HiOutlineXMark size={20} />
               </button>
 

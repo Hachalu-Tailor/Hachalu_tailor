@@ -5,9 +5,10 @@ import {
     HiOutlineClock, HiOutlineExclamationTriangle, HiOutlineDocumentText,
     HiOutlinePrinter, HiOutlineXMark, HiOutlineArrowPath
 } from 'react-icons/hi2';
-import api from '../../api/api';
+import api, { getMaterialDetail } from '../../api/api';
 import { formatCurrency, formatDate, formatDateTime } from '../../utils/helpers';
 import { PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS, CURRENCY } from '../../utils/constants';
+import { getHexColor } from '../../utils/colors';
 
 const PaymentReview = ({ isOpen, onClose, payment, onApprove, onReject }) => {
     const [loading, setLoading] = useState(false);
@@ -27,7 +28,23 @@ const PaymentReview = ({ isOpen, onClose, payment, onApprove, onReject }) => {
         try {
             setLoading(true);
             const response = await api.get(`/orders/${orderId}/`);
-            setOrderDetails(response.data);
+            const order = response.data;
+            setOrderDetails(order);
+            
+            // Fetch material details if available
+            if (order.material) {
+                try {
+                    const matRes = await getMaterialDetail(order.material);
+                    const mat = matRes.data;
+                    setOrderDetails(prev => ({
+                        ...prev,
+                        material_image: mat.image_url,
+                        material_colors: mat.colors || []
+                    }));
+                } catch (err) {
+                    console.error('Failed to fetch material details:', err);
+                }
+            }
         } catch (err) {
             console.error('Error fetching order details:', err);
             setError('Failed to load order details');
@@ -198,10 +215,55 @@ const PaymentReview = ({ isOpen, onClose, payment, onApprove, onReject }) => {
                         ) : orderDetails ? (
                             <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-2xl">
                                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-3">Order Details</p>
+                                {/* Material & Color Display - Prominent */}
+                                <div className="mb-4">
+                                    {orderDetails.material_image ? (
+                                        <div className="relative">
+                                            <img 
+                                                src={orderDetails.material_image} 
+                                                alt={orderDetails.material_name || 'Material'} 
+                                                className="w-full h-32 object-cover rounded-xl"
+                                            />
+                                            <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 rounded-lg">
+                                                <p className="text-xs font-bold text-white">{orderDetails.material_name}</p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="w-full h-20 bg-gradient-to-r from-zinc-200 to-zinc-300 dark:from-zinc-800 dark:to-zinc-700 rounded-xl flex items-center justify-center">
+                                            <p className="text-sm font-bold text-zinc-500 dark:text-zinc-400">
+                                                {orderDetails.material_name || 'Material Preview'}
+                                            </p>
+                                        </div>
+                                    )}
+                                    {/* Color swatches */}
+                                    {orderDetails.material_colors?.length > 0 && (
+                                        <div className="mt-2">
+                                            <p className="text-[10px] text-gray-400 mb-1">Available Colors:</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {orderDetails.material_colors.map((color, idx) => (
+                                                    <div 
+                                                        key={idx}
+                                                        className="flex items-center gap-1 px-2 py-1 bg-white dark:bg-zinc-800 rounded-lg border border-gray-200 dark:border-zinc-700" 
+                                                    >
+                                                        <div 
+                                                            className="w-4 h-4 rounded-full border border-gray-300" 
+                                                            style={{ backgroundColor: getHexColor(color.name) }}
+                                                        />
+                                                        <span className="text-[9px] text-gray-600 dark:text-gray-300">{color.name}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                                 <div className="space-y-3">
                                     <div className="flex justify-between">
                                         <span className="text-sm text-gray-500">Order Code</span>
                                         <span className="text-sm font-bold dark:text-white">{orderDetails.order_code || orderDetails.id?.slice(0, 8)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-sm text-gray-500">Suit Type</span>
+                                        <span className="text-sm font-bold dark:text-white">{orderDetails.suit_type_name || 'N/A'}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-sm text-gray-500">Total Price</span>

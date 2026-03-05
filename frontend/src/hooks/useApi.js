@@ -33,7 +33,11 @@ export const useApi = (apiFunction, options = {}) => {
 
     try {
       const response = await apiFunction(...args);
-      const result = response.data;
+      // Handle both array and paginated responses
+      let result = response.data;
+      if (result && typeof result === 'object' && !Array.isArray(result)) {
+        result = result.results || result.data || result.items || [];
+      }
       setData(result);
       
       if (onSuccessRef.current) {

@@ -320,7 +320,7 @@ const Items = ({ isHomePage = false }) => {
 
               <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12 flex flex-col md:flex-row justify-between items-end gap-6 bg-gradient-to-t from-black/60 to-transparent">
                 <div className="max-w-xl text-left">
-                  <span className="bg-red-600 text-white text-[8px] font-bold px-3 py-1 uppercase tracking-widest mb-4 inline-block">Ref: {activeItem?.id}</span>
+                  {/* <span className="bg-red-600 text-white text-[8px] font-bold px-3 py-1 uppercase tracking-widest mb-4 inline-block">Ref: {activeItem?.id}</span> */}
                   <h3 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tighter leading-tight">{activeItem?.name}</h3>
                 </div>
                 {activeItem?.inventory?.is_available && (
@@ -356,7 +356,7 @@ const Items = ({ isHomePage = false }) => {
                         />
                         <div className="text-left">
                           <p className={`text-[9px] font-black uppercase ${selectedColor === idx ? 'text-red-600' : 'text-gray-500'}`}>{clr.name}</p>
-                          <p className="text-[7px] text-gray-400">{hexColor}</p>
+                          {/* <p className="text-[7px] text-gray-400">{hexColor}</p> */}
                         </div>
                       </div>
                     </button>

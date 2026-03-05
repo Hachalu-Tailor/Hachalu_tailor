@@ -237,6 +237,8 @@ export const createPayment = (data) => api.post('/payments/', data);
 
 export const verifyPayment = (id, data) => api.post(`/payments/${id}/verify/`, data);
 
+export const getPaymentByOrderId = (order_id) => api.get(`/payments/order/${order_id}/`);
+
 // ============================================
 // GARMENT ENDPOINTS
 // ============================================

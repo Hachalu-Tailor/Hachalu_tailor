@@ -88,8 +88,19 @@ const Inventory = () => {
 
     console.log("POSTING TO BACKEND:", JSON.stringify(materialData, null, 2));
     await createMaterial(materialData);
-    
-    // Success Logic...
+
+    setShowAddModal(false);
+    setNewMaterial({
+      name: "",
+      colors: [],
+      colorInput: "",
+      texture: "",
+      quantity_meters: "",
+      image_url: "",
+      category: "",
+      description: ""
+    });
+    fetchInventory();
   } catch (error) {
     console.error("Backend Error:", error.response?.data);
     alert(`Error: ${error.response?.data?.error || "Check console"}`);
@@ -129,7 +140,7 @@ const Inventory = () => {
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#050505] text-zinc-900 dark:text-zinc-100 transition-colors duration-300">
-      <div className="max-w-7xl mx-auto px-4 py-6 md:py-10">
+      <div className="max-w-7xl mx-auto px-4 py-2 md:py-10">
         {/* HEADER & KPI HUD */}
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-10">
           <div>
@@ -476,7 +487,7 @@ const Inventory = () => {
                           <option value="">Select Category</option>
                           <option value="Child">Child</option>
                           <option value="Men">Men</option>
-                          <option value="Woman">Woman</option>
+                          {/* <option value="Woman">Woman</option> */}
                         </select>
                         <div className="flex gap-2">
                           <button

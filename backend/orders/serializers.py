@@ -22,6 +22,7 @@ class OrderSerializer(serializers.ModelSerializer):
     suit_type_name = serializers.CharField(source="suit_type.name", read_only=True)
     material_name = serializers.CharField(source="material.name", read_only=True)
     measurements = MeasurementSerializer(source="measurement", read_only=True)
+    selected_color = serializers.CharField(source="selected_color.name", read_only=True)
 
     class Meta:
         model = Order
@@ -43,6 +44,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "customer_name",
             "customer_phone",
             "suit_type",
+            "selected_color",
             "suit_type_name",
             "material",
             "material_name",

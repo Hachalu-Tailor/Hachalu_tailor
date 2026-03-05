@@ -13,8 +13,8 @@ from .services import (
     add_stock,
     set_stock_quantity,
 )
-from .serializers import MaterialSerializer
-from .models import Material
+from .serializers import MaterialSerializer, ColorCreateSerializer, ColorSerializer
+from .models import Material, Color
 
 # custom permissions
 from accounts.permissions import IsAdmin, IsReseptionist
@@ -205,3 +205,36 @@ class StockAdjustmentView(APIView):
                 "current_quantity": stock.quantity_meters,
             }
         )
+
+
+class ColorListCreateView(APIView):
+    permission_classes = [IsAdmin | IsReseptionist]
+
+    @extend_schema(
+        tags=["Colors"],
+        responses={200: ColorSerializer(many=True)},
+        description="List all available colors. Accessible to Admins and Receptionists."
+    )
+    def get(self, request):
+        colors = Color.objects.all()
+        serializer = ColorSerializer(colors, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        tags=["Colors"],
+        request=ColorSerializer,
+        responses={201: ColorSerializer, 400: dict},
+        description="Add a new color to the system. Accessible to Admins and Receptionists.",
+        examples=[
+            OpenApiExample(
+                "Create Color",
+                value={"name": "Midnight Blue"},
+                request_only=True,
+            )
+        ],
+    )
+    def post(self, request):
+        serializer = ColorSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        color = serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

@@ -559,33 +559,36 @@ Body:None
 ```
 [
     {
-        "id": "ac2a7eeb-9cea-4200-b09c-c55e2cadaacf",
-        "status": "INITIATED",
-        "quantity": 1,
-        "total_price": "0.00",
-        "due_date": "2000-01-01",
-        "payment_reference": "",
-        "payment_amount": null,
-        "payment_received_at": null,
-        "payment_notes": "",
-        "payment_allowed": false,
-        "created_at": "2026-02-12T20:41:43.944985Z",
-        "updated_at": "2026-02-12T20:41:43.944985Z",
-        "customer_name": "John Doe",
-        "customer_phone": "+251900000000",
+        "id": "408782cb-dfa7-4c68-9d08-999dc728df97",
+        "order_code": "HP-19393693",
+        "status": "EXPIRED",
+        "quantity": 2,
+        "total_price": "2500.00",
+        "due_date": "2026-03-01",
+        "payment_reference": "TX123",
+        "payment_amount": "2500.00",
+        "payment_received_at": "2026-02-12T10:00:00Z",
+        "payment_notes": "Paid via bank",
+        "payment_allowed": true,
+        "expected_price": "1250.00",
+        "created_at": "2026-03-02T20:06:39.089825Z",
+        "updated_at": "2026-03-02T20:34:30.802747Z",
+        "customer_name": "Jane Doe",
+        "customer_phone": "9991112222",
         "suit_type": 1,
+        "selected_color": "Blue",
         "suit_type_name": "Single Lapel Suit",
-        "material": 1,
-        "material_name": "Cotton",
+        "material": 5,
+        "material_name": "Silk",
         "measurements": {
-            "chest": 100.0,
-            "shoulder": 45.0,
-            "waist": 80.0,
-            "hips": 95.0,
-            "arm_length": 60.0,
-            "height": 178.0
+            "chest": 40.0,
+            "shoulder": 18.0,
+            "waist": 32.0,
+            "hips": 38.0,
+            "arm_length": 25.0,
+            "height": 170.0
         }
-    }
+    },
 ]
 ```
 

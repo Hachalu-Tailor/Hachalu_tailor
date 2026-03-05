@@ -8,6 +8,12 @@ class ColorSerializer(serializers.ModelSerializer):
         fields = ['id', 'name']
 
 
+class ColorCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Color
+        fields = ["name"]
+
+
 class StockSerializer(serializers.ModelSerializer):
     """
     Serializer for the Stock model. 

@@ -212,7 +212,7 @@ const Orders = () => {
   return (
     <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
       {/* Stats */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-10">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
         <StatBox label="Pending" count={pendingCount} color="text-orange-500" icon={<HiOutlineClock />} />
         <StatBox label="In Progress" count={inProgressCount} color="text-blue-500" icon={<HiOutlineShoppingBag />} />
         <StatBox label="Completed" count={completedCount} color="text-green-500" icon={<HiOutlineCheck />} />
@@ -391,40 +391,47 @@ const Orders = () => {
 
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4">
-                  <p className="text-[9px] font-black text-zinc-400 uppercase">Suit Type</p>
+                  <p className="text-[9px] font-black text-zinc-400 uppercase">Suit Type Name</p>
                   <p className="text-sm font-bold dark:text-white">{selectedOrder.suit_type_name}</p>
+                  <p className="text-[9px] font-bold text-zinc-400 mt-2">Suite Type: {selectedOrder.suit_type}</p>
                 </div>
                 <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4">
                   <p className="text-[9px] font-black text-zinc-400 uppercase">Material</p>
                   <p className="text-sm font-bold dark:text-white">{selectedOrder.material_name}</p>
                 </div>
-                {/* Selected Color */}
-                {selectedOrder.selected_color_name && (
+                {/* Selected Color - always show if color info exists */}
+                {(selectedOrder.selected_color_name || selectedOrder.selected_color) && (
                   <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4">
-                    <p className="text-[9px] font-black text-zinc-400 uppercase">Selected Color</p>
+                    <p className="text-[9px] font-black text-zinc-400 uppercase mb-1">Selected Color</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <div 
-                        className="w-5 h-5 rounded-full border border-gray-300" 
-                        style={{ backgroundColor: getHexColor(selectedOrder.selected_color_name) }}
+                      <div
+                        className="w-6 h-6 rounded-full border-2 border-gray-300 shadow"
+                        style={{ backgroundColor: getHexColor(selectedOrder.selected_color_name || selectedOrder.selected_color) }}
+                        title={selectedOrder.selected_color_name || selectedOrder.selected_color}
                       />
-                      <p className="text-sm font-bold dark:text-white">{selectedOrder.selected_color_name}</p>
+                      <span className="text-base font-bold dark:text-white tracking-tight">
+                        {selectedOrder.selected_color_name || selectedOrder.selected_color}
+                      </span>
                     </div>
                   </div>
                 )}
-                {/* Material Image - if available */}
+                {/* Material Image - if available, highlight chosen, allow full view */}
                 {(selectedOrder.material_image || selectedOrder.material_colors?.length > 0) && (
                   <div className="col-span-2">
                     <p className="text-[9px] font-black text-zinc-400 uppercase mb-2">Material & Color</p>
                     {selectedOrder.material_image ? (
-                      <div className="relative">
+                      <div className="relative group cursor-pointer" onClick={() => setFullImage(selectedOrder.material_image)}>
                         <img
                           src={selectedOrder.material_image}
                           alt={selectedOrder.material_name}
-                          className="w-full h-32 object-cover rounded-xl"
+                          className="w-full h-32 object-cover rounded-xl border-4 border-emerald-400/70 group-hover:scale-105 transition-transform duration-200 shadow-lg"
+                          style={{ boxShadow: '0 0 0 2px #10b98180' }}
                         />
-                        <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 rounded-lg">
-                          <p className="text-xs font-bold text-white">{selectedOrder.material_name}</p>
+                        <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 rounded-lg flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                          <p className="text-xs font-bold text-white">{selectedOrder.material_name} <span className="ml-1 text-emerald-300 font-black">(Chosen)</span></p>
                         </div>
+                        <div className="absolute top-2 right-2 bg-white/80 dark:bg-zinc-900/80 px-2 py-1 rounded text-[10px] font-bold text-emerald-600 dark:text-emerald-300 shadow">Full View</div>
                       </div>
                     ) : (
                       <div className="w-full h-20 bg-gradient-to-r from-zinc-200 to-zinc-300 dark:from-zinc-800 dark:to-zinc-700 rounded-xl flex items-center justify-center">
@@ -437,15 +444,19 @@ const Orders = () => {
                       <div className="mt-2">
                         <p className="text-[10px] text-gray-400 mb-1">Available Colors:</p>
                         <div className="flex flex-wrap gap-2">
-                          {selectedOrder.material_colors.map((color, idx) => (
-                            <div key={idx} className="flex items-center gap-1 px-2 py-1 bg-white dark:bg-zinc-800 rounded-lg border border-gray-200 dark:border-zinc-700">
-                              <div 
-                                className="w-4 h-4 rounded-full border border-gray-300" 
-                                style={{ backgroundColor: getHexColor(color.name) }}
-                              />
-                              <span className="text-[9px] text-gray-600 dark:text-gray-300">{color.name}</span>
-                            </div>
-                          ))}
+                          {selectedOrder.material_colors.map((color, idx) => {
+                            const isChosen = (color.name === selectedOrder.selected_color_name || color.name === selectedOrder.selected_color);
+                            return (
+                              <div key={idx} className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[9px] ${isChosen ? 'bg-emerald-100 dark:bg-emerald-900 border-emerald-400 text-emerald-700 dark:text-emerald-200 font-black shadow' : 'bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-gray-300'}`}>
+                                <div
+                                  className="w-4 h-4 rounded-full border border-gray-300"
+                                  style={{ backgroundColor: getHexColor(color.name) }}
+                                />
+                                <span>{color.name}</span>
+                                {isChosen && <span className="ml-1">✓</span>}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -462,10 +473,6 @@ const Orders = () => {
                 <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4">
                   <p className="text-[9px] font-black text-zinc-400 uppercase">Due Date</p>
                   <p className="text-sm font-bold dark:text-white">{selectedOrder.due_date}</p>
-                </div>
-                <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4">
-                  <p className="text-[9px] font-black text-zinc-400 uppercase">Selected Color</p>
-                  <p className="text-sm font-bold dark:text-white">{selectedOrder.selected_color_name || selectedOrder.selected_color || 'N/A'}</p>
                 </div>
 
               </div>
@@ -622,11 +629,11 @@ const Orders = () => {
         )}
       </AnimatePresence>
 
-      {/* Full Image Modal */}
+      {/* Full Image Modal (for material or receipt) */}
       <AnimatePresence>
         {fullImage && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90" onClick={() => setFullImage(null)}>
-            <img src={fullImage} alt="Full Receipt" className="max-h-[90vh] max-w-full rounded-2xl shadow-2xl border-4 border-white" />
+            <img src={fullImage} alt="Full View" className="max-h-[90vh] max-w-full rounded-2xl shadow-2xl border-4 border-white" />
           </div>
         )}
       </AnimatePresence>

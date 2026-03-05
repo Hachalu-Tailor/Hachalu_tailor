@@ -991,3 +991,40 @@ P
     }
 }
 ```
+
+
+
+### Colors
+#### Add Color(create new color)
+#### Endpoint: POST /api/invetory/colors/
+####  Body: 
+```
+{
+    "name": "Midnight Blue"
+}
+```
+
+#### Response
+```
+{
+    "id": 16,
+    "name": "Midnight Blue"
+}
+```
+#### List Color
+#### Endpoint: GET /api/invetory/colors/
+####  Body: None
+
+#### Response
+```
+[
+    {
+        "id": 1,
+        "name": "Red"
+    },
+    {
+        "id": 2,
+        "name": "Blue"
+    },
+    ....
+```

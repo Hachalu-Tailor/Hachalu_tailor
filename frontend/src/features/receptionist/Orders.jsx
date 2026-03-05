@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   HiOutlineCheck, HiOutlineEye, HiOutlineNoSymbol, HiOutlinePlus,
   HiOutlineShoppingBag, HiOutlineClock, HiOutlineXMark, 
-  HiOutlineClipboardDocumentCheck, HiOutlineBanknotes, HiOutlinePhoto
+  HiOutlineClipboardDocumentCheck, HiOutlineBanknotes
 } from 'react-icons/hi2';
-import api, { getOrders, getSuitTypes, createOrder, processOrder, getMaterials, getMaterialDetail, getColorsFromMaterials } from '../../api/api';
+import { getOrders, getSuitTypes, createOrder, processOrder, getMaterials, getMaterialDetail, getColorsFromMaterials, getPaymentByOrderId } from '../../api/api';
 import { getHexColor } from '../../utils/colors';
 
 const Orders = () => {
@@ -15,6 +15,9 @@ const Orders = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [payments, setPayments] = useState([]);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [fullImage, setFullImage] = useState(null);
   const [receiveData, setReceiveData] = useState({ total_price: '', expected_price: '', due_date: '' });
   const [suitTypes, setSuitTypes] = useState([]);
   const [materials, setMaterials] = useState([]);
@@ -184,6 +187,28 @@ const Orders = () => {
     return colors[status] || 'bg-gray-500/10 text-gray-400';
   };
 
+  // Fetch payments when selectedOrder changes
+  useEffect(() => {
+    const fetchPayments = async () => {
+      if (selectedOrder) {
+        setPaymentLoading(true);
+        try {
+          const res = await getPaymentByOrderId(selectedOrder.order_code);
+          let data = res.data;
+          if (!Array.isArray(data)) data = [data];
+          setPayments(data);
+        } catch (err) {
+          setPayments([]);
+        } finally {
+          setPaymentLoading(false);
+        }
+      } else {
+        setPayments([]);
+      }
+    };
+    fetchPayments();
+  }, [selectedOrder]);
+
   return (
     <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
       {/* Stats */}
@@ -290,19 +315,79 @@ const Orders = () => {
                 <HiOutlineXMark size={20} />
               </button>
 
-              <div className="mb-6 flex justify-between items-start">
+
+              <div className="mb-6 flex flex-col md:flex-row justify-between items-start gap-4">
                 <div>
-                    <h2 className="text-2xl font-black uppercase italic tracking-tighter dark:text-white">{selectedOrder.order_code}</h2>
-                    <p className="text-[10px] text-zinc-400 uppercase font-bold mt-1">{selectedOrder.customer_name} • {selectedOrder.customer_phone}</p>
+                  <h2 className="text-2xl font-black uppercase italic tracking-tighter dark:text-white">{selectedOrder.order_code}</h2>
+                  <p className="text-[10px] text-zinc-400 uppercase font-bold mt-1">{selectedOrder.customer_name} • {selectedOrder.customer_phone}</p>
                 </div>
-                <button 
-                    onClick={(e) => { e.stopPropagation(); setShowPaymentModal(true); }}
-                    className="flex items-center gap-2 px-4 py-2 bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl transition-all border border-zinc-200 dark:border-white/5"
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowPaymentModal(true); }}
+                  className="flex items-center gap-2 px-4 py-2 bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-xl transition-all border border-zinc-200 dark:border-white/5"
                 >
-                    <HiOutlineBanknotes className="text-emerald-500" />
-                    <span className="text-[9px] font-black uppercase tracking-tighter dark:text-white">View Payments</span>
+                  <HiOutlineBanknotes className="text-emerald-500" />
+                  <span className="text-[9px] font-black uppercase tracking-tighter dark:text-white">View Payments</span>
                 </button>
               </div>
+
+              {/* Payment List Inline - always up to date for selected order */}
+              <div className="mb-8">
+                <h4 className="text-[11px] font-black uppercase tracking-widest mb-3 dark:text-white flex items-center gap-2">
+                  <HiOutlineBanknotes className="text-emerald-500 animate-bounce" /> Payment Details
+                </h4>
+                <div className="space-y-3">
+                  {paymentLoading ? (
+                    <div className="flex items-center justify-center py-6">
+                      <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : payments.length > 0 ? (
+                    payments.map((payment, idx) => (
+                      <div key={idx} className="bg-gradient-to-br from-emerald-50 to-zinc-50 dark:from-emerald-900/40 dark:to-zinc-900/60 rounded-xl p-4 border border-emerald-100 dark:border-emerald-900 flex flex-col md:flex-row md:items-center md:justify-between gap-4 shadow-sm">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap gap-2 items-center mb-2">
+                            <span className="text-[10px] font-bold uppercase px-2 py-1 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">Paid</span>
+                            <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${payment.is_verified ? 'bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300' : 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900 dark:text-yellow-300'}`}>{payment.is_verified ? 'Verified' : 'Not Verified'}</span>
+                            <span className="text-[9px] text-zinc-500">{new Date(payment.created_at).toLocaleString()}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-4 items-center">
+                            <div>
+                              <div className="text-[10px] text-zinc-400 uppercase font-bold">Amount</div>
+                              <div className="text-base font-black text-emerald-600 dark:text-emerald-300">{payment.payment_amount} ETB</div>
+                            </div>
+                            <div>
+                              <div className="text-[10px] text-zinc-400 uppercase font-bold">Bank Ref</div>
+                              <div className="text-xs font-bold dark:text-white break-all">{payment.bank_ref_number || 'N/A'}</div>
+                            </div>
+                          </div>
+                        </div>
+                        {payment.receipt_screenshot && (
+                          <div className="flex flex-col items-center gap-1 cursor-pointer" onClick={() => setFullImage(payment.receipt_screenshot)}>
+                            <img
+                              src={payment.receipt_screenshot}
+                              alt="Receipt"
+                              className="w-24 h-20 object-cover rounded-lg border border-emerald-200 dark:border-emerald-900 hover:scale-105 transition-transform duration-300 shadow-md"
+                            />
+                            <span className="text-[9px] text-zinc-400">View</span>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex items-center gap-2 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-xl p-4">
+                      <HiOutlineNoSymbol className="text-yellow-500 animate-pulse" size={20} />
+                      <span className="text-[11px] font-black text-yellow-700 dark:text-yellow-200 uppercase">Payment not received yet</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+      {/* Full Image Modal */}
+      <AnimatePresence>
+        {fullImage && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90" onClick={() => setFullImage(null)}>
+            <img src={fullImage} alt="Full Receipt" className="max-h-[90vh] max-w-full rounded-2xl shadow-2xl border-4 border-white" />
+          </div>
+        )}
+      </AnimatePresence>
 
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4">
@@ -378,6 +463,11 @@ const Orders = () => {
                   <p className="text-[9px] font-black text-zinc-400 uppercase">Due Date</p>
                   <p className="text-sm font-bold dark:text-white">{selectedOrder.due_date}</p>
                 </div>
+                <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4">
+                  <p className="text-[9px] font-black text-zinc-400 uppercase">Selected Color</p>
+                  <p className="text-sm font-bold dark:text-white">{selectedOrder.selected_color_name || selectedOrder.selected_color || 'N/A'}</p>
+                </div>
+
               </div>
 
               {selectedOrder.measurements && (
@@ -478,46 +568,65 @@ const Orders = () => {
                     <HiOutlineXMark size={20} />
                 </button>
               </div>
-
               <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                {selectedOrder.payments && selectedOrder.payments.length > 0 ? (
-                    selectedOrder.payments.map((payment, idx) => (
-                        <div key={idx} className="bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl p-4 border border-zinc-100 dark:border-white/5">
-                            <div className="flex justify-between items-start mb-3">
-                                <div>
-                                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Transaction No (TIN)</p>
-                                    <p className="text-sm font-bold dark:text-white">{payment.transaction_id || payment.payment_reference || 'N/A'}</p>
-                                </div>
-                                <span className="bg-emerald-500/10 text-emerald-500 text-[10px] font-black px-3 py-1 rounded-full uppercase">
-                                    {payment.amount} ETB
-                                </span>
-                            </div>
-                            
-                            {payment.receipt_image && (
-                                <div className="mt-3 rounded-xl overflow-hidden border border-zinc-200 dark:border-white/10">
-                                    <img 
-                                        src={payment.receipt_image} 
-                                        alt="Receipt" 
-                                        className="w-full h-32 object-cover hover:scale-105 transition-transform duration-500"
-                                    />
-                                </div>
-                            )}
-                            <div className="flex items-center gap-2 mt-3 text-[9px] text-zinc-500 font-bold uppercase">
-                                <HiOutlineClock />
-                                <span>{new Date(payment.created_at).toLocaleDateString()}</span>
-                            </div>
+                {paymentLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : payments.length > 0 ? (
+                  payments.map((payment, idx) => (
+                    <div key={idx} className="bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl p-4 border border-zinc-100 dark:border-white/5">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Order ID</p>
+                          <p className="text-xs font-bold dark:text-white break-all">{payment.order_id || payment.order_code}</p>
+                          <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-2">Bank Ref</p>
+                          <p className="text-xs font-bold dark:text-white break-all">{payment.bank_ref_number || 'N/A'}</p>
                         </div>
-                    ))
-                ) : (
-                    <div className="py-12 text-center">
-                        <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-900 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <HiOutlineNoSymbol className="text-zinc-400" size={30} />
+                        <span className="bg-emerald-500/10 text-emerald-500 text-[10px] font-black px-3 py-1 rounded-full uppercase">
+                          {payment.payment_amount} ETB
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${payment.is_verified ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}>
+                          {payment.is_verified ? 'Verified' : 'Not Verified'}
+                        </span>
+                        <span className="text-[9px] text-zinc-500">{new Date(payment.created_at).toLocaleString()}</span>
+                      </div>
+                      {payment.receipt_screenshot && (
+                        <div className="mt-3 rounded-xl overflow-hidden border border-zinc-200 dark:border-white/10 cursor-pointer group" onClick={() => setFullImage(payment.receipt_screenshot)}>
+                          <img
+                            src={payment.receipt_screenshot}
+                            alt="Receipt"
+                            className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                          <div className="text-center text-[10px] text-zinc-400 mt-1">Click to view full image</div>
                         </div>
-                        <p className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Payment is not received yet</p>
+                      )}
+                      {payment.receipt_pdf_url && (
+                        <a href={payment.receipt_pdf_url} target="_blank" rel="noopener noreferrer" className="block mt-2 text-blue-600 underline text-xs">View PDF Receipt</a>
+                      )}
                     </div>
+                  ))
+                ) : (
+                  <div className="py-12 text-center">
+                    <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <HiOutlineNoSymbol className="text-zinc-400" size={30} />
+                    </div>
+                    <p className="text-zinc-500 font-black uppercase text-[10px] tracking-widest">Payment is not received yet</p>
+                  </div>
                 )}
               </div>
             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Full Image Modal */}
+      <AnimatePresence>
+        {fullImage && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90" onClick={() => setFullImage(null)}>
+            <img src={fullImage} alt="Full Receipt" className="max-h-[90vh] max-w-full rounded-2xl shadow-2xl border-4 border-white" />
           </div>
         )}
       </AnimatePresence>

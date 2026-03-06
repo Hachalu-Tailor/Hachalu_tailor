@@ -33,6 +33,15 @@ const Orders = () => {
   });
   const [createdOrder, setCreatedOrder] = useState(null);
 
+  // Helper to get absolute URL for images
+  const getAbsoluteUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    // Remove leading slash if present
+    const path = url.startsWith('/') ? url.substring(1) : url;
+    return `http://127.0.0.1:8000/${path}`;
+  };
+
   useEffect(() => {
     fetchOrders();
     fetchSuitTypes();
@@ -197,6 +206,7 @@ const Orders = () => {
           let data = res.data;
           if (!Array.isArray(data)) data = [data];
           setPayments(data);
+          console.log("Fetched payments data", data)
         } catch (err) {
           setPayments([]);
         } finally {
@@ -361,9 +371,9 @@ const Orders = () => {
                           </div>
                         </div>
                         {payment.receipt_screenshot && (
-                          <div className="flex flex-col items-center gap-1 cursor-pointer" onClick={() => setFullImage(payment.receipt_screenshot)}>
+                          <div className="flex flex-col items-center gap-1 cursor-pointer" onClick={() => setFullImage(getAbsoluteUrl(payment.receipt_screenshot))}>
                             <img
-                              src={payment.receipt_screenshot}
+                              src={getAbsoluteUrl(payment.receipt_screenshot)}
                               alt="Receipt"
                               className="w-24 h-20 object-cover rounded-lg border border-emerald-200 dark:border-emerald-900 hover:scale-105 transition-transform duration-300 shadow-md"
                             />
@@ -420,9 +430,9 @@ const Orders = () => {
                   <div className="col-span-2">
                     <p className="text-[9px] font-black text-zinc-400 uppercase mb-2">Material & Color</p>
                     {selectedOrder.material_image ? (
-                      <div className="relative group cursor-pointer" onClick={() => setFullImage(selectedOrder.material_image)}>
+                      <div className="relative group cursor-pointer" onClick={() => setFullImage(getAbsoluteUrl(selectedOrder.material_image))}>
                         <img
-                          src={selectedOrder.material_image}
+                          src={getAbsoluteUrl(selectedOrder.material_image)}
                           alt={selectedOrder.material_name}
                           className="w-full h-32 object-cover rounded-xl border-4 border-emerald-400/70 group-hover:scale-105 transition-transform duration-200 shadow-lg"
                           style={{ boxShadow: '0 0 0 2px #10b98180' }}
@@ -601,9 +611,9 @@ const Orders = () => {
                         <span className="text-[9px] text-zinc-500">{new Date(payment.created_at).toLocaleString()}</span>
                       </div>
                       {payment.receipt_screenshot && (
-                        <div className="mt-3 rounded-xl overflow-hidden border border-zinc-200 dark:border-white/10 cursor-pointer group" onClick={() => setFullImage(payment.receipt_screenshot)}>
+                        <div className="mt-3 rounded-xl overflow-hidden border border-zinc-200 dark:border-white/10 cursor-pointer group" onClick={() => setFullImage(getAbsoluteUrl(payment.receipt_screenshot))}>
                           <img
-                            src={payment.receipt_screenshot}
+                            src={getAbsoluteUrl(payment.receipt_screenshot)}
                             alt="Receipt"
                             className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-500"
                           />

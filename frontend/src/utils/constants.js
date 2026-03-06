@@ -156,6 +156,34 @@ export const MATERIAL_TYPES = [
   'Chiffon'
 ];
 
+// Color Categories for Material Selection
+export const COLOR_CATEGORIES = {
+  NEUTRALS: 'neutrals',
+  BLUES: 'blues',
+  REDS: 'reds',
+  GREENS: 'greens',
+  PURPLES: 'purples',
+  PINKS: 'pinks',
+  YELLOWS: 'yellows',
+  ORANGES: 'oranges',
+  BROWNS: 'browns',
+  TEALS: 'teals'
+};
+
+// Color Category Labels
+export const COLOR_CATEGORY_LABELS = {
+  neutrals: 'Neutrals',
+  blues: 'Blues',
+  reds: 'Reds',
+  greens: 'Greens',
+  purples: 'Purples',
+  pinks: 'Pinks',
+  yellows: 'Yellows',
+  oranges: 'Oranges',
+  browns: 'Browns',
+  teals: 'Teals'
+};
+
 // Common Texture Options
 export const TEXTURE_OPTIONS = [
   'Soft',
@@ -271,6 +299,8 @@ export default {
   USER_ROLES,
   USER_ROLE_LABELS,
   MATERIAL_TYPES,
+  COLOR_CATEGORIES,
+  COLOR_CATEGORY_LABELS,
   TEXTURE_OPTIONS,
   MEASUREMENT_TYPES,
   GARMENT_TYPES,

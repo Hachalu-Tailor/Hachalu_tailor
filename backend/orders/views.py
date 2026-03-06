@@ -9,7 +9,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework.exceptions import ValidationError
 
 from .models import SuitType
-from accounts.permissions import IsAdminOrReceptionist, IsReseptionist, IsAdmin
+from accounts.permissions import IsAdminOrReceptionist, IsReseptionist, IsAdmin, IsGarmentAdmin
 from .serializers import (
     CreateOrderResponseSerializer,
     SuitTypeSerializer,
@@ -105,7 +105,7 @@ class OrderCreateView(APIView):
 
 
 class OrderListView(APIView):
-    permission_classes = [IsAuthenticated, IsAdminOrReceptionist]
+    permission_classes = [IsAuthenticated, (IsAdminOrReceptionist | IsGarmentAdmin)]
 
     @extend_schema(
         tags=["Orders"],

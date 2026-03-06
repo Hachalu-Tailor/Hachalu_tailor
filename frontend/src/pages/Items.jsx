@@ -92,11 +92,13 @@ const Items = ({ isHomePage = false }) => {
           img: m.image_url || 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?q=80&w=1480',
           desc: m.description || `A premium ${m.texture} fabric in a sophisticated ${m.color || m.colors?.[0]?.name || 'varied'} finish.`,
           price: m.inventory ? `${m.inventory.quantity_meters}m Available` : "Check Stock",
-          colors: m.colors || m.color || [
-            { name: 'Classic Black', hex: '#1a1a1a' },
-            { name: 'Earth Brown', hex: '#7d6e5d' },
-            { name: 'Navy Blue', hex: '#1e293b' },
-            { name: 'Slate Gray', hex: '#475569' }
+          colors: m.colors && m.colors.length > 0 ? m.colors : m.color ? [{ name: m.color }] : [
+            { name: 'Black' },
+            { name: 'White' },
+            { name: 'Navy' },
+            { name: 'Brown' },
+            { name: 'Gray' },
+            { name: 'Blue' }
           ]
         }));
 
@@ -190,8 +192,8 @@ const Items = ({ isHomePage = false }) => {
     const payload = {
       customer_name: formData.customer_name,
       customer_phone: formData.customer_phone,
-      suit_type: formData.suit_type,
-      material: activeItem?.id,
+      suit_type: parseInt(formData.suit_type) || formData.suit_type,
+      material: parseInt(activeItem?.id) || activeItem?.id,
       quantity: parseInt(formData.quantity) || 1,
       measurements: {
         height: parseFloat(formData.measurements.height) || 0,
@@ -206,8 +208,24 @@ const Items = ({ isHomePage = false }) => {
     // Make selected_color required - get first color from material if available
     let defaultColor = formData.selected_color;
 
-    if (!defaultColor && activeItem?.colors?.length > 0) {
-      defaultColor = typeof activeItem.colors[0] === 'object' ? activeItem.colors[0].name : activeItem.colors[0];
+    // Ensure the color exists in the material's colors
+    const availableColors = activeItem?.colors?.map(c => typeof c === 'object' ? c.name : c) || [];
+
+    if (!defaultColor && availableColors.length > 0) {
+      defaultColor = availableColors[0];
+    }
+
+    // Validate that the selected color is in the available colors
+    if (defaultColor && availableColors.length > 0) {
+      const colorMatch = availableColors.find(c =>
+        c.toLowerCase() === defaultColor.toLowerCase()
+      );
+      if (!colorMatch) {
+        // Use first available color if selected color is not valid
+        defaultColor = availableColors[0];
+      } else {
+        defaultColor = colorMatch; // Use the exact case from available colors
+      }
     }
 
     if (!defaultColor) {
@@ -237,13 +255,18 @@ const Items = ({ isHomePage = false }) => {
     } catch (error) {
       console.error('Order error:', error);
       const errorData = error.response?.data;
-      let errorMsg = 'Failed to place order. Please check:\n';
+      let errorMsg = 'Failed to place order. Please try again.';
       if (errorData) {
         if (typeof errorData === 'string') {
           errorMsg = errorData;
         } else if (typeof errorData === 'object') {
-          errorMsg = 'Failed to place order. Errors:\n' +
-            Object.entries(errorData).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`).join('\n');
+          // Format validation errors nicely
+          const errors = Object.entries(errorData).map(([k, v]) => {
+            const keyName = k.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            const value = Array.isArray(v) ? v.join(', ') : v;
+            return `${keyName}: ${value}`;
+          }).join('\n');
+          errorMsg = errors || 'Validation error occurred';
         }
       } else if (error.message) {
         errorMsg = error.message;
@@ -448,16 +471,16 @@ const Items = ({ isHomePage = false }) => {
                             const hexColor = color.hex_color || getHexColor(color.name);
                             const isSelected = formData.selected_color === color.name;
                             const isLight = isLightColor(hexColor);
-                            
+
                             return (
                               <button
                                 key={color.id || color.name}
                                 onClick={() => handleInputChange('selected_color', color.name)}
                                 className={`py-3 border text-[10px] font-black uppercase tracking-widest transition-all flex flex-col items-center gap-2 ${isSelected ? 'bg-red-600 border-red-600 text-white shadow-lg' : 'border-gray-200 dark:border-white/10 dark:text-white hover:border-gray-400'}`}
                               >
-                                <div 
-                                  className="w-6 h-6 rounded-full border-2 shadow-inner" 
-                                  style={{ 
+                                <div
+                                  className="w-6 h-6 rounded-full border-2 shadow-inner"
+                                  style={{
                                     backgroundColor: hexColor,
                                     borderColor: isSelected ? '#fff' : (isLight ? '#ccc' : hexColor)
                                   }}

@@ -48,9 +48,11 @@ const DashboardLayout = () => {
 
     if (storedRole) setUserRole(storedRole.toLowerCase());
 
-    // Always use dark mode - ignore saved preference to ensure visibility
-    setDarkMode(true);
-    localStorage.setItem('theme', 'dark');
+    // Load theme preference from localStorage
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    setDarkMode(prefersDark);
+    localStorage.setItem('theme', prefersDark ? 'dark' : 'light');
 
     // Fetch notifications
     fetchNotifications();
@@ -115,7 +117,7 @@ const DashboardLayout = () => {
         <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
 
           {/* HEADER SECTION */}
-          <header className="h-20 flex-shrink-0 border-b border-gray-100 dark:border-white/5 bg-white/90 dark:bg-[#080808]/90 backdrop-blur-xl px-6 md:px-10 flex items-center justify-between z-40">
+          <header className="h-16 flex-shrink-0 border-b border-gray-100 dark:border-white/5 bg-white/90 dark:bg-[#080808]/90 backdrop-blur-xl px-4 md:px-6 flex items-center justify-between z-40">
 
             {/* Left: Mobile Toggle & Title */}
             <div className="flex items-center gap-4">

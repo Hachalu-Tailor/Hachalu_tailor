@@ -14,7 +14,7 @@ import {
     HiOutlineTruck,
     HiOutlineShieldCheck,
     HiOutlineArrowPath,
-    HiOutlineX
+    HiOutlineXMark
 } from 'react-icons/hi2';
 import api, { getGarmentOrdersInProgress, getGarmentShippedOrders, processGarmentOrder, getNotifications } from '../api/api';
 import { useAuth } from '../hooks/useAuth';
@@ -298,7 +298,7 @@ const GarmentDashboard = () => {
                 <div className="bg-gradient-to-r from-red-600 to-red-700 rounded-2xl p-6 text-white shadow-lg">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
-                            <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-3">
+                            <h1 className="text-xl md:text-3xl font-bold flex items-center gap-3">
                                 <HiOutlineScissors className="w-8 h-8" />
                                 Garment Workshop
                             </h1>
@@ -478,7 +478,7 @@ const GarmentDashboard = () => {
                                             {order.measurements && (
                                                 <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
                                                     <p className="text-xs text-gray-500 mb-1">Measurements:</p>
-                                                    <div className="grid grid-cols-3 gap-1 text-xs">
+                                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 text-xs">
                                                         {order.measurements.chest && (
                                                             <span className="text-gray-600 dark:text-gray-300">Chest: <b className="dark:text-white">{order.measurements.chest}</b></span>
                                                         )}
@@ -538,7 +538,7 @@ const GarmentDashboard = () => {
                             initial={{ scale: 0.9, y: 20 }}
                             animate={{ scale: 1, y: 0 }}
                             exit={{ scale: 0.9, y: 20 }}
-                            className="relative w-full max-w-lg bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden"
+                            className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 rounded-2xl shadow-2xl"
                         >
                             {/* Header */}
                             <div className="bg-gradient-to-r from-red-600 to-red-700 p-6 text-white">
@@ -551,7 +551,7 @@ const GarmentDashboard = () => {
                                         onClick={() => setSelectedOrder(null)}
                                         className="p-2 rounded-full bg-white/20 hover:bg-white/30"
                                     >
-                                        <HiOutlineX className="w-5 h-5" />
+                                        <HiOutlineXMark className="w-5 h-5" />
                                     </button>
                                 </div>
                             </div>
@@ -569,19 +569,19 @@ const GarmentDashboard = () => {
                                 {/* Progress */}
                                 <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
                                     <p className="text-sm text-gray-500 dark:text-gray-300 mb-3">Production Progress</p>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 overflow-x-auto pb-2">
                                         {getProgressStages(selectedOrder.status).map((stage, idx) => (
                                             <React.Fragment key={stage.id}>
-                                                <div className={`flex-1 h-2 rounded-full ${stage.isActive
+                                                <div className={`min-w-[40px] h-2 rounded-full ${stage.isActive
                                                     ? stage.isCurrent ? 'bg-red-500' : 'bg-green-500'
                                                     : 'bg-gray-300 dark:bg-gray-600'
                                                     }`} />
                                             </React.Fragment>
                                         ))}
                                     </div>
-                                    <div className="flex justify-between mt-2">
+                                    <div className="flex justify-between mt-2 overflow-x-auto">
                                         {getProgressStages(selectedOrder.status).map(stage => (
-                                            <span key={stage.id} className="text-[10px] text-gray-400">{stage.label}</span>
+                                            <span key={stage.id} className="text-[10px] text-gray-400 whitespace-nowrap px-1">{stage.label}</span>
                                         ))}
                                     </div>
                                 </div>
@@ -629,11 +629,11 @@ const GarmentDashboard = () => {
 
                                 {/* Measurements Section */}
                                 {selectedOrder.measurements && (
-                                    <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-xl">
+                                    <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-xl overflow-x-auto">
                                         <p className="text-sm font-bold text-blue-700 dark:text-blue-300 mb-3 flex items-center gap-2">
                                             📏 Measurements
                                         </p>
-                                        <div className="grid grid-cols-3 gap-3">
+                                        <div className="grid grid-cols-3 sm:grid-cols-3 gap-3 min-w-[280px]">
                                             {selectedOrder.measurements.chest && (
                                                 <div className="bg-white dark:bg-gray-800 p-2 rounded-lg text-center">
                                                     <p className="text-xs text-gray-500">Chest</p>
@@ -697,7 +697,7 @@ const GarmentDashboard = () => {
                                     <p className="text-sm font-bold text-purple-700 dark:text-purple-300 mb-3 flex items-center gap-2">
                                         👤 Customer Info
                                     </p>
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
                                             <p className="text-xs text-gray-500">Customer Name</p>
                                             <p className="font-medium dark:text-white">{selectedOrder.customer_name || 'N/A'}</p>
@@ -714,7 +714,7 @@ const GarmentDashboard = () => {
                                     <p className="text-sm font-bold text-green-700 dark:text-green-300 mb-3 flex items-center gap-2">
                                         💰 Pricing
                                     </p>
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div className="bg-white dark:bg-gray-800 p-3 rounded-lg text-center">
                                             <p className="text-xs text-gray-500">Expected Price</p>
                                             <p className="font-bold text-lg dark:text-white">{selectedOrder.expected_price ? `ETB ${selectedOrder.expected_price}` : 'N/A'}</p>
@@ -803,13 +803,13 @@ const GarmentDashboard = () => {
                             initial={{ x: '100%' }}
                             animate={{ x: 0 }}
                             exit={{ x: '100%' }}
-                            className="absolute right-0 top-0 bottom-0 w-80 bg-white dark:bg-gray-800 shadow-2xl"
+                            className="absolute right-0 top-0 bottom-0 w-full sm:w-80 bg-white dark:bg-gray-800 shadow-2xl"
                             onClick={(e) => e.stopPropagation()}
                         >
                             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                                 <h2 className="text-lg font-bold dark:text-white">Notifications</h2>
                                 <button onClick={() => setShowNotifications(false)}>
-                                    <HiOutlineX className="w-5 h-5 dark:text-white" />
+                                    <HiOutlineXMark className="w-5 h-5 dark:text-white" />
                                 </button>
                             </div>
                             <div className="p-4 overflow-y-auto h-[calc(100%-64px)]">

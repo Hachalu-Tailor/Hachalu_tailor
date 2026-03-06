@@ -34,10 +34,10 @@ class IsAdminOrReceptionist(BasePermission):
 
 
 class IsGarmentAdmin(BasePermission):
-    """Allow access to users who are GARMENT_ADMINs."""
+    """Allow access to users who are GARMENT_ADMINs or GARMENT (tailor)."""
 
     def has_permission(self, request, view):
         return (
             bool(getattr(request.user, "is_authenticated", False))
-            and request.user.role == "GARMENT_ADMIN"
+            and request.user.role in {"GARMENT_ADMIN", "GARMENT"}
         )

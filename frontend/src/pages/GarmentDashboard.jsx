@@ -25,13 +25,16 @@ import {
     HiOutlineChatBubbleBottomCenterText,
     HiOutlineShieldCheck,
     HiOutlineExclamationTriangle,
-    HiOutlineStar
+    HiOutlineStar,
+    HiOutlineLockClosed
 } from 'react-icons/hi2';
-import api, { getGarmentOrdersInProgress, getGarmentShippedOrders, processGarmentOrder, getNotifications, getMaterialDetail } from '../api/api';
+import api, { getGarmentOrdersInProgress, getGarmentShippedOrders, processGarmentOrder, getNotifications, getMaterialDetail, getOrders } from '../api/api';
 import { getHexColor, isLightColor } from '../utils/colors';
+import { useAuth } from '../hooks/useAuth';
 
 const GarmentDashboard = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -78,25 +81,25 @@ const GarmentDashboard = () => {
     // Helper: Get days remaining or overdue
     const getTimeStatus = (dueDate) => {
         if (!dueDate) return { text: 'No due date', isOverdue: false, daysLeft: null };
-        
+
         const due = new Date(dueDate);
         const now = new Date();
         const diffTime = due - now;
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
+
         if (diffDays < 0) {
-            return { 
-                text: `${Math.abs(diffDays)} day${Math.abs(diffDays) > 1 ? 's' : ''} overdue`, 
-                isOverdue: true, 
-                daysLeft: diffDays 
+            return {
+                text: `${Math.abs(diffDays)} day${Math.abs(diffDays) > 1 ? 's' : ''} overdue`,
+                isOverdue: true,
+                daysLeft: diffDays
             };
         } else if (diffDays === 0) {
             return { text: 'Due today', isOverdue: false, daysLeft: 0 };
         } else if (diffDays <= 2) {
-            return { 
-                text: `${diffDays} day${diffDays > 1 ? 's' : ''} left`, 
-                isOverdue: false, 
-                daysLeft: diffDays 
+            return {
+                text: `${diffDays} day${diffDays > 1 ? 's' : ''} left`,
+                isOverdue: false,
+                daysLeft: diffDays
             };
         }
         return { text: `${diffDays} days left`, isOverdue: false, daysLeft: diffDays };
@@ -113,7 +116,7 @@ const GarmentDashboard = () => {
             { id: 'COMPLETED', label: 'Completed', icon: HiOutlineCheckCircle },
             { id: 'SHIPPED', label: 'Shipped', icon: HiOutlineTruck }
         ];
-        
+
         const statusOrder = {
             'INITIATED': 0,
             'PENDING_APPROVAL': 1,
@@ -123,9 +126,9 @@ const GarmentDashboard = () => {
             'COMPLETED': 5,
             'SHIPPED': 6
         };
-        
+
         const currentIndex = statusOrder[status] ?? 0;
-        
+
         return stages.map((stage, index) => ({
             ...stage,
             isActive: index <= currentIndex,
@@ -150,31 +153,42 @@ const GarmentDashboard = () => {
         try {
             // Try garment-specific endpoints first
             let garmentOrders = [];
-            
-            // Try in-progress endpoint
-            try {
-                const inProgressResponse = await getGarmentOrdersInProgress();
-                const inProgressOrders = inProgressResponse.data?.results || inProgressResponse.data || [];
-                garmentOrders = [...garmentOrders, ...inProgressOrders];
-            } catch (err) {
-                console.log('Could not fetch in-progress orders:', err.message);
+
+            // Check user role - handle both GARMENT (frontend) and GARMENT_ADMIN (backend)
+            const userRole = user?.role || localStorage.getItem('user_role') || '';
+            const isAuthorizedUser = 
+                userRole.toUpperCase() === 'GARMENT' || 
+                userRole.toUpperCase() === 'GARMENT_ADMIN' || 
+                userRole.toUpperCase() === 'ADMIN' || 
+                userRole.toUpperCase() === 'RECEPTIONIST';
+
+            // Try garment-specific endpoints only if user has proper role
+            if (isAuthorizedUser) {
+                // Try in-progress endpoint
+                try {
+                    const inProgressResponse = await getGarmentOrdersInProgress();
+                    const inProgressOrders = inProgressResponse.data?.results || inProgressResponse.data || [];
+                    garmentOrders = [...garmentOrders, ...inProgressOrders];
+                } catch (err) {
+                    console.log('Could not fetch in-progress orders:', err.message);
+                }
+
+                // Try shipped endpoint
+                try {
+                    const shippedResponse = await getGarmentShippedOrders();
+                    const shippedOrders = shippedResponse.data?.results || shippedResponse.data || [];
+                    garmentOrders = [...garmentOrders, ...shippedOrders];
+                } catch (err) {
+                    console.log('Could not fetch shipped orders:', err.message);
+                }
             }
-            
-            // Try shipped endpoint
-            try {
-                const shippedResponse = await getGarmentShippedOrders();
-                const shippedOrders = shippedResponse.data?.results || shippedResponse.data || [];
-                garmentOrders = [...garmentOrders, ...shippedOrders];
-            } catch (err) {
-                console.log('Could not fetch shipped orders:', err.message);
-            }
-            
-            // If no garment-specific data, try general orders with better error handling
+
+            // If no garment-specific data or user not authorized, try general orders endpoint
             if (garmentOrders.length === 0) {
                 try {
-                    const allResponse = await api.get('/orders/list/');
+                    const allResponse = await getOrders({ active_only: true });
                     let allOrders = allResponse.data;
-                    
+
                     if (allOrders && typeof allOrders === 'object' && !Array.isArray(allOrders)) {
                         allOrders = allOrders.results || allOrders.data || allOrders.items || [];
                     }
@@ -182,17 +196,17 @@ const GarmentDashboard = () => {
                     // Filter orders for garment dashboard
                     garmentOrders = (allOrders || []).filter(order => {
                         const status = order.status;
-                        return status === 'IN_PROGRESS' || 
-                               status === 'PENDING_APPROVAL' || 
-                               status === 'COMPLETED' ||
-                               status === 'SHIPPED' ||
-                               status === 'IN_PROGRESS_STITCHING' ||
-                               status === 'IN_PROGRESS_FINISHING';
+                        return status === 'IN_PROGRESS' ||
+                            status === 'PENDING_APPROVAL' ||
+                            status === 'COMPLETED' ||
+                            status === 'SHIPPED' ||
+                            status === 'IN_PROGRESS_STITCHING' ||
+                            status === 'IN_PROGRESS_FINISHING';
                     });
                 } catch (ordersErr) {
-                    // Handle permission errors
+                    // Handle permission errors gracefully
                     if (ordersErr.response?.status === 403) {
-                        setError('Permission denied. Please ensure your account has garment access.');
+                        setError('Permission denied. Please contact administrator for garment access.');
                     } else {
                         console.log('Could not fetch general orders:', ordersErr.message);
                     }
@@ -210,7 +224,7 @@ const GarmentDashboard = () => {
             });
 
             setOrders(uniqueOrders);
-            
+
         } catch (error) {
             console.error('Error loading orders:', error);
             if (!error.response) {
@@ -385,7 +399,7 @@ const GarmentDashboard = () => {
         const orderId = selectedForQuality.id;
         const completedCount = Object.values(qualityCheckItems[orderId] || {}).filter(Boolean).length;
         const totalCount = qualityChecklist.length;
-        
+
         alert(`Quality check saved! ${completedCount}/${totalCount} items checked.`);
         setShowQualityModal(false);
     };
@@ -439,6 +453,30 @@ const GarmentDashboard = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-[#050505] p-4 md:p-8 lg:p-12 transition-colors duration-500">
+            {/* Error Display */}
+            {error && (
+                <div className="max-w-7xl mx-auto mb-6">
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4 flex items-center gap-4">
+                        <HiOutlineLockClosed className="text-red-500 flex-shrink-0" size={24} />
+                        <div className="flex-1">
+                            <p className="text-red-700 dark:text-red-400 font-semibold text-sm">Access Restricted</p>
+                            <p className="text-red-600 dark:text-red-500 text-xs mt-1">
+                                {error || 'Your account does not have permission to view garment orders. Please contact your administrator to request access.'}
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => {
+                                setError(null);
+                                loadOrders();
+                            }}
+                            className="px-4 py-2 bg-red-100 dark:bg-red-800 text-red-700 dark:text-red-300 rounded-xl text-xs font-bold uppercase"
+                        >
+                            Retry
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Header */}
             <div className="max-w-7xl mx-auto mb-8">
                 <div className="bg-white dark:bg-[#0a0a0a] p-6 md:p-8 rounded-[3rem] border border-gray-100 dark:border-white/5 shadow-2xl shadow-black/5">
@@ -450,7 +488,7 @@ const GarmentDashboard = () => {
                             </h1>
                             <div className="flex items-center gap-3 mt-1">
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.4em] flex items-center gap-2">
-                                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" /> 
+                                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                                     Tailor Management System
                                 </p>
                                 {autoRefresh && (
@@ -603,7 +641,7 @@ const GarmentDashboard = () => {
                                 onClick={() => setActiveTab(tab.id)}
                                 className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${activeTab === tab.id
                                     ? 'bg-red-600 text-white'
-                                    : tab.isAlert 
+                                    : tab.isAlert
                                         ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-200'
                                         : 'bg-white dark:bg-[#0a0a0a] text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5'
                                     }`}
@@ -709,19 +747,18 @@ const GarmentDashboard = () => {
                         {filteredOrders.map((order) => {
                             const timeStatus = getTimeStatus(order.due_date);
                             const progressStages = getProgressStages(order.status);
-                            
+
                             return (
                                 <motion.div
                                     key={order.id}
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    className={`bg-white dark:bg-[#0a0a0a] rounded-3xl border p-5 shadow-lg hover:shadow-xl transition-all cursor-pointer overflow-hidden ${
-                                        timeStatus.isOverdue 
-                                            ? 'border-red-300 dark:border-red-700/50' 
-                                            : timeStatus.daysLeft !== null && timeStatus.daysLeft <= 2
-                                                ? 'border-yellow-300 dark:border-yellow-700/50'
-                                                : 'border-gray-100 dark:border-white/5'
-                                    }`}
+                                    className={`bg-white dark:bg-[#0a0a0a] rounded-3xl border p-5 shadow-lg hover:shadow-xl transition-all cursor-pointer overflow-hidden ${timeStatus.isOverdue
+                                        ? 'border-red-300 dark:border-red-700/50'
+                                        : timeStatus.daysLeft !== null && timeStatus.daysLeft <= 2
+                                            ? 'border-yellow-300 dark:border-yellow-700/50'
+                                            : 'border-gray-100 dark:border-white/5'
+                                        }`}
                                     onClick={async () => {
                                         setSelectedOrder(order);
                                         // Try to fetch material details if we have material ID
@@ -777,9 +814,9 @@ const GarmentDashboard = () => {
                                     {!order.material_image && !order.material?.image_url && (order.selected_color_name || order.selected_color || order.material_color) && (
                                         <div className="mb-3 -mx-5 p-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 rounded-t-3xl">
                                             <div className="flex items-center gap-3">
-                                                <div 
-                                                    className="w-10 h-10 rounded-full border-2 border-white dark:border-gray-600 shadow-md flex-shrink-0" 
-                                                    style={{ 
+                                                <div
+                                                    className="w-10 h-10 rounded-full border-2 border-white dark:border-gray-600 shadow-md flex-shrink-0"
+                                                    style={{
                                                         backgroundColor: getHexColor(order.selected_color_name || order.selected_color || order.material_color)
                                                     }}
                                                 />
@@ -830,13 +867,12 @@ const GarmentDashboard = () => {
                                             {progressStages.slice(1, 5).map((stage, idx) => (
                                                 <div
                                                     key={stage.id}
-                                                    className={`flex-1 h-1.5 rounded-full ${
-                                                        stage.isActive 
-                                                            ? stage.isCurrent 
-                                                                ? 'bg-red-500' 
-                                                                : 'bg-green-500' 
-                                                            : 'bg-gray-200 dark:bg-gray-700'
-                                                    }`}
+                                                    className={`flex-1 h-1.5 rounded-full ${stage.isActive
+                                                        ? stage.isCurrent
+                                                            ? 'bg-red-500'
+                                                            : 'bg-green-500'
+                                                        : 'bg-gray-200 dark:bg-gray-700'
+                                                        }`}
                                                     title={stage.label}
                                                 />
                                             ))}
@@ -927,10 +963,10 @@ const GarmentDashboard = () => {
                             className="relative w-full max-w-3xl max-h-[90vh] bg-white dark:bg-[#0c0c0c] rounded-[2rem] shadow-2xl overflow-hidden flex flex-col"
                         >
                             {/* Header with Image */}
-                            <div 
+                            <div
                                 className="bg-gradient-to-r p-0 text-white relative"
                                 style={{
-                                    background: selectedOrder.material_image_url 
+                                    background: selectedOrder.material_image_url
                                         ? 'linear-gradient(to right, #dc2626, #991b1b)'
                                         : (selectedOrder.selected_color || selectedOrder.selected_color_name)
                                             ? `linear-gradient(135deg, ${getHexColor(selectedOrder.selected_color || selectedOrder.selected_color_name)}, #666666)`
@@ -960,9 +996,9 @@ const GarmentDashboard = () => {
                                         <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-red-800 flex items-center justify-center">
                                             <div className="text-center">
                                                 {(selectedOrder.selected_color || selectedOrder.selected_color_name) && (
-                                                    <div 
-                                                        className="w-24 h-24 rounded-full border-4 border-white/30 shadow-2xl mx-auto mb-4" 
-                                                        style={{ 
+                                                    <div
+                                                        className="w-24 h-24 rounded-full border-4 border-white/30 shadow-2xl mx-auto mb-4"
+                                                        style={{
                                                             backgroundColor: getHexColor(selectedOrder.selected_color || selectedOrder.selected_color_name),
                                                             borderColor: isLightColor(getHexColor(selectedOrder.selected_color || selectedOrder.selected_color_name)) ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.3)'
                                                         }}
@@ -1006,21 +1042,19 @@ const GarmentDashboard = () => {
                                         {getProgressStages(selectedOrder.status).map((stage, idx) => (
                                             <React.Fragment key={stage.id}>
                                                 <div className="flex flex-col items-center">
-                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                                        stage.isActive 
-                                                            ? stage.isCurrent 
-                                                                ? 'bg-red-500 text-white animate-pulse' 
-                                                                : 'bg-green-500 text-white'
-                                                            : 'bg-gray-200 dark:bg-gray-700 text-gray-400'
-                                                    }`}>
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${stage.isActive
+                                                        ? stage.isCurrent
+                                                            ? 'bg-red-500 text-white animate-pulse'
+                                                            : 'bg-green-500 text-white'
+                                                        : 'bg-gray-200 dark:bg-gray-700 text-gray-400'
+                                                        }`}>
                                                         <stage.icon size={16} />
                                                     </div>
                                                     <span className="text-[8px] mt-1 text-gray-500">{stage.label}</span>
                                                 </div>
                                                 {idx < getProgressStages(selectedOrder.status).length - 1 && (
-                                                    <div className={`flex-1 h-0.5 ${
-                                                        stage.isActive ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700'
-                                                    }`} />
+                                                    <div className={`flex-1 h-0.5 ${stage.isActive ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700'
+                                                        }`} />
                                                 )}
                                             </React.Fragment>
                                         ))}
@@ -1031,13 +1065,12 @@ const GarmentDashboard = () => {
                                 <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 rounded-2xl">
                                     <div className="flex items-center gap-3">
                                         <span className="text-gray-500">Status</span>
-                                        <span className={`px-4 py-1 rounded-full text-xs font-bold uppercase ${
-                                            selectedOrder.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-600' :
+                                        <span className={`px-4 py-1 rounded-full text-xs font-bold uppercase ${selectedOrder.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-600' :
                                             selectedOrder.status === 'IN_PROGRESS_STITCHING' ? 'bg-purple-100 text-purple-600' :
-                                            selectedOrder.status === 'IN_PROGRESS_FINISHING' ? 'bg-orange-100 text-orange-600' :
-                                            selectedOrder.status === 'COMPLETED' ? 'bg-green-100 text-green-600' :
-                                            'bg-yellow-100 text-yellow-600'
-                                        }`}>
+                                                selectedOrder.status === 'IN_PROGRESS_FINISHING' ? 'bg-orange-100 text-orange-600' :
+                                                    selectedOrder.status === 'COMPLETED' ? 'bg-green-100 text-green-600' :
+                                                        'bg-yellow-100 text-yellow-600'
+                                            }`}>
                                             {selectedOrder.status?.replace(/_/g, ' ')}
                                         </span>
                                     </div>
@@ -1059,9 +1092,9 @@ const GarmentDashboard = () => {
                                         <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-2xl">
                                             <p className="text-xs text-gray-500 uppercase mb-1">Selected Color</p>
                                             <div className="flex items-center gap-3">
-                                                <div 
-                                                    className="w-10 h-10 rounded-full border-2 shadow-lg" 
-                                                    style={{ 
+                                                <div
+                                                    className="w-10 h-10 rounded-full border-2 shadow-lg"
+                                                    style={{
                                                         backgroundColor: getHexColor(selectedOrder.selected_color || selectedOrder.selected_color_name),
                                                         borderColor: isLightColor(getHexColor(selectedOrder.selected_color || selectedOrder.selected_color_name)) ? '#ccc' : getHexColor(selectedOrder.selected_color || selectedOrder.selected_color_name)
                                                     }}
@@ -1087,9 +1120,9 @@ const GarmentDashboard = () => {
                                             <div className="w-full p-4 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 rounded-xl">
                                                 <div className="flex items-center gap-3">
                                                     {(selectedOrder.selected_color || selectedOrder.selected_color_name) && (
-                                                        <div 
-                                                            className="w-12 h-12 rounded-full border-4 shadow-lg flex-shrink-0" 
-                                                            style={{ 
+                                                        <div
+                                                            className="w-12 h-12 rounded-full border-4 shadow-lg flex-shrink-0"
+                                                            style={{
                                                                 backgroundColor: getHexColor(selectedOrder.selected_color || selectedOrder.selected_color_name),
                                                                 borderColor: isLightColor(getHexColor(selectedOrder.selected_color || selectedOrder.selected_color_name)) ? '#e5e7eb' : getHexColor(selectedOrder.selected_color || selectedOrder.selected_color_name)
                                                             }}
@@ -1211,7 +1244,7 @@ const GarmentDashboard = () => {
                                         </button>
                                     )}
                                 </div>
-                                
+
                                 {/* Quality Check Button */}
                                 <button
                                     onClick={() => {
@@ -1265,24 +1298,22 @@ const GarmentDashboard = () => {
                                 {qualityChecklist.map((item) => {
                                     const orderId = selectedForQuality.id;
                                     const isChecked = qualityCheckItems[orderId]?.[item.id] || false;
-                                    
+
                                     return (
                                         <div
                                             key={item.id}
                                             onClick={() => toggleQualityItem(item.id)}
-                                            className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                                                isChecked 
-                                                    ? 'border-green-500 bg-green-50 dark:bg-green-900/20' 
-                                                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                                            }`}
+                                            className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${isChecked
+                                                ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                                                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                                                }`}
                                         >
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-3">
-                                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                                                        isChecked 
-                                                            ? 'border-green-500 bg-green-500 text-white' 
-                                                            : 'border-gray-300 dark:border-gray-600'
-                                                    }`}>
+                                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${isChecked
+                                                        ? 'border-green-500 bg-green-500 text-white'
+                                                        : 'border-gray-300 dark:border-gray-600'
+                                                        }`}>
                                                         {isChecked && <HiOutlineCheckCircle size={14} />}
                                                     </div>
                                                     <div>

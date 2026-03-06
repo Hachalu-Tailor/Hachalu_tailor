@@ -7,7 +7,8 @@ import {
   HiOutlineCurrencyDollar, HiOutlineCheckCircle, HiOutlineXCircle,
   HiOutlineExclamationTriangle, HiOutlineCalendar,
   HiOutlineClipboardDocumentList, HiOutlineBell,
-  HiOutlineArrowPath, HiOutlineTruck, HiOutlineChatBubbleLeftRight
+  HiOutlineArrowPath, HiOutlineTruck, HiOutlineChatBubbleLeftRight,
+  HiOutlineSwatch
 } from 'react-icons/hi2';
 import api, { getOrders, getMaterials, getPayments } from '../api/api';
 import { useAuth } from '../hooks/useAuth';
@@ -17,6 +18,7 @@ import {
   PAYMENT_STATUS_LABELS,
   CURRENCY
 } from '../utils/constants';
+import { getHexColor, extractColorsFromMaterials, getAvailableColors, isLightColor, getContrastingTextColor } from '../utils/colors';
 
 const ReceptionDashboard = () => {
   const navigate = useNavigate();
@@ -148,10 +150,40 @@ const ReceptionDashboard = () => {
     };
   };
 
+  // Calculate color statistics from materials
+  const getColorStats = () => {
+    const availableColors = extractColorsFromMaterials(materials);
+    const colorCounts = {};
+
+    materials.forEach(material => {
+      const colorName = material.color || (material.colors && material.colors[0]?.name);
+      if (colorName) {
+        const normalized = colorName.toLowerCase();
+        colorCounts[normalized] = (colorCounts[normalized] || 0) + 1;
+      }
+    });
+
+    // Get top colors
+    const topColors = Object.entries(colorCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([name, count]) => ({
+        name,
+        hex: getHexColor(name),
+        count
+      }));
+
+    return {
+      totalColors: availableColors.length,
+      topColors
+    };
+  };
+
   const orderStats = getOrderStats();
   const revenueStats = getRevenueStats();
   const inventoryStats = getInventoryStats();
   const clientStats = getClientStats();
+  const colorStats = getColorStats();
 
   // Main stats cards
   const mainStats = [
@@ -358,6 +390,97 @@ const ReceptionDashboard = () => {
         ))}
       </div>
 
+      {/* Color Palette Overview */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.6 }}
+        className="bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-3xl p-6"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl flex items-center justify-center">
+              <HiOutlineSwatch className="text-purple-500" size={20} />
+            </div>
+            <div>
+              <h3 className="text-sm font-black dark:text-white uppercase tracking-widest">Material Colors</h3>
+              <p className="text-[10px] text-gray-500">{colorStats.totalColors} colors available</p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/reception/inventory')}
+            className="text-[10px] font-black text-red-600 uppercase tracking-widest hover:underline"
+          >
+            View All
+          </button>
+        </div>
+
+        {/* Color Swatches */}
+        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
+          {colorStats.topColors.length > 0 ? (
+            colorStats.topColors.map((color, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.7 + idx * 0.05 }}
+                className="group cursor-pointer"
+                onClick={() => navigate('/reception/inventory')}
+              >
+                <div
+                  className="h-12 rounded-xl shadow-md border-2 border-white dark:border-gray-800 group-hover:scale-110 transition-transform"
+                  style={{
+                    backgroundColor: color.hex,
+                    borderColor: isLightColor(color.hex) ? '#e5e7eb' : '#374151'
+                  }}
+                  title={`${color.name} (${color.count} materials)`}
+                />
+                <p className="text-[9px] font-bold text-gray-500 text-center mt-2 truncate">
+                  {color.name}
+                </p>
+                <p className="text-[8px] text-gray-400 text-center">
+                  {color.count}
+                </p>
+              </motion.div>
+            ))
+          ) : (
+            <div className="col-span-full text-center py-8">
+              <HiOutlineSwatch className="mx-auto text-gray-600 mb-3" size={32} />
+              <p className="text-gray-400 text-sm">No colors available</p>
+              <button
+                onClick={() => navigate('/reception/inventory')}
+                className="mt-2 text-red-600 text-xs font-bold uppercase tracking-wider hover:underline"
+              >
+                Add materials with colors
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Quick Color Reference */}
+        <div className="mt-6 pt-4 border-t border-gray-100 dark:border-white/10">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Popular Colors</p>
+          <div className="flex flex-wrap gap-2">
+            {['Black', 'White', 'Navy Blue', 'Red', 'Green', 'Brown', 'Gray', 'Beige'].slice(0, 8).map((colorName) => {
+              const hex = getHexColor(colorName);
+              return (
+                <div
+                  key={colorName}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-white/5 rounded-full cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                  onClick={() => navigate('/reception/inventory')}
+                >
+                  <div
+                    className="w-4 h-4 rounded-full border border-gray-200 dark:border-gray-700"
+                    style={{ backgroundColor: hex }}
+                  />
+                  <span className="text-[10px] font-bold text-gray-600 dark:text-gray-300">{colorName}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </motion.div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Recent Orders */}
         <motion.div
@@ -439,6 +562,8 @@ const ReceptionDashboard = () => {
                 const quantity = material.inventory?.quantity_meters || 0;
                 const isLow = parseFloat(quantity) < 5 && parseFloat(quantity) > 0;
                 const isOut = parseFloat(quantity) === 0;
+                const materialColor = material.color || (material.colors && material.colors[0]?.name) || 'Gray';
+                const colorHex = getHexColor(materialColor);
 
                 return (
                   <div
@@ -449,13 +574,15 @@ const ReceptionDashboard = () => {
                       }`}
                     onClick={() => navigate('/reception/inventory')}
                   >
-                    <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${isOut ? 'bg-red-500/20' : isLow ? 'bg-yellow-500/20' : 'bg-gray-200 dark:bg-white/10'
-                      }`}>
-                      <HiOutlineCube className={isOut ? 'text-red-500' : isLow ? 'text-yellow-500' : 'text-gray-500'} size={18} />
-                    </div>
+                    {/* Color Swatch */}
+                    <div
+                      className="h-9 w-9 rounded-lg flex-shrink-0 border-2 border-white dark:border-gray-700 shadow-sm"
+                      style={{ backgroundColor: colorHex }}
+                      title={materialColor}
+                    />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold dark:text-white truncate">{material.name}</p>
-                      <p className="text-[10px] text-gray-500 truncate">{material.color} · {material.texture}</p>
+                      <p className="text-[10px] text-gray-500 truncate capitalize">{materialColor} · {material.texture}</p>
                     </div>
                     <div className="text-right">
                       <p className={`text-xs font-bold ${isOut ? 'text-red-500' : isLow ? 'text-yellow-500' : 'dark:text-white'}`}>

@@ -289,14 +289,14 @@ const ReceptionDashboard = () => {
   }
 
   return (
-    <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
+    <div className="p-2 md:p-3 space-y-3 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black dark:text-white uppercase tracking-tighter italic">
+          <h1 className="text-xl md:text-2xl font-black dark:text-white uppercase tracking-tighter italic">
             Reception<span className="text-red-600"> Hub</span>
           </h1>
-          <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">
+          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">
             Welcome back, {user?.name || 'Staff'}! Here's your overview.
           </p>
         </div>
@@ -334,14 +334,14 @@ const ReceptionDashboard = () => {
       </div>
 
       {/* Main Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {mainStats.map((stat, idx) => (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.1 }}
             key={idx}
-            className="p-6 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-3xl hover:shadow-lg transition-all cursor-pointer"
+            className="p-3 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-lg hover:shadow-lg transition-all cursor-pointer"
             onClick={() => {
               if (stat.label.includes('Stock')) navigate('/reception/inventory');
               else navigate('/reception/orders');
@@ -481,14 +481,14 @@ const ReceptionDashboard = () => {
         </div>
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {/* Recent Orders */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="lg:col-span-2 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-3xl p-6"
+          className="lg:col-span-2 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-lg p-3"
         >
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-black dark:text-white uppercase tracking-widest">Recent Orders</h3>
             <button
               onClick={() => navigate('/reception/orders')}
@@ -653,7 +653,7 @@ const ReceptionDashboard = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-3xl p-6"
+        className="bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-lg p-3"
       >
         <h3 className="text-sm font-black dark:text-white uppercase tracking-widest mb-6">Order Status Overview</h3>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

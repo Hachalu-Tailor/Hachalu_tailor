@@ -255,7 +255,7 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
+    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
 
       {/* 1. HEADER & WELCOME */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -354,7 +354,7 @@ const AdminDashboard = () => {
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="lg:col-span-2 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-3xl p-8"
+          className="lg:col-span-2 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-2xl p-6"
         >
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-sm font-black dark:text-white uppercase tracking-widest">Recent Orders</h3>
@@ -436,7 +436,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* 5. NEW: ORDER STATUS BREAKDOWN */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Order Status Chart */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -553,7 +553,7 @@ const AdminDashboard = () => {
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="lg:col-span-2 bg-red-600 rounded-3xl p-8 text-white flex flex-col justify-between overflow-hidden relative shadow-2xl shadow-red-600/20"
+          className="lg:col-span-2 bg-red-600 rounded-2xl p-6 text-white flex flex-col justify-between overflow-hidden relative shadow-2xl shadow-red-600/20"
         >
           <div className="relative z-10">
             <h3 className="text-[10px] font-black uppercase tracking-[0.4em] opacity-80">System Status</h3>

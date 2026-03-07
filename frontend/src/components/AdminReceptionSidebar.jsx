@@ -71,7 +71,7 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-24 lg:w-72 bg-white dark:bg-[#080808] border-r border-gray-100 dark:border-white/5 flex-col p-6 h-screen sticky top-0 left-0 z-50 transition-colors duration-500">
+      <aside className="hidden md:flex w-20 lg:w-64 bg-white dark:bg-[#080808] border-r border-gray-100 dark:border-white/5 flex-col p-4 lg:p-6 h-screen sticky top-0 left-0 z-50 transition-colors duration-500">
 
         <div className="mb-12 flex justify-center lg:justify-start items-center gap-4 px-2">
           <div className="h-12 w-12 bg-red-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-red-600/30 shrink-0">
@@ -146,7 +146,7 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
               animate={{ x: 0 }}
               exit={{ x: -300 }}
               transition={{ type: 'spring', damping: 25 }}
-              className="md:hidden fixed top-0 left-0 w-72 bg-white dark:bg-[#080808] border-r border-gray-100 dark:border-white/5 flex flex-col p-6 h-screen z-50"
+              className="md:hidden fixed top-0 left-0 w-64 bg-white dark:bg-[#080808] border-r border-gray-100 dark:border-white/5 flex flex-col p-4 h-screen z-50"
             >
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">

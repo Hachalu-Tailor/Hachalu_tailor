@@ -12,9 +12,8 @@ import {
     HiOutlineStop,
     HiOutlineStar,
     HiOutlineTruck,
-    HiOutlineShieldCheck,
     HiOutlineArrowPath,
-    HiOutlineX
+    HiOutlineShieldCheck as HiOutlineX
 } from 'react-icons/hi2';
 import api, { getGarmentOrdersInProgress, getGarmentShippedOrders, processGarmentOrder, getNotifications } from '../api/api';
 import { useAuth } from '../hooks/useAuth';

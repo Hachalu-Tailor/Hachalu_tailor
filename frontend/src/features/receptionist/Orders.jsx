@@ -182,7 +182,14 @@ const Orders = () => {
 
   const pendingCount = orders.filter(o => ['INITIATED', 'AWAITING_PAYMENT', 'PENDING_APPROVAL'].includes(o.status)).length;
   const inProgressCount = orders.filter(o => o.status === 'IN_PROGRESS').length;
+  const fullyPaidCount = orders.filter(o => o.status === 'FULLY_PAID').length;
+  const rejectedCount = orders.filter(o => o.status === 'REJECTED').length;
+  const cancelledCount = orders.filter(o => o.status === 'CANCELLED').length;
+  const instoreCount = orders.filter(o => o.status === 'IN_STORE').length;
+  const shippedCount = orders.filter(o => o.status === 'SHIPPED').length;
+  // const completedCount = orders.filter(o => ['COMPLETED', 'SHIPPED', 'IN_STORE', 'CLOSED'].includes(o.status)).length;
   const completedCount = orders.filter(o => o.status === 'COMPLETED').length;
+  const closedCount = orders.filter(o => o.status === 'CLOSED').length;
 
   const getStatusColor = (status) => {
     const colors = {
@@ -191,6 +198,9 @@ const Orders = () => {
       'PENDING_APPROVAL': 'bg-orange-500/10 text-orange-500',
       'IN_PROGRESS': 'bg-blue-500/10 text-blue-500',
       'COMPLETED': 'bg-green-500/10 text-green-500',
+      'SHIPPED': 'bg-purple-500/10 text-purple-500',
+      'IN_STORE': 'bg-teal-500/10 text-teal-500',
+      'FULLY_PAID': 'bg-indigo-500/10 text-indigo-500',
       'REJECTED': 'bg-red-500/10 text-red-500',
       'CANCELLED': 'bg-red-500/10 text-red-500',
     };
@@ -208,7 +218,7 @@ const Orders = () => {
           if (!Array.isArray(data)) data = [data];
           setPayments(data);
           // console.log("Fetched payments data", data)
-              console.log("selected color image", selectedOrder)
+              // console.log("selected color image", selectedOrder)
         } catch (err) {
           setPayments([]);
         } finally {
@@ -406,14 +416,14 @@ const Orders = () => {
                   )}
                 </div>
               </div>
-      {/* Full Image Modal */}
-      <AnimatePresence>
-        {fullImage && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90" onClick={() => setFullImage(null)}>
-            <img src={fullImage} alt="Full Receipt" className="max-h-[90vh] max-w-full rounded-2xl shadow-2xl border-4 border-white" />
-          </div>
-        )}
-      </AnimatePresence>
+              {/* Full Image Modal */}
+              <AnimatePresence>
+                {fullImage && (
+                  <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90" onClick={() => setFullImage(null)}>
+                    <img src={fullImage} alt="Full Receipt" className="max-h-[90vh] max-w-full rounded-2xl shadow-2xl border-4 border-white" />
+                  </div>
+                )}
+              </AnimatePresence>
 
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4">
@@ -520,13 +530,53 @@ const Orders = () => {
                     </button>
                   </div>
                 )}
-                {selectedOrder.status === 'IN_PROGRESS' && (
+                {/* {selectedOrder.status === 'IN_PROGRESS' && (
                   <button
                     onClick={() => handleProcessOrder('complete')}
                     className="flex-1 py-4 bg-green-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-green-700 transition-all"
                   >
                     Mark Complete
                   </button>
+                )} */}
+
+                {/* After completion, receptionist can mark shipped, in-store, or close */}
+                {selectedOrder.status === 'COMPLETED' && (
+                  <div className="flex gap-3 w-full">
+                    <button
+                      onClick={() => handleProcessOrder('ship')}
+                      className="flex-1 py-4 bg-purple-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-purple-700 transition-all"
+                    >
+                      Mark Shipped
+                    </button>
+                    <button
+                      onClick={() => handleProcessOrder('in_store')}
+                      className="flex-1 py-4 bg-teal-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-700 transition-all"
+                    >
+                      Mark In Store
+                    </button>
+                  </div>
+                )}
+
+                {selectedOrder.status === 'SHIPPED' && (
+                  <div className="flex gap-3 w-full">
+                    <button
+                      onClick={() => handleProcessOrder('in_store')}
+                      className="flex-1 py-4 bg-teal-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-700 transition-all"
+                    >
+                      Mark In Store
+                    </button>
+                  </div>
+                )}
+
+                {selectedOrder.status === 'IN_STORE' && (
+                  <div className="flex gap-3 w-full">
+                    <button
+                      onClick={() => handleProcessOrder('close')}
+                      className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all"
+                    >
+                      Mark Collected (Close)
+                    </button>
+                  </div>
                 )}
               </div>
             </motion.div>

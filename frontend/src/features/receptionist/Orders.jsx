@@ -58,6 +58,7 @@ const Orders = () => {
         ordersData = ordersData.results || ordersData.data || ordersData.items || [];
       }
       setOrders(ordersData || []);
+      // console.log("selected color image", ordersData)
     } catch (error) {
       console.error('Error fetching orders:', error);
     } finally {
@@ -206,7 +207,8 @@ const Orders = () => {
           let data = res.data;
           if (!Array.isArray(data)) data = [data];
           setPayments(data);
-          console.log("Fetched payments data", data)
+          // console.log("Fetched payments data", data)
+              console.log("selected color image", selectedOrder)
         } catch (err) {
           setPayments([]);
         } finally {
@@ -272,8 +274,22 @@ const Orders = () => {
                 }}
               >
                 <div className="flex items-center gap-6">
-                  <div className="h-16 w-16 bg-red-600/10 rounded-xl flex items-center justify-center">
-                    <HiOutlineShoppingBag className="text-red-600" size={24} />
+                  <div className="h-16 w-16 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center">
+                    {order.image_url ? (
+                      <img
+                        src={order.image_url}
+                        alt="Order Material"
+                        className="w-full h-full object-cover"
+                        onClick={e => { e.stopPropagation(); setFullImage(order.image_url); }}
+                        style={{ cursor: 'pointer' }}
+                      />
+                    ) : (
+                      <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-zinc-300 dark:text-zinc-700">
+                        <rect width="48" height="48" rx="12" fill="currentColor" />
+                        <path d="M16 32L22 24L28 32H16Z" fill="#fff"/>
+                        <circle cx="20" cy="20" r="2" fill="#fff"/>
+                      </svg>
+                    )}
                   </div>
                   <div>
                     <h5 className="text-sm font-black dark:text-white uppercase">{order.order_code}</h5>
@@ -415,7 +431,7 @@ const Orders = () => {
                     <p className="text-[9px] font-black text-zinc-400 uppercase mb-1">Selected Color</p>
                     <div className="flex items-center gap-2 mt-1">
                       <div
-                        className="w-6 h-6 rounded-full border-2 border-gray-300 shadow"
+                        className="w-16 h-8 border-2 border-gray-300 shadow"
                         style={{ backgroundColor: getHexColor(selectedOrder.selected_color_name || selectedOrder.selected_color) }}
                         title={selectedOrder.selected_color_name || selectedOrder.selected_color}
                       />
@@ -425,53 +441,7 @@ const Orders = () => {
                     </div>
                   </div>
                 )}
-                {/* Material Image - if available, highlight chosen, allow full view */}
-                {(selectedOrder.material_image || selectedOrder.material_colors?.length > 0) && (
-                  <div className="col-span-2">
-                    <p className="text-[9px] font-black text-zinc-400 uppercase mb-2">Material & Color</p>
-                    {selectedOrder.material_image ? (
-                      <div className="relative group cursor-pointer" onClick={() => setFullImage(getAbsoluteUrl(selectedOrder.material_image))}>
-                        <img
-                          src={getAbsoluteUrl(selectedOrder.material_image)}
-                          alt={selectedOrder.material_name}
-                          className="w-full h-32 object-cover rounded-xl border-4 border-emerald-400/70 group-hover:scale-105 transition-transform duration-200 shadow-lg"
-                          style={{ boxShadow: '0 0 0 2px #10b98180' }}
-                        />
-                        <div className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 rounded-lg flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                          <p className="text-xs font-bold text-white">{selectedOrder.material_name} <span className="ml-1 text-emerald-300 font-black">(Chosen)</span></p>
-                        </div>
-                        <div className="absolute top-2 right-2 bg-white/80 dark:bg-zinc-900/80 px-2 py-1 rounded text-[10px] font-bold text-emerald-600 dark:text-emerald-300 shadow">Full View</div>
-                      </div>
-                    ) : (
-                      <div className="w-full h-20 bg-gradient-to-r from-zinc-200 to-zinc-300 dark:from-zinc-800 dark:to-zinc-700 rounded-xl flex items-center justify-center">
-                        <p className="text-sm font-bold text-zinc-500 dark:text-zinc-400">
-                          {selectedOrder.material_name}
-                        </p>
-                      </div>
-                    )}
-                    {selectedOrder.material_colors?.length > 0 && (
-                      <div className="mt-2">
-                        <p className="text-[10px] text-gray-400 mb-1">Available Colors:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {selectedOrder.material_colors.map((color, idx) => {
-                            const isChosen = (color.name === selectedOrder.selected_color_name || color.name === selectedOrder.selected_color);
-                            return (
-                              <div key={idx} className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[9px] ${isChosen ? 'bg-emerald-100 dark:bg-emerald-900 border-emerald-400 text-emerald-700 dark:text-emerald-200 font-black shadow' : 'bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-gray-300'}`}>
-                                <div
-                                  className="w-4 h-4 rounded-full border border-gray-300"
-                                  style={{ backgroundColor: getHexColor(color.name) }}
-                                />
-                                <span>{color.name}</span>
-                                {isChosen && <span className="ml-1">✓</span>}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+             
                 <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4">
                   <p className="text-[9px] font-black text-zinc-400 uppercase">Total Price (ETB)</p>
                   <p className="text-sm font-bold dark:text-white">{selectedOrder.total_price}</p>

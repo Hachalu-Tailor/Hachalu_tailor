@@ -161,6 +161,16 @@ const Items = ({ isHomePage = false }) => {
     return () => clearInterval(timer);
   }, [isPaused, selectedItem, orderSuccess, filteredProducts]);
 
+  // Pause autoplay when a color is selected; resume when cleared
+  useEffect(() => {
+    if (selectedColor !== null) {
+      setIsPaused(true);
+    } else {
+      // Only resume autoplay if not configuring an item and no order success
+      if (!selectedItem && !orderSuccess) setIsPaused(false);
+    }
+  }, [selectedColor, selectedItem, orderSuccess]);
+
   const handleInputChange = (field, value, isMeasurement = false) => {
     if (isMeasurement) {
       setFormData(prev => ({
@@ -182,6 +192,16 @@ const Items = ({ isHomePage = false }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const openConfigurator = (item) => {
+    // Pre-fill selection when opening tailoring modal from the items list
+    const selColorName = (selectedColor !== null && item?.colors && item.colors[selectedColor])
+      ? (typeof item.colors[selectedColor] === 'object' ? item.colors[selectedColor].name : item.colors[selectedColor])
+      : formData.selected_color || '';
+    setSelectedItem(item);
+    setFormData(prev => ({ ...prev, material: item.id, selected_color: selColorName }));
+    setActiveTab('details');
+  };
+
   const handleSubmit = async () => {
     if (!formData.customer_name || !formData.customer_phone) {
       alert('Please complete contact information');
@@ -193,7 +213,7 @@ const Items = ({ isHomePage = false }) => {
       customer_name: formData.customer_name,
       customer_phone: formData.customer_phone,
       suit_type: parseInt(formData.suit_type) || formData.suit_type,
-      material: parseInt(activeItem?.id) || activeItem?.id,
+      material: parseInt(selectedItem?.id) || selectedItem?.id,
       quantity: parseInt(formData.quantity) || 1,
       measurements: {
         height: parseFloat(formData.measurements.height) || 0,
@@ -347,7 +367,7 @@ const Items = ({ isHomePage = false }) => {
                   <h3 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tighter leading-tight">{activeItem?.name}</h3>
                 </div>
                 {activeItem?.inventory?.is_available && (
-                  <button onClick={() => setSelectedItem(activeItem)} className="w-full md:w-auto bg-white text-black px-10 py-5 text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-2xl">
+                  <button onClick={() => openConfigurator(activeItem)} className="w-full md:w-auto bg-white text-black px-10 py-5 text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-2xl">
                     Configure Order
                   </button>
                 )}
@@ -435,6 +455,19 @@ const Items = ({ isHomePage = false }) => {
                       <h2 className="text-4xl font-black dark:text-white uppercase tracking-tighter">{selectedItem.name}</h2>
                       <p className="text-gray-500 mt-6 italic leading-relaxed">"{selectedItem.desc}"</p>
                     </div>
+                    {formData.selected_color ? (
+                      <div className="mt-4 flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-8 h-8 rounded-full shadow-inner" style={{ backgroundColor: getHexColor(formData.selected_color) }} />
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest">Selected Color</p>
+                            <p className="text-sm font-bold">{formData.selected_color}</p>
+                          </div>
+                        </div>
+                        <button onClick={() => { setSelectedItem(null); setIsPaused(false); }} className="text-[9px] font-black uppercase tracking-widest underline text-red-600">Change Color</button>
+                      </div>
+                    ) : null}
+
                     <button onClick={() => setActiveTab('bespoke')} className="w-full py-6 bg-black dark:bg-white text-white dark:text-black font-black uppercase text-xs tracking-widest hover:bg-red-600 transition-all">Setup Custom Measurements</button>
                   </div>
                 ) : (
@@ -448,16 +481,18 @@ const Items = ({ isHomePage = false }) => {
 
                     <div className="space-y-4">
                       <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Select Crafting Type</p>
-                      <div className="grid grid-cols-2 gap-3">
-                        {['Full Suit', 'Single Piece'].map((type) => (
-                          <button
-                            key={type}
-                            onClick={() => handleInputChange('suit_type', type)}
-                            className={`py-4 border text-[10px] font-black uppercase tracking-widest transition-all ${formData.suit_type === type ? 'bg-red-600 border-red-600 text-white shadow-lg' : 'border-gray-200 dark:border-white/10 dark:text-white hover:border-gray-400'}`}
-                          >
-                            {type}
-                          </button>
-                        ))}
+                      <div>
+                        <select value={formData.suit_type} onChange={(e) => handleInputChange('suit_type', e.target.value)} className="w-full py-3 px-4 bg-transparent border border-gray-200 dark:border-white/10 text-[10px] font-black uppercase tracking-widest">
+                          {suitTypes && suitTypes.length > 0 ? (
+                            suitTypes.map((st) => (
+                              <option key={st.id || st} value={st.id || st}>{st.name || st}</option>
+                            ))
+                          ) : (
+                            ['Full Suit', 'Single Piece'].map((type) => (
+                              <option key={type} value={type}>{type}</option>
+                            ))
+                          )}
+                        </select>
                       </div>
                     </div>
 

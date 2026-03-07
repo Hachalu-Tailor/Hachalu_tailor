@@ -21,6 +21,7 @@ class OrderSerializer(serializers.ModelSerializer):
     )
     suit_type_name = serializers.CharField(source="suit_type.name", read_only=True)
     material_name = serializers.CharField(source="material.name", read_only=True)
+    image_url = serializers.CharField(source="material.image_url", read_only=True)
     measurements = MeasurementSerializer(source="measurement", read_only=True)
     selected_color = serializers.CharField(source="selected_color.name", read_only=True)
 
@@ -48,6 +49,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "suit_type_name",
             "material",
             "material_name",
+            "image_url",
             "measurements",
         ]
 

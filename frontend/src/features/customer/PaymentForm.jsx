@@ -28,6 +28,22 @@ const PaymentForm = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [order, setOrder] = useState(null);
   const [error, setError] = useState(null);
+  const [payments, setPayments] = useState([]);
+  const [viewPayment, setViewPayment] = useState(null);
+
+  const STATUS_MAP = {
+    INITIATED: 'Customer submitted order; waiting for Receptionist to call and set price/date',
+    AWAITING_PAYMENT: 'Price/Date set; waiting for Customer to upload Ref Number/Receipt',
+    PENDING_APPROVAL: 'Customer uploaded receipt; waiting for Receptionist to verify bank data',
+    IN_PROGRESS: 'Payment verified; Suit is being stitched',
+    COMPLETED: 'Suit is finished and ready for pickup',
+    SHIPPED: 'Order has been shipped from factory',
+    IN_STORE: 'Order material has arrived and is ready for pickup',
+    CLOSED: 'Customer has collected the suit',
+    REJECTED: 'Payment was invalid or order cancelled',
+    EXPIRED: 'Order expired due to inactivity',
+    FULLY_PAID: 'Customer has fully paid but suit is not yet completed'
+  };
 
   // Payment states
   const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
@@ -49,6 +65,38 @@ const PaymentForm = () => {
     document.querySelector('input[placeholder="e.g., HP-00000001"]')?.focus();
   }, []);
 
+  // Local storage helpers for payments per order
+  const localKey = (code) => `payments_${(code || '').toUpperCase()}`;
+  const loadLocalPayments = (code) => {
+    if (!code) return [];
+    try {
+      const raw = localStorage.getItem(localKey(code));
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.error('Failed to load local payments', e);
+      return [];
+    }
+  };
+
+  const saveLocalPayments = (code, list) => {
+    try {
+      localStorage.setItem(localKey(code), JSON.stringify(list || []));
+    } catch (e) {
+      console.error('Failed to save local payments', e);
+    }
+  };
+
+  const appendLocalPayment = (code, payment) => {
+    if (!code || !payment) return;
+    const existing = loadLocalPayments(code);
+    // simple dedupe by bank_ref_number + amount + created_at
+    const exists = existing.find(p => (p.bank_ref_number === payment.bank_ref_number && (parseFloat(p.amount || p.payment_amount || 0) === parseFloat(payment.amount || payment.payment_amount || 0))));
+    const next = exists ? existing : [payment, ...existing];
+    saveLocalPayments(code, next);
+  };
+
   const handleSearchOrder = async () => {
     if (!orderCode.trim()) return;
 
@@ -69,19 +117,49 @@ const PaymentForm = () => {
         return;
       }
 
-      // 4. Status Check
-      if (!['AWAITING_PAYMENT', 'PENDING_APPROVAL'].includes(foundOrder.status)) {
-        setError(`Order is not payable (status: ${foundOrder.status})`);
-        return;
-      }
-
+      // 4. Status Check: do not block here — show status and allow viewing history locally
       // 5. Success: Set the order
       setOrder(foundOrder);
-      setPaymentAmount(foundOrder.total_price?.toString() || '');
+      // Try to load existing payments for the order
+      try {
+        const payRes = await api.get('/payments/', { params: { order_code: foundOrder.order_code } });
+        const payData = Array.isArray(payRes.data) ? payRes.data : (payRes.data.results || []);
+        // merge server payments with local cached ones
+        const local = loadLocalPayments(foundOrder.order_code);
+        const merged = [...local, ...payData].reduce((acc, p) => {
+          const key = `${p.bank_ref_number || ''}::${p.amount || p.payment_amount || ''}::${p.created_at || p.created || ''}`;
+          if (!acc._keys.has(key)) {
+            acc._keys.add(key);
+            acc.list.push(p);
+          }
+          return acc;
+        }, { _keys: new Set(), list: [] }).list;
+        setPayments(merged);
+        // persist merged locally
+        saveLocalPayments(foundOrder.order_code, merged);
+        const paidSum = merged.reduce((s, p) => s + (parseFloat(p.amount || p.payment_amount || 0) || 0), 0);
+        const remaining = Math.max(0, (parseFloat(foundOrder.total_price || 0) || 0) - paidSum);
+        setPaymentAmount(remaining > 0 ? remaining.toFixed(2) : '');
+        if (remaining <= 0) {
+          setError('This order is already fully paid. No further payments allowed.');
+        }
+      } catch (e) {
+        // fallback: load local payments when API fails
+        const local = loadLocalPayments(foundOrder.order_code);
+        setPayments(local);
+        const paidSum = local.reduce((s, p) => s + (parseFloat(p.amount || p.payment_amount || 0) || 0), 0);
+        const remaining = Math.max(0, (parseFloat(foundOrder.total_price || 0) || 0) - paidSum);
+        setPaymentAmount(remaining > 0 ? remaining.toFixed(2) : '');
+        if (remaining <= 0) {
+          setError('This order is already fully paid (local record). No further payments allowed.');
+        }
+      }
 
     } catch (err) {
       console.error("Search Error:", err);
-      setError(err.response?.data?.detail || 'Could not fetch order. Try again.');
+      // Show detailed backend message if present
+      const detail = err.response?.data;
+      setError(formatErrorData(detail) || 'Could not fetch order. Try again.');
     } finally {
       setIsSearching(false);
     }
@@ -123,11 +201,22 @@ const PaymentForm = () => {
 
     if (!orderCode.trim() || isNaN(amountNum) || amountNum <= 0) {
       setError('Please enter a valid payment amount');
+      scrollToError();
       return;
     }
 
-    if (amountNum > parseFloat(order?.total_price || 0)) {
-      setError('Amount cannot exceed the due amount');
+    // calculate remaining due using payments state (prefer accurate)
+    const paidSum = payments.reduce((s, p) => s + (parseFloat(p.amount || p.payment_amount || 0) || 0), 0);
+    const remainingDue = Math.max(0, (parseFloat(order?.total_price || 0) || 0) - paidSum);
+    if (remainingDue <= 0) {
+      setError('Order already fully paid. No more payments allowed.');
+      scrollToError();
+      return;
+    }
+
+    if (amountNum > remainingDue) {
+      setError(`Amount cannot exceed the remaining due: ${CURRENCY.SYMBOL} ${remainingDue.toFixed(2)}`);
+      scrollToError();
       return;
     }
 
@@ -167,31 +256,58 @@ const PaymentForm = () => {
 
       setSubmittedPayment(response.data);
       setPaymentSuccess(true);
+      // update payments list and clear any error
+      setPayments(prev => {
+        const next = [response.data, ...prev];
+        // persist locally
+        appendLocalPayment(orderCode.trim().toUpperCase(), response.data);
+        return next;
+      });
+      setError(null);
+      // ensure success is visible
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       console.error('Payment Error:', err.response?.data);
-      // Build detailed error message
-      let msg = 'Payment submission failed. Please try again.';
-      if (err.response?.data) {
-        const data = err.response.data;
-        if (data.detail) {
-          msg = data.detail;
-        } else if (typeof data === 'object') {
-          const errors = [];
-          for (const [key, value] of Object.entries(data)) {
-            if (Array.isArray(value)) {
-              errors.push(`${key}: ${value.join(', ')}`);
-            } else {
-              errors.push(`${key}: ${value}`);
-            }
-          }
-          if (errors.length > 0) msg = errors.join('; ');
-        }
-      }
+      const data = err.response?.data;
+      const msg = formatErrorData(data) || 'Payment submission failed. Please try again.';
       setError(msg);
+      scrollToError();
     } finally {
       setIsSubmitting(false);
       setUploadProgress(0);
     }
+  };
+
+  // helper: format backend error payloads into readable string
+  const formatErrorData = (data) => {
+    if (!data) return null;
+    if (typeof data === 'string') return data;
+    if (typeof data === 'object') {
+      // If it's an array of errors
+      if (Array.isArray(data)) return data.join('; ');
+      const parts = [];
+      const visit = (obj, prefix = '') => {
+        for (const [k, v] of Object.entries(obj)) {
+          const name = prefix ? `${prefix}.${k}` : k;
+          if (v == null) continue;
+          if (typeof v === 'string') parts.push(`${name}: ${v}`);
+          else if (Array.isArray(v)) parts.push(`${name}: ${v.join(', ')}`);
+          else if (typeof v === 'object') visit(v, name);
+          else parts.push(`${name}: ${String(v)}`);
+        }
+      };
+      visit(data);
+      return parts.join(' • ');
+    }
+    return String(data);
+  };
+
+  const scrollToError = () => {
+    setTimeout(() => {
+      const el = document.getElementById('payment-error');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      else window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 50);
   };
 
   const resetForm = () => {
@@ -208,6 +324,21 @@ const PaymentForm = () => {
     setUploadMethod('file');
     setPaymentMethod('bank_transfer');
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const getPaidSum = () => {
+    return payments.reduce((s, p) => s + (parseFloat(p.amount || p.payment_amount || 0) || 0), 0);
+  };
+
+  const getRemainingDue = () => {
+    return Math.max(0, (parseFloat(order?.total_price || 0) || 0) - getPaidSum());
+  };
+
+  const canMakePayment = () => {
+    if (!order) return false;
+    // Only allow payments in AWAITING_PAYMENT state and when there's remaining due
+    const allowed = ['AWAITING_PAYMENT'];
+    return allowed.includes(order.status) && getRemainingDue() > 0;
   };
 
   const getPaymentInstructions = () => {
@@ -250,7 +381,7 @@ const PaymentForm = () => {
               className="mb-8 flex items-center gap-3 bg-red-50 dark:bg-red-950/30 p-4 border border-red-200 dark:border-red-800 rounded-2xl"
             >
               <HiOutlineExclamationTriangle className="text-red-600 dark:text-red-400 shrink-0" size={24} />
-              <p className="text-red-800 dark:text-red-300">{error}</p>
+              <p id="payment-error" className="text-red-800 dark:text-red-300">{error}</p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -361,20 +492,27 @@ const PaymentForm = () => {
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-5 text-sm">
                 <div>
-                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Code</p>
+                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Order Code</p>
                   <p className="font-bold dark:text-white">{order.order_code}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Due</p>
+                  {/* total price */}
+                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Total Price</p>
                   <p className="font-bold text-green-600 dark:text-green-400">
                     {CURRENCY.SYMBOL} {formatCurrency(order.total_price)}
                   </p>
+                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Expected Price</p>
+                  <p className="font-bold text-green-600 dark:text-green-400">
+                    {CURRENCY.SYMBOL} {formatCurrency(order.expected_price)}
+                  </p>
+                  
                 </div>
                 <div>
                   <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Status</p>
                   <span className="inline-block px-3 py-1 mt-1 rounded-full text-xs font-bold bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300">
-                    Awaiting Payment
+                    {(order.status || '').replace(/_/g, ' ')}
                   </span>
+                  <p className="text-xs text-gray-500 mt-2">{STATUS_MAP[order.status] || ''}</p>
                 </div>
                 <div>
                   <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Due Date</p>
@@ -383,218 +521,278 @@ const PaymentForm = () => {
               </div>
             </div>
 
-            {/* Payment Form */}
-            <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl shadow-2xl border border-gray-200 dark:border-white/5">
-              <h3 className="text-2xl font-black dark:text-white mb-8 flex items-center gap-3">
-                <HiOutlineDocumentText className="text-red-600" size={28} />
-                Payment Details
-              </h3>
-
-              <form onSubmit={handleSubmitPayment} className="space-y-7">
-                {/* Payment Method */}
-                <div>
-                  <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
-                    Payment Method <span className="text-red-500">*</span>
-                  </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {PAYMENT_METHODS.map((m) => {
-                      const Icon = m.icon;
-                      return (
-                        <button
-                          key={m.value}
-                          type="button"
-                          onClick={() => setPaymentMethod(m.value)}
-                          className={`p-4 rounded-2xl border-2 text-center transition-all ${paymentMethod === m.value
-                            ? 'border-red-600 bg-red-50 dark:bg-red-950/30'
-                            : 'border-gray-200 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20'
-                            }`}
-                        >
-                          <Icon className="mx-auto mb-2 text-gray-500" size={24} />
-                          <p className="text-xs font-bold dark:text-gray-200">{m.label}</p>
-                        </button>
-                      );
-                    })}
-                  </div>
+            {/* Payments History */}
+            {payments && payments.length > 0 && (
+              <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-gray-200 dark:border-white/5 mt-4">
+                <h4 className="text-sm font-black dark:text-white mb-3">Payment History</h4>
+                <div className="space-y-3">
+                  {payments.map((p) => (
+                    <button key={p.id || p.created_at || Math.random()} type="button" onClick={() => setViewPayment(p)} className="w-full text-left flex justify-between items-center p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5">
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase">{p.payment_method || p.method || 'Payment'}</p>
+                        <p className="font-bold dark:text-white">{CURRENCY.SYMBOL} {formatCurrency(p.amount || p.payment_amount || 0)}</p>
+                        <p className="text-xs text-gray-400">Ref: {p.bank_ref_number || p.reference || '—'}</p>
+                      </div>
+                      <div className="text-right text-xs text-gray-500">
+                        <p>{new Date(p.created_at || p.created || p.timestamp || Date.now()).toLocaleString()}</p>
+                        <p className="mt-1 inline-block px-3 py-1 rounded-full bg-yellow-50 text-yellow-800 dark:bg-yellow-900/30">{p.status || 'Sent'}</p>
+                      </div>
+                    </button>
+                  ))}
                 </div>
+              </div>
+            )}
 
-                {/* Amount */}
-                <div>
-                  <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
-                    Amount Paid <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-lg">
-                      {CURRENCY.SYMBOL}
-                    </span>
+            {/* Payment Form */}
+            {canMakePayment() ? (
+              <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl shadow-2xl border border-gray-200 dark:border-white/5">
+                <h3 className="text-2xl font-black dark:text-white mb-8 flex items-center gap-3">
+                  <HiOutlineDocumentText className="text-red-600" size={28} />
+                  Payment Details
+                </h3>
+
+                <form onSubmit={handleSubmitPayment} className="space-y-7">
+                  {/* Payment Method */}
+                  <div>
+                    <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
+                      Payment Method <span className="text-red-500">*</span>
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {PAYMENT_METHODS.map((m) => {
+                        const Icon = m.icon;
+                        return (
+                          <button
+                            key={m.value}
+                            type="button"
+                            onClick={() => setPaymentMethod(m.value)}
+                            className={`p-4 rounded-2xl border-2 text-center transition-all ${paymentMethod === m.value
+                              ? 'border-red-600 bg-red-50 dark:bg-red-950/30'
+                              : 'border-gray-200 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20'
+                              }`}
+                          >
+                            <Icon className="mx-auto mb-2 text-gray-500" size={24} />
+                            <p className="text-xs font-bold dark:text-gray-200">{m.label}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Amount */}
+                  <div>
+                    <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
+                      Amount Paid <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-lg">
+                        {CURRENCY.SYMBOL}
+                      </span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={paymentAmount}
+                        onChange={(e) => setPaymentAmount(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-white/10 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 dark:text-white p-5 pl-12 rounded-2xl outline-none font-bold text-xl"
+                        required
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Remaining due: {CURRENCY.SYMBOL} {formatCurrency(getRemainingDue())}
+                    </p>
+                  </div>
+
+                  {/* Reference */}
+                  <div>
+                    <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
+                      Transaction/Reference Number <span className="text-red-500">*</span>
+                    </label>
                     <input
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      value={paymentAmount}
-                      onChange={(e) => setPaymentAmount(e.target.value)}
-                      placeholder="0.00"
-                      className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-white/10 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 dark:text-white p-5 pl-12 rounded-2xl outline-none font-bold text-xl"
+                      type="text"
+                      value={bankRefNumber}
+                      onChange={(e) => setBankRefNumber(e.target.value.trim())}
+                      placeholder="Enter transaction ID or reference"
+                      className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-white/10 focus:border-red-600 dark:text-white p-5 rounded-2xl outline-none"
                       required
                     />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Remaining due: {CURRENCY.SYMBOL} {formatCurrency((order?.total_price || 0) - parseFloat(paymentAmount || 0))}
-                  </p>
-                </div>
-
-                {/* Reference */}
-                <div>
-                  <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
-                    Transaction/Reference Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={bankRefNumber}
-                    onChange={(e) => setBankRefNumber(e.target.value.trim())}
-                    placeholder="Enter transaction ID or reference"
-                    className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-white/10 focus:border-red-600 dark:text-white p-5 rounded-2xl outline-none"
-                    required
-                  />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                    The number shown on your bank/mobile receipt
-                  </p>
-                </div>
-
-                {/* Receipt Upload */}
-                <div>
-                  <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
-                    Upload Receipt / Proof (recommended)
-                  </label>
-
-                  {/* Toggle Buttons */}
-                  <div className="flex gap-3 mb-4">
-                    <button
-                      type="button"
-                      onClick={() => { setUploadMethod('file'); setReceiptUrl(''); }}
-                      className={`flex-1 py-3 px-4 rounded-xl border-2 font-bold text-sm transition-all ${uploadMethod === 'file'
-                        ? 'border-red-600 bg-red-50 dark:bg-red-950/30 text-red-600'
-                        : 'border-gray-200 dark:border-white/10 text-gray-500 hover:border-gray-300'
-                        }`}
-                    >
-                      📎 Upload File
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setUploadMethod('url'); setReceiptFile(null); setReceiptPreview(null); }}
-                      className={`flex-1 py-3 px-4 rounded-xl border-2 font-bold text-sm transition-all ${uploadMethod === 'url'
-                        ? 'border-red-600 bg-red-50 dark:bg-red-950/30 text-red-600'
-                        : 'border-gray-200 dark:border-white/10 text-gray-500 hover:border-gray-300'
-                        }`}
-                    >
-                      🔗 Browser Link
-                    </button>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      The number shown on your bank/mobile receipt
+                    </p>
                   </div>
 
-                  {/* File Upload Mode */}
-                  {uploadMethod === 'file' && !receiptFile && (
-                    <label className="flex flex-col items-center justify-center w-full h-44 border-2 border-dashed border-gray-300 dark:border-white/20 rounded-2xl cursor-pointer hover:border-red-500/50 transition-all bg-gray-50/50 dark:bg-black/30">
-                      <HiOutlineCloudArrowUp className="text-gray-400 mb-3" size={40} />
-                      <span className="text-sm font-bold text-gray-500 dark:text-gray-300">
-                        Click or drag receipt (image / pdf)
-                      </span>
-                      <span className="text-xs text-gray-400 mt-1">Max 5MB</span>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        className="hidden"
-                        accept="image/*,.pdf"
-                        onChange={handleFileChange}
-                      />
+                  {/* Receipt Upload */}
+                  <div>
+                    <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
+                      Upload Receipt / Proof (recommended)
                     </label>
-                  )}
 
-                  {/* URL Input Mode */}
-                  {uploadMethod === 'url' && (
-                    <div className="space-y-2">
-                      <input
-                        type="url"
-                        value={receiptUrl || ''}
-                        onChange={(e) => setReceiptUrl(e.target.value)}
-                        placeholder="Paste payment screenshot link (e.g., https://imgbb.com/...)"
-                        className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-white/10 focus:border-red-600 dark:text-white p-4 rounded-2xl outline-none text-sm"
-                      />
-                      <p className="text-xs text-gray-500">
-                        Paste a direct link to your payment screenshot or proof image
-                      </p>
-                    </div>
-                  )}
-
-                  {/* File Preview */}
-                  {uploadMethod === 'file' && receiptFile && (
-                    <div className="relative rounded-2xl overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-black/40 p-4">
-                      {receiptPreview ? (
-                        <img src={receiptPreview} alt="Receipt preview" className="max-h-64 mx-auto rounded-lg" />
-                      ) : (
-                        <div className="text-center py-8 text-gray-500">
-                          <p className="font-medium">{receiptFile.name}</p>
-                          <p className="text-xs mt-1">PDF document</p>
-                        </div>
-                      )}
-
+                    {/* Toggle Buttons */}
+                    <div className="flex gap-3 mb-4">
                       <button
                         type="button"
-                        onClick={removeFile}
-                        className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1.5 hover:bg-red-700"
+                        onClick={() => { setUploadMethod('file'); setReceiptUrl(''); }}
+                        className={`flex-1 py-3 px-4 rounded-xl border-2 font-bold text-sm transition-all ${uploadMethod === 'file'
+                          ? 'border-red-600 bg-red-50 dark:bg-red-950/30 text-red-600'
+                          : 'border-gray-200 dark:border-white/10 text-gray-500 hover:border-gray-300'
+                          }`}
                       >
-                        <HiOutlineXMark size={20} />
+                        📎 Upload File
                       </button>
-
-                      <p className="text-xs text-center text-gray-500 mt-3">
-                        {receiptFile.name} • {(receiptFile.size / 1024).toFixed(1)} KB
-                      </p>
+                      <button
+                        type="button"
+                        onClick={() => { setUploadMethod('url'); setReceiptFile(null); setReceiptPreview(null); }}
+                        className={`flex-1 py-3 px-4 rounded-xl border-2 font-bold text-sm transition-all ${uploadMethod === 'url'
+                          ? 'border-red-600 bg-red-50 dark:bg-red-950/30 text-red-600'
+                          : 'border-gray-200 dark:border-white/10 text-gray-500 hover:border-gray-300'
+                          }`}
+                      >
+                        🔗 Browser Link
+                      </button>
                     </div>
-                  )}
 
-                </div>
+                    {/* File Upload Mode */}
+                    {uploadMethod === 'file' && !receiptFile && (
+                      <label className="flex flex-col items-center justify-center w-full h-44 border-2 border-dashed border-gray-300 dark:border-white/20 rounded-2xl cursor-pointer hover:border-red-500/50 transition-all bg-gray-50/50 dark:bg-black/30">
+                        <HiOutlineCloudArrowUp className="text-gray-400 mb-3" size={40} />
+                        <span className="text-sm font-bold text-gray-500 dark:text-gray-300">
+                          Click or drag receipt (image / pdf)
+                        </span>
+                        <span className="text-xs text-gray-400 mt-1">Max 5MB</span>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          className="hidden"
+                          accept="image/*,.pdf"
+                          onChange={handleFileChange}
+                        />
+                      </label>
+                    )}
 
-                {/* Instructions */}
-                <div className="bg-blue-50 dark:bg-blue-950/20 p-5 rounded-2xl border border-blue-200 dark:border-blue-800/30">
-                  <div className="flex items-start gap-3">
-                    <HiOutlineInformationCircle className="text-blue-600 shrink-0 mt-1" size={22} />
-                    <div>
-                      <p className="font-bold text-sm uppercase tracking-wide mb-1 text-blue-800 dark:text-blue-300">
-                        {paymentMethod.replace('_', ' ').toUpperCase()} Instructions
-                      </p>
-                      <p className="text-sm text-blue-700 dark:text-blue-300 leading-relaxed">
-                        {getPaymentInstructions()}
-                      </p>
+                    {/* URL Input Mode */}
+                    {uploadMethod === 'url' && (
+                      <div className="space-y-2">
+                        <input
+                          type="url"
+                          value={receiptUrl || ''}
+                          onChange={(e) => setReceiptUrl(e.target.value)}
+                          placeholder="Paste payment screenshot link (e.g., https://imgbb.com/...)"
+                          className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-white/10 focus:border-red-600 dark:text-white p-4 rounded-2xl outline-none text-sm"
+                        />
+                        <p className="text-xs text-gray-500">
+                          Paste a direct link to your payment screenshot or proof image
+                        </p>
+                      </div>
+                    )}
+
+                    {/* File Preview */}
+                    {uploadMethod === 'file' && receiptFile && (
+                      <div className="relative rounded-2xl overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-black/40 p-4">
+                        {receiptPreview ? (
+                          <img src={receiptPreview} alt="Receipt preview" className="max-h-64 mx-auto rounded-lg" />
+                        ) : (
+                          <div className="text-center py-8 text-gray-500">
+                            <p className="font-medium">{receiptFile.name}</p>
+                            <p className="text-xs mt-1">PDF document</p>
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={removeFile}
+                          className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1.5 hover:bg-red-700"
+                        >
+                          <HiOutlineXMark size={20} />
+                        </button>
+
+                        <p className="text-xs text-center text-gray-500 mt-3">
+                          {receiptFile.name} • {(receiptFile.size / 1024).toFixed(1)} KB
+                        </p>
+                      </div>
+                    )}
+
+                  </div>
+
+                  {/* Instructions */}
+                  <div className="bg-blue-50 dark:bg-blue-950/20 p-5 rounded-2xl border border-blue-200 dark:border-blue-800/30">
+                    <div className="flex items-start gap-3">
+                      <HiOutlineInformationCircle className="text-blue-600 shrink-0 mt-1" size={22} />
+                      <div>
+                        <p className="font-bold text-sm uppercase tracking-wide mb-1 text-blue-800 dark:text-blue-300">
+                          {paymentMethod.replace('_', ' ').toUpperCase()} Instructions
+                        </p>
+                        <p className="text-sm text-blue-700 dark:text-blue-300 leading-relaxed">
+                          {getPaymentInstructions()}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Submit */}
-                <button
-                  type="submit"
-                  disabled={isSubmitting || !paymentAmount || !bankRefNumber.trim()}
-                  className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white py-6 rounded-2xl font-black uppercase tracking-[0.25em] text-sm transition-all disabled:opacity-50 shadow-xl flex items-center justify-center gap-3"
-                >
-                  {isSubmitting ? (
-                    <>
-                      {uploadProgress > 0 && uploadProgress < 100
-                        ? `Uploading... ${uploadProgress}%`
-                        : 'Processing...'}
-                      <div className="animate-spin w-5 h-5 border-4 border-t-transparent border-white rounded-full" />
-                    </>
-                  ) : (
-                    <>
-                      <HiOutlineCheckCircle size={22} />
-                      Confirm & Submit Payment
-                    </>
-                  )}
-                </button>
-              </form>
-            </div>
+                  {/* Submit */}
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !paymentAmount || !bankRefNumber.trim()}
+                    className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white py-6 rounded-2xl font-black uppercase tracking-[0.25em] text-sm transition-all disabled:opacity-50 shadow-xl flex items-center justify-center gap-3"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        {uploadProgress > 0 && uploadProgress < 100
+                          ? `Uploading... ${uploadProgress}%`
+                          : 'Processing...'}
+                        <div className="animate-spin w-5 h-5 border-4 border-t-transparent border-white rounded-full" />
+                      </>
+                    ) : (
+                      <>
+                        <HiOutlineCheckCircle size={22} />
+                        Confirm & Submit Payment
+                      </>
+                    )}
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <div className="bg-yellow-50 dark:bg-yellow-900/10 p-6 rounded-2xl border border-yellow-200 dark:border-yellow-800 mt-4">
+                <h4 className="font-black">Order Status: {(order.status || '').replace(/_/g, ' ')}</h4>
+                <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">{STATUS_MAP[order.status] || 'This order cannot accept payments at the moment.'}</p>
+                {getRemainingDue() > 0 && (
+                  <p className="text-xs text-gray-500 mt-3">Remaining due: {CURRENCY.SYMBOL} {formatCurrency(getRemainingDue())}</p>
+                )}
+              </div>
+            )}
 
             {/* Final Help */}
             <div className="text-center text-sm text-gray-500 dark:text-gray-400">
               <p>Our team usually verifies payments within 24 hours.</p>
               <p className="mt-1">You will receive confirmation once approved.</p>
             </div>
+
+            {/* View Payment Modal */}
+            <AnimatePresence>
+              {viewPayment && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                  <div onClick={() => setViewPayment(null)} className="absolute inset-0 bg-black/60" />
+                  <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }} className="relative max-w-lg w-full bg-white dark:bg-[#0b0b0b] rounded-2xl p-6 z-60 border dark:border-white/10">
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="font-black uppercase">Payment Details</h4>
+                      <button onClick={() => setViewPayment(null)} className="text-gray-500 dark:text-white"><HiOutlineXMark size={20} /></button>
+                    </div>
+                    <div className="space-y-3 text-sm">
+                      <p><span className="text-xs text-gray-400">Amount:</span> <strong>{CURRENCY.SYMBOL} {formatCurrency(viewPayment.amount || viewPayment.payment_amount || 0)}</strong></p>
+                      <p><span className="text-xs text-gray-400">Method:</span> {viewPayment.payment_method || viewPayment.method || '—'}</p>
+                      <p><span className="text-xs text-gray-400">Ref:</span> {viewPayment.bank_ref_number || viewPayment.reference || '—'}</p>
+                      <p><span className="text-xs text-gray-400">Status:</span> {viewPayment.status || 'Sent'}</p>
+                      <p><span className="text-xs text-gray-400">When:</span> {new Date(viewPayment.created_at || viewPayment.created || viewPayment.timestamp || Date.now()).toLocaleString()}</p>
+                      {viewPayment.receipt_pdf_url && (
+                        <p><a href={viewPayment.receipt_pdf_url} target="_blank" rel="noreferrer" className="text-red-600 underline">Open Receipt Link</a></p>
+                      )}
+                      {viewPayment.receipt_screenshot && viewPayment.receipt_screenshot.startsWith && viewPayment.receipt_screenshot.startsWith('data:') && (
+                        <img src={viewPayment.receipt_screenshot} alt="Receipt" className="max-h-80 rounded-lg mt-3" />
+                      )}
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
       </div>

@@ -130,7 +130,7 @@ const Home = () => {
         </div>
 
         {/* IMAGE AREA */}
-        <div className="w-full lg:w-1/2 h-[50vh] lg:h-full relative overflow-hidden bg-zinc-100 dark:bg-zinc-900 group cursor-pointer" onClick={() => navigate('/items')}>
+        <div className="w-full lg:w-1/2 min-h-[50vh] lg:h-full relative overflow-hidden bg-zinc-100 dark:bg-zinc-900 group cursor-pointer" onClick={() => navigate('/items')}>
           <AnimatePresence mode="wait">
             <motion.div
               key={suits[index].id}
@@ -142,7 +142,7 @@ const Home = () => {
             >
               <img
                 src={suits[index].image}
-                className="w-ful h-full object-cover grayscale-[15%] group-hover:grayscale-0 transition-all duration-1000"
+                className="w-full h-full min-w-full min-h-full object-cover object-center grayscale-[15%] group-hover:grayscale-0 transition-all duration-1000"
                 alt={suits[index].title}
               />
               <div className="absolute inset-0 bg-gradient-to-l from-white/10 dark:from-black/10 via-transparent to-transparent" />
@@ -164,7 +164,7 @@ const Home = () => {
         </div>
 
         {/* TEXT CONTENT */}
-        <div className="w-full lg:w-1/2 flex flex-col justify-center px-6 md:px-12 lg:px-20 py-12 relative z-10 bg-white dark:bg-[#080808]">
+        <div className="w-full lg:w-1/2 flex flex-col justify-center px-4 sm:px-6 md:px-10 lg:px-20 py-8 relative z-10 bg-white dark:bg-[#080808]">
           <div className="max-w-xl">
             <AnimatePresence mode="wait">
               <motion.div
@@ -194,10 +194,10 @@ const Home = () => {
               </motion.div>
             </AnimatePresence>
 
-            <div className="mt-12 flex flex-wrap gap-6 items-center">
+            <div className="mt-8 flex flex-wrap gap-4 items-center">
               <button
                 onClick={() => navigate('/items')}
-                className="group relative overflow-hidden bg-black dark:bg-white text-white dark:text-black px-10 py-5 font-black uppercase tracking-widest text-[10px] flex items-center gap-4 hover:text-white transition-colors"
+                className="group relative overflow-hidden bg-black dark:bg-white text-white dark:text-black px-8 py-3 sm:px-10 sm:py-4 font-black uppercase tracking-widest text-[10px] flex items-center gap-3 hover:text-white transition-colors"
               >
                 <span className="relative z-10">Explore Atelier</span>
                 <HiOutlineShoppingBag size={18} className="relative z-10" />
@@ -214,8 +214,8 @@ const Home = () => {
       </section>
 
       {/* FEATURE STRIP */}
-      <section className="bg-zinc-50 dark:bg-[#0c0c0c] border-y border-gray-100 dark:border-white/5 py-10">
-        <div className="max-w-[1600px] mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8">
+      <section className="bg-zinc-50 dark:bg-[#0c0c0c] border-y border-gray-100 dark:border-white/5 py-8">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-3 gap-6">
           <FeatureCard title="Ethiopian Craft" desc="Hand-stitched precision in Shashemene." />
           <FeatureCard title="Bespoke Fit" desc="32 Unique body measurements per suit." />
           <FeatureCard title="Global Logistics" desc="Luxury delivery to your doorstep." />
@@ -223,7 +223,7 @@ const Home = () => {
       </section>
 
       {/* PRODUCT GRID PREVIEW */}
-      <section className="pt-24 px-6 md:px-12 lg:px-24 max-w-[1600px] mx-auto">
+      <section className="pt-16 px-4 sm:px-6 md:px-12 lg:px-24 max-w-[1400px] mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
           <div className="w-full">
             <span className="text-red-600 font-black tracking-[0.3em] uppercase text-[10px]">The Collection</span>
@@ -234,9 +234,9 @@ const Home = () => {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-12">
           {suits.slice(0, 4).map((product) => (
-            <ProductCard key={product.id} product={{ ...product, price: product.desc }} navigate={navigate} />
+            <ProductCard key={product.id} product={{ ...product, price: product.desc, img: product.image, name: product.title, category: product.collection }} navigate={navigate} />
           ))}
         </div>
       </section>

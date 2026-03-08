@@ -110,6 +110,20 @@ const Orders = () => {
   const handleCreateOrder = async (e) => {
     e.preventDefault();
 
+    // Validate measurements – backend requires all > 0
+    const requiredMeasurementFields = ['height', 'chest', 'shoulder', 'waist', 'hips', 'arm_length'];
+    const numericMeasurements = {};
+
+    for (const field of requiredMeasurementFields) {
+      const raw = newOrder.measurements[field];
+      const value = parseFloat(raw);
+      if (!raw || Number.isNaN(value) || value <= 0) {
+        alert(`Please enter a valid ${field.replace('_', ' ')} (must be greater than 0).`);
+        return;
+      }
+      numericMeasurements[field] = value;
+    }
+
     // Build order data - color is optional in frontend
     const orderData = {
       customer_name: newOrder.customer_name,
@@ -117,14 +131,7 @@ const Orders = () => {
       suit_type: parseInt(newOrder.suit_type),
       material: parseInt(newOrder.material),
       quantity: newOrder.quantity || 1,
-      measurements: {
-        height: parseFloat(newOrder.measurements.height) || 0,
-        chest: parseFloat(newOrder.measurements.chest) || 0,
-        shoulder: parseFloat(newOrder.measurements.shoulder) || 0,
-        waist: parseFloat(newOrder.measurements.waist) || 0,
-        hips: parseFloat(newOrder.measurements.hips) || 0,
-        arm_length: parseFloat(newOrder.measurements.arm_length) || 0,
-      }
+      measurements: numericMeasurements
     };
 
     // Add selected_color only if it has a value

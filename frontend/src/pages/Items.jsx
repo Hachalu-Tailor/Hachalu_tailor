@@ -208,21 +208,28 @@ const Items = ({ isHomePage = false }) => {
       return;
     }
 
-    // Build payload - only include fields with values
+    // Validate measurements – backend requires all > 0
+    const requiredMeasurementFields = ['height', 'chest', 'shoulder', 'waist', 'hips', 'arm_length'];
+    const numericMeasurements = {};
+
+    for (const field of requiredMeasurementFields) {
+      const raw = formData.measurements[field];
+      const value = parseFloat(raw);
+      if (!raw || Number.isNaN(value) || value <= 0) {
+        alert(`Please enter a valid ${field.replace('_', ' ')} (must be greater than 0).`);
+        return;
+      }
+      numericMeasurements[field] = value;
+    }
+
+    // Build payload with validated measurements
     const payload = {
       customer_name: formData.customer_name,
       customer_phone: formData.customer_phone,
       suit_type: parseInt(formData.suit_type) || formData.suit_type,
       material: parseInt(selectedItem?.id) || selectedItem?.id,
       quantity: parseInt(formData.quantity) || 1,
-      measurements: {
-        height: parseFloat(formData.measurements.height) || 0,
-        chest: parseFloat(formData.measurements.chest) || 0,
-        shoulder: parseFloat(formData.measurements.shoulder) || 0,
-        waist: parseFloat(formData.measurements.waist) || 0,
-        hips: parseFloat(formData.measurements.hips) || 0,
-        arm_length: parseFloat(formData.measurements.arm_length) || 0,
-      }
+      measurements: numericMeasurements
     };
 
     // Make selected_color required - get first color from material if available

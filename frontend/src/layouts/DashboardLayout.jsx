@@ -143,15 +143,17 @@ const DashboardLayout = () => {
             {/* Right: Actions */}
             <div className="flex items-center gap-3 md:gap-6">
 
-              {/* Desktop Search Bar */}
-              <div className="hidden lg:flex items-center bg-gray-100 dark:bg-white/5 px-4 py-2.5 rounded-2xl border border-transparent focus-within:border-red-600/50 transition-all group">
-                <HiOutlineMagnifyingGlass className="text-gray-400 group-focus-within:text-red-600" size={18} />
-                <input
-                  type="text"
-                  placeholder="SEARCH PROTOCOL..."
-                  className="bg-transparent border-none text-[9px] font-black px-3 outline-none dark:text-white w-40 placeholder:text-gray-500"
-                />
-              </div>
+              {/* Desktop Search Bar (hidden on garment views to avoid duplicate search) */}
+              {!location.pathname.startsWith('/garment') && (
+                <div className="hidden lg:flex items-center bg-gray-100 dark:bg-white/5 px-4 py-2.5 rounded-2xl border border-transparent focus-within:border-red-600/50 transition-all group">
+                  <HiOutlineMagnifyingGlass className="text-gray-400 group-focus-within:text-red-600" size={18} />
+                  <input
+                    type="text"
+                    placeholder="SEARCH PROTOCOL..."
+                    className="bg-transparent border-none text-[9px] font-black px-3 outline-none dark:text-white w-40 placeholder:text-gray-500"
+                  />
+                </div>
+              )}
 
               {/* Notification Toggle */}
               <div className="relative">

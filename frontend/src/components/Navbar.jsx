@@ -77,7 +77,7 @@ const Navbar = () => {
       name: 'Shop',
       href: '/items',
       subItems: [
-        { title: "Women's", desc: 'Premier Female', icon: <HiOutlineCpuChip />, href: '/items/women' },
+        { title: "All", desc: 'All in once', icon: <HiOutlineCpuChip />, href: '/items/' },
         { title: "Men's", desc: 'Advanced Male', icon: <HiOutlineCubeTransparent />, href: '/items/men' },
         { title: "Children's", desc: 'Quality Children', icon: <HiOutlineArrowRight />, href: '/items/children' }
       ]

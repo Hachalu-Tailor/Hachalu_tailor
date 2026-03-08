@@ -18,7 +18,7 @@ import {
 } from "react-icons/hi2";
 import api, { getMaterials, createMaterial, adjustStock, updateMaterial, createColor } from "../../api/api";
 import { getHexColor, getAvailableColors, formatColorName } from "../../utils/colors";
-import CreateCollection from './CreateCollection';
+import ColorCreateCollection from './ColorCreateCollection';
 // import { STORAGE_KEYS } from "../../utils/constants";
 
 const Inventory = () => {
@@ -835,7 +835,7 @@ const Inventory = () => {
         )}
       </AnimatePresence>
       {/* Create Color Modal */}
-      <CreateCollection
+      <ColorCreateCollection
         isOpen={showCreateColorModal}
         onClose={() => setShowCreateColorModal(false)}
         onCreated={(created) => {

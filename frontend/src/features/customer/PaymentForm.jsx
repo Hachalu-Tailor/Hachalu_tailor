@@ -48,6 +48,7 @@ const PaymentForm = () => {
   // Payment states
   const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [expectedPrice, setExpectedPrice] = useState(null);
   const [bankRefNumber, setBankRefNumber] = useState('');
   const [receiptFile, setReceiptFile] = useState(null);
   const [receiptPreview, setReceiptPreview] = useState(null);
@@ -120,6 +121,11 @@ const PaymentForm = () => {
       // 4. Status Check: do not block here — show status and allow viewing history locally
       // 5. Success: Set the order
       setOrder(foundOrder);
+      // If order is newly initiated, show a friendly notice in the global message area
+      if ((foundOrder.status || '').toUpperCase() === 'INITIATED') {
+        setError('Your order is initiated. Our reception will check it and call you within 24 hours. Please wait a short time.');
+      }
+      setExpectedPrice(foundOrder.expected_price ? parseFloat(foundOrder.expected_price) : null);
       // Try to load existing payments for the order
       try {
         const payRes = await api.get('/payments/', { params: { order_code: foundOrder.order_code } });
@@ -139,9 +145,24 @@ const PaymentForm = () => {
         saveLocalPayments(foundOrder.order_code, merged);
         const paidSum = merged.reduce((s, p) => s + (parseFloat(p.amount || p.payment_amount || 0) || 0), 0);
         const remaining = Math.max(0, (parseFloat(foundOrder.total_price || 0) || 0) - paidSum);
-        setPaymentAmount(remaining > 0 ? remaining.toFixed(2) : '');
+        // Default amount: prefer expected_price when available and remaining covers it
+        if (foundOrder.expected_price) {
+          const exp = parseFloat(foundOrder.expected_price) || 0;
+          if (remaining >= exp && exp > 0) setPaymentAmount(exp.toFixed(2));
+          else setPaymentAmount(remaining > 0 ? remaining.toFixed(2) : '');
+          if (remaining > 0 && remaining < exp) {
+            setError('Remaining due is less than expected price. Please contact reception to confirm payment amounts.');
+          }
+        } else {
+          setPaymentAmount(remaining > 0 ? remaining.toFixed(2) : '');
+        }
         if (remaining <= 0) {
-          setError('This order is already fully paid. No further payments allowed.');
+          if ((foundOrder.status || '').toUpperCase() !== 'INITIATED') {
+            setError('This order is already fully paid. No further payments allowed.');
+          } else {
+            // If order is INITIATED, don't show fully-paid message — show initiation notice elsewhere
+            setError(null);
+          }
         }
       } catch (e) {
         // fallback: load local payments when API fails
@@ -149,9 +170,23 @@ const PaymentForm = () => {
         setPayments(local);
         const paidSum = local.reduce((s, p) => s + (parseFloat(p.amount || p.payment_amount || 0) || 0), 0);
         const remaining = Math.max(0, (parseFloat(foundOrder.total_price || 0) || 0) - paidSum);
-        setPaymentAmount(remaining > 0 ? remaining.toFixed(2) : '');
+        setExpectedPrice(foundOrder.expected_price ? parseFloat(foundOrder.expected_price) : null);
+        if (foundOrder.expected_price) {
+          const exp = parseFloat(foundOrder.expected_price) || 0;
+          if (remaining >= exp && exp > 0) setPaymentAmount(exp.toFixed(2));
+          else setPaymentAmount(remaining > 0 ? remaining.toFixed(2) : '');
+          if (remaining > 0 && remaining < exp) {
+            setError('Remaining due is less than expected price. Please contact reception to confirm payment amounts.');
+          }
+        } else {
+          setPaymentAmount(remaining > 0 ? remaining.toFixed(2) : '');
+        }
         if (remaining <= 0) {
-          setError('This order is already fully paid (local record). No further payments allowed.');
+          if ((foundOrder.status || '').toUpperCase() !== 'INITIATED') {
+            setError('This order is already fully paid (local record). No further payments allowed.');
+          } else {
+            setError(null);
+          }
         }
       }
 
@@ -210,6 +245,13 @@ const PaymentForm = () => {
     const remainingDue = Math.max(0, (parseFloat(order?.total_price || 0) || 0) - paidSum);
     if (remainingDue <= 0) {
       setError('Order already fully paid. No more payments allowed.');
+      scrollToError();
+      return;
+    }
+
+    // Enforce expected price minimum when set
+    if (expectedPrice && amountNum < expectedPrice) {
+      setError(`Please pay at least the expected price: ${CURRENCY.SYMBOL} ${expectedPrice.toFixed(2)}. Contact reception if unsure.`);
       scrollToError();
       return;
     }
@@ -341,6 +383,20 @@ const PaymentForm = () => {
     return allowed.includes(order.status) && getRemainingDue() > 0;
   };
 
+  const getStatusNote = () => {
+    if (!order) return '';
+    const s = order.status;
+    const remaining = getRemainingDue();
+    if (s === 'INITIATED') return 'Your order has been sent to reception. Our receptionist will check it and contact you within 24 hours. Please wait a short time; we will call you on the phone number you provided.';
+    if (s === 'IN_PROGRESS') {
+      if (remaining > 0) return 'Your order is in progress. There is still a remaining payment — please complete the expected payment or contact reception for adjustments. Otherwise, wait for our team to call you before your scheduled day.';
+      return 'Your order is in progress. No remaining payment — please wait for our team to call you before your scheduled day.';
+    }
+    if (s === 'AWAITING_PAYMENT') return 'Price has been set. Please pay the expected amount below. If you need to pay again, contact reception for guidance.';
+    if (s === 'FULLY_PAID' || s === 'CLOSED') return 'This order is fully paid. Do not make additional payments. Contact reception if there is an issue.';
+    return STATUS_MAP[s] || '';
+  };
+
   const getPaymentInstructions = () => {
     switch (paymentMethod) {
       case 'bank_transfer':
@@ -352,6 +408,10 @@ const PaymentForm = () => {
       default:
         return 'Please provide clear reference and proof of payment.';
     }
+  };
+
+  const isInitiated = () => {
+    return (order && (order.status || '').toUpperCase() === 'INITIATED');
   };
 
   return (
@@ -482,44 +542,52 @@ const PaymentForm = () => {
           // PAYMENT FORM PHASE
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
             {/* Order Summary Card */}
-            <div className="bg-gray-50 dark:bg-zinc-900/80 p-7 rounded-3xl border border-gray-200 dark:border-white/5 shadow-xl">
-              <div className="flex justify-between items-center mb-5">
-                <h3 className="text-lg font-black dark:text-white uppercase tracking-wide">Order Summary</h3>
-                <button onClick={resetForm} className="text-sm text-red-600 dark:text-red-400 underline hover:text-red-700">
-                  Change Order
-                </button>
+            {isInitiated() ? (
+              <div className="bg-blue-50 dark:bg-blue-950/20 p-8 rounded-3xl border border-blue-200 dark:border-blue-800 shadow-md">
+                <div className="flex items-start gap-4">
+                  <HiOutlineInformationCircle className="text-blue-600 shrink-0 mt-1" size={28} />
+                  <div>
+                    <h3 className="text-lg font-black dark:text-white uppercase tracking-wide">Order Received</h3>
+                    <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">{getStatusNote()}</p>
+                    <p className="mt-3 text-xs text-gray-500">Please wait — our receptionist will contact you within 24 hours to confirm price and schedule.</p>
+                  </div>
+                </div>
+                <div className="mt-6 flex justify-end">
+                  <button onClick={resetForm} className="text-sm text-red-600 dark:text-red-400 underline hover:text-red-700">Change Order</button>
+                </div>
               </div>
+            ) : (
+              <div className="bg-gray-50 dark:bg-zinc-900/80 p-7 rounded-3xl border border-gray-200 dark:border-white/5 shadow-xl">
+                <div className="flex justify-between items-center mb-5">
+                  <h3 className="text-lg font-black dark:text-white uppercase tracking-wide">Order Summary</h3>
+                  <button onClick={resetForm} className="text-sm text-red-600 dark:text-red-400 underline hover:text-red-700">Change Order</button>
+                </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-5 text-sm">
-                <div>
-                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Order Code</p>
-                  <p className="font-bold dark:text-white">{order.order_code}</p>
-                </div>
-                <div>
-                  {/* total price */}
-                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Total Price</p>
-                  <p className="font-bold text-green-600 dark:text-green-400">
-                    {CURRENCY.SYMBOL} {formatCurrency(order.total_price)}
-                  </p>
-                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Expected Price</p>
-                  <p className="font-bold text-green-600 dark:text-green-400">
-                    {CURRENCY.SYMBOL} {formatCurrency(order.expected_price)}
-                  </p>
-                  
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Status</p>
-                  <span className="inline-block px-3 py-1 mt-1 rounded-full text-xs font-bold bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300">
-                    {(order.status || '').replace(/_/g, ' ')}
-                  </span>
-                  <p className="text-xs text-gray-500 mt-2">{STATUS_MAP[order.status] || ''}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Due Date</p>
-                  <p className="font-medium dark:text-gray-200">{order.due_date || '—'}</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-5 text-sm">
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Order Code</p>
+                    <p className="font-bold dark:text-white">{order.order_code}</p>
+                  </div>
+                  <div>
+                    {/* total price */}
+                    <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Total Price</p>
+                    <p className="font-bold text-green-600 dark:text-green-400">{CURRENCY.SYMBOL} {formatCurrency(order.total_price)}</p>
+                    <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Expected Price</p>
+                    <p className="font-bold text-green-600 dark:text-green-400">{CURRENCY.SYMBOL} {formatCurrency(order.expected_price)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Status</p>
+                    <span className="inline-block px-3 py-1 mt-1 rounded-full text-xs font-bold bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300">{(order.status || '').replace(/_/g, ' ')}</span>
+                    <p className="text-xs text-gray-500 mt-2">{STATUS_MAP[order.status] || ''}</p>
+                    <p className="text-xs text-gray-500 mt-2">{getStatusNote()}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Due Date</p>
+                    <p className="font-medium dark:text-gray-200">{order.due_date || '—'}</p>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Payments History */}
             {payments && payments.length > 0 && (
@@ -590,10 +658,10 @@ const PaymentForm = () => {
                       <input
                         type="number"
                         step="0.01"
-                        min="0.01"
+                        min={expectedPrice ? expectedPrice : 0.01}
                         value={paymentAmount}
                         onChange={(e) => setPaymentAmount(e.target.value)}
-                        placeholder="0.00"
+                        placeholder={expectedPrice ? expectedPrice.toFixed(2) : '0.00'}
                         className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-white/10 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 dark:text-white p-5 pl-12 rounded-2xl outline-none font-bold text-xl"
                         required
                       />
@@ -753,18 +821,15 @@ const PaymentForm = () => {
             ) : (
               <div className="bg-yellow-50 dark:bg-yellow-900/10 p-6 rounded-2xl border border-yellow-200 dark:border-yellow-800 mt-4">
                 <h4 className="font-black">Order Status: {(order.status || '').replace(/_/g, ' ')}</h4>
-                <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">{STATUS_MAP[order.status] || 'This order cannot accept payments at the moment.'}</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">{getStatusNote() || 'This order cannot accept payments at the moment.'}</p>
                 {getRemainingDue() > 0 && (
-                  <p className="text-xs text-gray-500 mt-3">Remaining due: {CURRENCY.SYMBOL} {formatCurrency(getRemainingDue())}</p>
+                  <>
+                    <p className="text-xs text-gray-500 mt-3">Remaining due: {CURRENCY.SYMBOL} {formatCurrency(getRemainingDue())}</p>
+                    <p className="text-xs text-gray-500 mt-2">If you believe you should be able to pay now, please contact the reception desk for assistance.</p>
+                  </>
                 )}
               </div>
             )}
-
-            {/* Final Help */}
-            <div className="text-center text-sm text-gray-500 dark:text-gray-400">
-              <p>Our team usually verifies payments within 24 hours.</p>
-              <p className="mt-1">You will receive confirmation once approved.</p>
-            </div>
 
             {/* View Payment Modal */}
             <AnimatePresence>

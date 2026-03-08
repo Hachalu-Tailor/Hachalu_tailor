@@ -151,9 +151,7 @@ const PaymentForm = () => {
           const exp = parseFloat(foundOrder.expected_price) || 0;
           if (remaining >= exp && exp > 0) setPaymentAmount(exp.toFixed(2));
           else setPaymentAmount(remaining > 0 ? remaining.toFixed(2) : '');
-          if (remaining > 0 && remaining < exp) {
-            setError('Remaining due is less than expected price. Please contact reception to confirm payment amounts.');
-          }
+          
         } else {
           setPaymentAmount(remaining > 0 ? remaining.toFixed(2) : '');
         }
@@ -176,7 +174,7 @@ const PaymentForm = () => {
           const exp = parseFloat(foundOrder.expected_price) || 0;
           if (remaining >= exp && exp > 0) setPaymentAmount(exp.toFixed(2));
           else setPaymentAmount(remaining > 0 ? remaining.toFixed(2) : '');
-          if (remaining > 0 && remaining < exp) {
+          if (remaining > 0 && paidSum < exp) {
             setError('Remaining due is less than expected price. Please contact reception to confirm payment amounts.');
           }
         } else {
@@ -318,10 +316,10 @@ const PaymentForm = () => {
       // ensure success is visible
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
-      console.error('Payment Error:', err.response?.data);
-      const data = err.response?.data;
-      const msg = formatErrorData(data) || 'Payment submission failed. Please try again.';
-      setError(msg);
+      // console.error('Payment Error:', err.response?.data);
+      // const data = err.response?.data;
+      // const msg = formatErrorData(data);
+      setError('Payment submission failed. Please try again or check you fill correctly');
       scrollToError();
     } finally {
       setIsSubmitting(false);
@@ -403,6 +401,8 @@ const PaymentForm = () => {
       return 'Your order is in progress. No remaining payment — please wait for our team to call you before your scheduled day.';
     }
     if (s === 'AWAITING_PAYMENT') return 'Price has been set. Please pay the expected amount below. If you need to pay again, contact reception for guidance.';
+
+    if (s === 'PENDING_APPROVAL') return 'Your payment is pending approval. Please wait for our team to review it.';
     if (s === 'FULLY_PAID' || s === 'CLOSED') return 'This order is fully paid. Do not make additional payments. Contact reception if there is an issue.';
     return STATUS_MAP[s] || '';
   };
@@ -580,16 +580,20 @@ const PaymentForm = () => {
                   </div>
                   <div>
                     {/* total price */}
-                    <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Total Price</p>
-                    <p className="font-bold text-green-600 dark:text-green-400">{CURRENCY.SYMBOL} {formatCurrency(order.total_price)}</p>
-                    <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Expected Price</p>
-                    <p className="font-bold text-green-600 dark:text-green-400">{CURRENCY.SYMBOL} {formatCurrency(order.expected_price)}</p>
+                    <div className='flex justfy-between gap-1' >
+                      <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Total = </p>
+                      <p className="font-bold text-green-600 dark:text-green-400">{formatCurrency(order.total_price)}</p>
+                    </div>
+                    <div className='flex justfy-between gap-1' >
+                      <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Expected = </p>
+                      <p className="font-bold text-green-600 dark:text-green-400">{formatCurrency(order.expected_price)}</p>
+                    </div>
                   </div>
                   <div>
                     <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Status</p>
                     <span className="inline-block px-3 py-1 mt-1 rounded-full text-xs font-bold bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300">{(order.status || '').replace(/_/g, ' ')}</span>
-                    <p className="text-xs text-gray-500 mt-2">{STATUS_MAP[order.status] || ''}</p>
-                    <p className="text-xs text-gray-500 mt-2">{getStatusNote()}</p>
+                    {/* <p className="text-xs text-gray-500 mt-2">{STATUS_MAP[order.status] || ''}</p> */}
+                    {/* <p className="text-xs text-gray-500 mt-2">{getStatusNote()}</p> */}
                   </div>
                   <div>
                     <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Due Date</p>

@@ -174,6 +174,10 @@ export const getMaterials = (params) => api.get('/invetory/materials/list/', { p
 
 export const createMaterial = (data) => api.post('/invetory/materials/create/', data);
 
+// Create a new color (collection) in inventory
+export const createColor = (data) => api.post('/invetory/colors/', data);
+export const getColors = (params) => api.get('/invetory/colors/', { params });
+
 export const getMaterialDetail = (id) => api.get(`/invetory/materials/${id}/`);
 
 export const updateMaterial = (id, data) => api.patch(`/invetory/materials/${id}/`, data);

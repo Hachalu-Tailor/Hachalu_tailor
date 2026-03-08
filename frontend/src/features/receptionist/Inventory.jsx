@@ -16,9 +16,10 @@ import {
   HiOutlineTrash,
   HiOutlinePencil
 } from "react-icons/hi2";
-import api, { getMaterials, createMaterial, adjustStock, getColorsFromMaterials } from "../../api/api";
-import { getHexColor, isLightColor, getAvailableColors } from "../../utils/colors";
-import { STORAGE_KEYS } from "../../utils/constants";
+import api, { getMaterials, createMaterial, adjustStock, updateMaterial, createColor } from "../../api/api";
+import { getHexColor, getAvailableColors, formatColorName } from "../../utils/colors";
+import CreateCollection from './CreateCollection';
+// import { STORAGE_KEYS } from "../../utils/constants";
 
 const Inventory = () => {
   const [inventory, setInventory] = useState([]);
@@ -44,10 +45,37 @@ const Inventory = () => {
   const [stockUpdate, setStockUpdate] = useState({ action_type: "add", quantity_meters: 0 });
   const [editingImage, setEditingImage] = useState(false); // false, 'url', or 'upload'
   const [editingField, setEditingField] = useState(null); // 'category', 'description', or null
+  const [editingColors, setEditingColors] = useState(false);
+  const [materialColors, setMaterialColors] = useState([]);
+  const [materialColorInput, setMaterialColorInput] = useState("");
+  const [showCreateColorModal, setShowCreateColorModal] = useState(false);
 
   useEffect(() => {
     fetchInventory();
   }, []);
+
+  const normalizeCategory = (cat) => {
+    if (!cat) return null;
+    const lower = cat.toString().trim().toLowerCase();
+    if (lower === 'men' || lower === 'male' || lower === "man's" || lower === 'mens') return 'Men';
+    // if (lower === 'women' || lower === 'woman' || lower === 'female' || lower === "women's") return 'Women';
+    if (lower === 'children' || lower === 'child' || lower === 'kids') return 'Children';
+    return cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
+  };
+
+  useEffect(() => {
+    if (selectedItem) {
+      // Normalize colors into simple name array
+      const colors = selectedItem.colors && Array.isArray(selectedItem.colors)
+        ? selectedItem.colors.map(c => c.name || c).filter(Boolean)
+        : selectedItem.color ? [selectedItem.color] : [];
+      setMaterialColors(colors.map(formatColorName));
+      setMaterialColorInput("");
+    } else {
+      setMaterialColors([]);
+      setMaterialColorInput("");
+    }
+  }, [selectedItem]);
 
   const fetchInventory = async () => {
     try {
@@ -66,12 +94,44 @@ const Inventory = () => {
     }
   };
 
+  // Resolve an input (hex or name) to a proper color name.
+  // If input is hex and matches a known palette color, return that palette name.
+  // If input is hex and not known, create the color via API and return created name.
+  const resolveOrCreateColor = async (input) => {
+    if (!input) return null;
+    const val = input.trim();
+
+    // hex pattern (#rgb or #rrggbb)
+    const hexMatch = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(val);
+    if (hexMatch) {
+      const hex = val.toLowerCase();
+      const paletteMatch = getAvailableColors().find(c => c.hex.toLowerCase() === hex);
+      if (paletteMatch) return formatColorName(paletteMatch.name);
+
+      // Not in palette - attempt to create on backend and return created name
+      try {
+        const payloadName = `Color ${hex.toUpperCase()}`;
+        const res = await createColor({ name: payloadName });
+        const createdName = res.data?.name || res.name || payloadName;
+        // refresh inventory so backend colors are visible where applicable
+        fetchInventory();
+        return formatColorName(createdName);
+      } catch (err) {
+        console.error('Failed to create color for hex', err);
+        return `Color ${val.toUpperCase()}`;
+      }
+    }
+
+    // Otherwise treat as a name - normalize capitalization
+    return formatColorName(val);
+  };
+
   const handleAddMaterial = async (e) => {
   e.preventDefault();
   try {
     // 1. Ensure colors is ONLY an array of strings (e.g., ["Red", "Blue"])
     const cleanColors = Array.isArray(newMaterial.colors) 
-      ? newMaterial.colors.map(c => typeof c === 'object' ? c.value : c) 
+      ? newMaterial.colors.map(c => typeof c === 'object' ? c.value : c).map(name => formatColorName(name)) 
       : [];
 
     const materialData = {
@@ -86,7 +146,7 @@ const Inventory = () => {
       quantity_meters: parseFloat(newMaterial.quantity_meters) || 0
     };
 
-    console.log("POSTING TO BACKEND:", JSON.stringify(materialData, null, 2));
+    // console.log("POSTING TO BACKEND:", JSON.stringify(materialData, null, 2));
     await createMaterial(materialData);
 
     setShowAddModal(false);
@@ -102,7 +162,7 @@ const Inventory = () => {
     });
     fetchInventory();
   } catch (error) {
-    console.error("Backend Error:", error.response?.data);
+    // console.error("Backend Error:", error.response?.data);
     alert(`Error: ${error.response?.data?.error || "Check console"}`);
   }
 };
@@ -290,7 +350,7 @@ const Inventory = () => {
       {/* STOCK MANAGEMENT MODAL */}
       <AnimatePresence>
         {selectedItem && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
+          <div className="fixed inset-0 z-[100] flex items-start justify-center p-2 sm:p-4 md:p-6 overflow-y-auto overflow-x-hidden">
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => { setSelectedItem(null); setEditingImage(false); }}
@@ -298,10 +358,10 @@ const Inventory = () => {
             />
 
             <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 30 }}
+              initial={{ scale: 0.95, opacity: 0, y: 12 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 30 }}
-              className="relative w-full max-w-lg bg-white dark:bg-[#0c0c0c] rounded-[3rem] shadow-2xl overflow-hidden border border-zinc-200 dark:border-white/10 p-8"
+              exit={{ scale: 0.95, opacity: 0, y: 12 }}
+              className="relative w-full max-w-full sm:max-w-2xl md:max-w-3xl bg-white dark:bg-[#0c0c0c] rounded-xl shadow-2xl border border-zinc-200 dark:border-white/10 p-4 sm:p-6 md:p-8 max-h-[90vh] overflow-y-auto mx-2 sm:mx-4"
             >
               <button onClick={() => { setSelectedItem(null); setEditingImage(false); }} className="absolute top-6 right-6 p-2 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-red-600 transition-all">
                 <HiOutlineXMark size={20} />
@@ -423,45 +483,188 @@ const Inventory = () => {
                   </div>
                 )}
 
-                <h2 className="text-2xl font-black uppercase italic tracking-tighter">{selectedItem.name}</h2>
+                <div className="flex items-start justify-between w-full">
+                  <div className="flex-1">
+                    {editingField === 'name' ? (
+                      <div className="space-y-2">
+                        <input
+                          id={`edit-name-${selectedItem.id}`}
+                          defaultValue={selectedItem.name}
+                          className="w-full bg-white dark:bg-black rounded-xl px-3 py-2 text-lg font-bold outline-none border border-zinc-200 dark:border-zinc-700"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={async () => {
+                              const newValue = document.getElementById(`edit-name-${selectedItem.id}`).value;
+                              try {
+                                await api.patch(`/invetory/materials/${selectedItem.id}/`, { name: newValue || null });
+                                setSelectedItem({ ...selectedItem, name: newValue });
+                                setEditingField(null);
+                                fetchInventory();
+                              } catch (error) {
+                                console.error('Error updating name:', error);
+                                alert('Failed to update name');
+                              }
+                            }}
+                            className="flex-1 py-2 bg-green-600 text-white rounded-xl text-sm"
+                          >Save</button>
+                          <button onClick={() => setEditingField(null)} className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 rounded-xl text-sm">Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <h2 className="text-2xl font-black uppercase italic tracking-tighter">{selectedItem.name}</h2>
+                        <button onClick={() => setEditingField('name')} className="p-2 bg-white/5 rounded-md">
+                          <HiOutlinePencil size={16} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 <div className="flex items-center gap-2 mt-1">
                   {/* Color display with visual swatches */}
                   {(selectedItem.color || (selectedItem.colors && selectedItem.colors.length > 0)) && (
                     <div className="flex items-center gap-2">
-                      {selectedItem.colors && selectedItem.colors.length > 0 ? (
-                        <div className="flex items-center gap-1">
-                          <div className="flex -space-x-2">
-                            {selectedItem.colors.map((c, idx) => (
-                              <div
-                                key={idx}
-                                className="w-5 h-5 rounded-full border-2 border-white dark:border-zinc-800"
-                                style={{ backgroundColor: getHexColor(c.name || c), zIndex: selectedItem.colors.length - idx }}
-                                title={c.name || c}
-                              />
-                            ))}
-                          </div>
-                          <span className="text-[10px] text-zinc-400 uppercase font-bold">
-                            {selectedItem.colors.map(c => c.name || c).join(', ')}
-                          </span>
+                      <div className="flex items-center gap-1">
+                        <div className="flex -space-x-2">
+                          {materialColors.map((c, idx) => (
+                            <div
+                              key={idx}
+                              className="w-5 h-5 rounded-full border-2 border-white dark:border-zinc-800"
+                              style={{ backgroundColor: getHexColor(c), zIndex: materialColors.length - idx }}
+                              title={c}
+                            />
+                          ))}
                         </div>
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          <div
-                            className="w-4 h-4 rounded-full border border-zinc-300"
-                            style={{ backgroundColor: getHexColor(selectedItem.color) }}
-                          />
-                          <span className="text-[10px] text-zinc-400 uppercase font-bold">
-                            {selectedItem.color}
-                          </span>
-                        </div>
-                      )}
+                        <span className="text-[10px] text-zinc-400 uppercase font-bold">
+                          {materialColors.join(', ')}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setEditingColors(!editingColors)}
+                        className="ml-3 p-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-sm"
+                      >
+                        {editingColors ? 'Close' : 'Edit Colors'}
+                      </button>
                     </div>
                   )}
                 </div>
-                <p className="text-[10px] text-zinc-400 uppercase font-bold mt-1">{selectedItem.texture}</p>
+                {editingField === 'texture' ? (
+                  <div className="mt-2 space-y-2 w-full">
+                    <input
+                      id={`edit-texture-${selectedItem.id}`}
+                      defaultValue={selectedItem.texture}
+                      className="w-full bg-white dark:bg-black rounded-xl px-3 py-2 text-sm font-bold outline-none border border-zinc-200 dark:border-zinc-700"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={async () => {
+                          const newValue = document.getElementById(`edit-texture-${selectedItem.id}`).value;
+                          try {
+                            await api.patch(`/invetory/materials/${selectedItem.id}/`, { texture: newValue || null });
+                            setSelectedItem({ ...selectedItem, texture: newValue });
+                            setEditingField(null);
+                            fetchInventory();
+                          } catch (error) {
+                            console.error('Error updating texture:', error);
+                            alert('Failed to update texture');
+                          }
+                        }}
+                        className="flex-1 py-2 bg-green-600 text-white rounded-xl text-sm"
+                      >Save</button>
+                      <button onClick={() => setEditingField(null)} className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 rounded-xl text-sm">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-[10px] text-zinc-400 uppercase font-bold">{selectedItem.texture}</p>
+                    <button onClick={() => setEditingField('texture')} className="p-1 bg-white/5 rounded-md">
+                      <HiOutlinePencil size={14} />
+                    </button>
+                  </div>
+                )}
 
                 {/* Category and Description Section - Improved Design */}
                 <div className="mt-4 space-y-3">
+                  {/* Colors Editor */}
+                  {editingColors && (
+                    <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest bg-zinc-200 dark:bg-zinc-700 px-2 py-1 rounded-lg">Colors</span>
+                        </div>
+                        <div className="text-xs text-zinc-400">You can add hex or name</div>
+                      </div>
+                      <div className="mt-3">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={getHexColor(materialColorInput) || '#6b7280'}
+                            onChange={(e) => setMaterialColorInput(e.target.value)}
+                            className="w-10 h-10 rounded-lg"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Color name or hex (#rrggbb)"
+                            value={materialColorInput}
+                            onChange={(e) => setMaterialColorInput(e.target.value)}
+                            className="flex-1 bg-white dark:bg-black rounded-xl px-3 py-2 text-sm outline-none border border-zinc-200 dark:border-zinc-700"
+                          />
+                          <button
+                            onClick={() => setShowCreateColorModal(true)}
+                            className="px-3 py-2 bg-zinc-200 dark:bg-zinc-800 rounded-xl text-sm"
+                          >Create Color</button>
+                          <button
+                            onClick={async () => {
+                              const val = (materialColorInput || '').trim();
+                              if (!val) return;
+                              const resolved = await resolveOrCreateColor(val);
+                              if (!resolved) return;
+                              if (!materialColors.includes(resolved)) {
+                                setMaterialColors([...materialColors, resolved]);
+                              }
+                              setMaterialColorInput("");
+                            }}
+                            className="px-3 py-2 bg-red-600 text-white rounded-xl text-sm"
+                          >Add</button>
+                        </div>
+
+                        {materialColors.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-3">
+                            {materialColors.map((c, idx) => (
+                              <span key={idx} className="flex items-center gap-2 px-2 py-1 rounded-lg bg-white dark:bg-gray-800 border">
+                                <span className="w-4 h-4 rounded-full" style={{ backgroundColor: getHexColor(c) }} />
+                                <span className="text-xs font-bold">{c}</span>
+                                <button
+                                  onClick={() => setMaterialColors(materialColors.filter((m, i) => i !== idx))}
+                                  className="text-red-600 ml-1"
+                                >&times;</button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex gap-2 mt-4">
+                          <button
+                            onClick={async () => {
+                              try {
+                                // Send array of color names to backend
+                                await updateMaterial(selectedItem.id, { colors: materialColors });
+                                setSelectedItem({ ...selectedItem, colors: materialColors.map(c => ({ name: c })) });
+                                setEditingColors(false);
+                                fetchInventory();
+                              } catch (error) {
+                                console.error('Failed to update colors', error);
+                                alert('Failed to save colors');
+                              }
+                            }}
+                            className="flex-1 py-2 bg-green-600 text-white rounded-xl text-sm"
+                          >Save Colors</button>
+                          <button onClick={() => { setEditingColors(false); setMaterialColors(selectedItem.colors ? selectedItem.colors.map(c => c.name || c) : (selectedItem.color ? [selectedItem.color] : [])); }} className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 rounded-xl text-sm">Cancel</button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {/* Category Edit */}
                   <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
                     <div className="flex items-center justify-between">
@@ -485,24 +688,26 @@ const Inventory = () => {
                           className="w-full bg-white dark:bg-black rounded-xl px-3 py-2 text-sm font-bold outline-none border border-zinc-200 dark:border-zinc-700 focus:ring-2 ring-red-600/20"
                         >
                           <option value="">Select Category</option>
-                          <option value="Child">Child</option>
                           <option value="Men">Men</option>
-                          {/* <option value="Woman">Woman</option> */}
+                          <option value="Women">Women</option>
+                          <option value="Children">Children</option>
+                          <option value="Cloth">Cloth</option>
                         </select>
                         <div className="flex gap-2">
                           <button
                             onClick={async () => {
-                              const newValue = document.getElementById(`edit-category-${selectedItem.id}`).value;
-                              try {
-                                await api.patch(`/invetory/materials/${selectedItem.id}/`, { category: newValue || null });
-                                setSelectedItem({ ...selectedItem, category: newValue });
-                                setEditingField(null);
-                                fetchInventory();
-                              } catch (error) {
-                                console.error('Error updating category:', error);
-                                alert('Failed to update category');
-                              }
-                            }}
+                                let newValue = document.getElementById(`edit-category-${selectedItem.id}`).value;
+                                try {
+                                  const normalized = normalizeCategory(newValue || null);
+                                  await api.patch(`/invetory/materials/${selectedItem.id}/`, { category: normalized || null });
+                                  setSelectedItem({ ...selectedItem, category: normalized, category_slug: (normalized || '').toString().toLowerCase().replace(/[^a-z0-9]+/g, '-') });
+                                  setEditingField(null);
+                                  fetchInventory();
+                                } catch (error) {
+                                  console.error('Error updating category:', error);
+                                  alert('Failed to update category');
+                                }
+                              }}
                             className="flex-1 py-2 bg-green-600 text-white rounded-xl text-[10px] font-black uppercase"
                           >
                             Save
@@ -629,6 +834,36 @@ const Inventory = () => {
           </div>
         )}
       </AnimatePresence>
+      {/* Create Color Modal */}
+      <CreateCollection
+        isOpen={showCreateColorModal}
+        onClose={() => setShowCreateColorModal(false)}
+        onCreated={(created) => {
+          // created may be { id, name }
+          const raw = created?.name || (created && created.data && created.data.name) || '';
+          if (!raw) return;
+          const name = formatColorName(raw);
+
+          // If editing an existing material, add to its colors list
+          if (selectedItem) {
+            const existing = selectedItem.colors ? selectedItem.colors.map(c => c.name || c) : (selectedItem.color ? [selectedItem.color] : []);
+            if (!existing.includes(name)) {
+              setMaterialColors([...materialColors, name]);
+              setSelectedItem({ ...selectedItem, colors: [...(selectedItem.colors || []), { name }] });
+            }
+          }
+
+          // Also add to newMaterial when in Add Material modal
+          if (showAddModal) {
+            if (!newMaterial.colors.includes(name)) {
+              setNewMaterial({ ...newMaterial, colors: [...newMaterial.colors, name] });
+            }
+          }
+
+          // Refresh inventory so created colors appear in backend-driven lists
+          fetchInventory();
+        }}
+      />
 
       {/* ADD MATERIAL MODAL */}
       <AnimatePresence>
@@ -703,13 +938,21 @@ const Inventory = () => {
                         placeholder="Or type color name..."
                         className="flex-1 bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20"
                       />
+                          <button
+                            type="button"
+                            onClick={() => setShowCreateColorModal(true)}
+                            className="px-3 py-2 bg-zinc-200 dark:bg-zinc-800 rounded-xl text-[10px] font-black uppercase ml-2"
+                          >Create Color</button>
                       <button
                         type="button"
                         className="px-3 py-2 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase"
-                        onClick={() => {
+                        onClick={async () => {
                           const val = newMaterial.colorInput.trim();
-                          if (val && !newMaterial.colors.includes(val)) {
-                            setNewMaterial({ ...newMaterial, colors: [...newMaterial.colors, val], colorInput: "" });
+                          if (!val) return;
+                          const resolved = await resolveOrCreateColor(val);
+                          if (!resolved) return;
+                          if (!newMaterial.colors.includes(resolved)) {
+                            setNewMaterial({ ...newMaterial, colors: [...newMaterial.colors, resolved], colorInput: "" });
                           }
                         }}
                       >

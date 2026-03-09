@@ -140,6 +140,11 @@ const DashboardLayout = () => {
             setIsOpen={setIsSidebarOpen}
             completedOrders={completedOrders}
             isLoadingOrders={isLoadingCompleted}
+            onOrderClick={(order) => {
+              // Navigate to garment dashboard with order details or show modal
+              navigate(`/garment?order=${order.id}`);
+              setIsSidebarOpen(false);
+            }}
           />
         ) : (
           <AdminReceptionSidebar

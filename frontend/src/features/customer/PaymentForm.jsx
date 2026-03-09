@@ -58,6 +58,7 @@ const PaymentForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [submittedPayment, setSubmittedPayment] = useState(null);
+  const [receiptError, setReceiptError] = useState(null); // Field-level error for receipt
 
   const fileInputRef = useRef(null);
 
@@ -211,6 +212,7 @@ const PaymentForm = () => {
     }
 
     setReceiptFile(file);
+    setReceiptError(null); // Clear field error when file selected
     setError(null);
 
     if (file.type.startsWith('image/')) {
@@ -225,6 +227,7 @@ const PaymentForm = () => {
   const removeFile = () => {
     setReceiptFile(null);
     setReceiptPreview(null);
+    setReceiptError(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -269,9 +272,15 @@ const PaymentForm = () => {
 
     // Require either file or URL
     if (!receiptFile && !receiptUrl) {
-      setError('Please upload a receipt file OR paste a payment link');
+      const receiptErrorMsg = 'Please upload a receipt image/screenshot OR paste a payment link. This is required.';
+      setReceiptError(receiptErrorMsg);
+      setError(receiptErrorMsg);
+      scrollToError();
       return;
     }
+
+    // Clear field-level error when validation passes
+    setReceiptError(null);
 
     setIsSubmitting(true);
     setUploadProgress(0);
@@ -356,6 +365,7 @@ const PaymentForm = () => {
     setOrderCode('');
     setOrder(null);
     setError(null);
+    setReceiptError(null);
     setPaymentSuccess(false);
     setSubmittedPayment(null);
     setPaymentAmount('');
@@ -692,14 +702,14 @@ const PaymentForm = () => {
                   {/* Receipt Upload */}
                   <div>
                     <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
-                      Upload Receipt / Proof (recommended)
+                      Upload Receipt / Proof <span className="text-red-500">*</span> <span className="text-gray-400 normal-case tracking-normal">(required)</span>
                     </label>
 
                     {/* Toggle Buttons */}
                     <div className="flex gap-3 mb-4">
                       <button
                         type="button"
-                        onClick={() => { setUploadMethod('file'); setReceiptUrl(''); }}
+                        onClick={() => { setUploadMethod('file'); setReceiptUrl(''); setReceiptError(null); }}
                         className={`flex-1 py-3 px-4 rounded-xl border-2 font-bold text-sm transition-all ${uploadMethod === 'file'
                           ? 'border-red-600 bg-red-50 dark:bg-red-950/30 text-red-600'
                           : 'border-gray-200 dark:border-white/10 text-gray-500 hover:border-gray-300'
@@ -709,7 +719,7 @@ const PaymentForm = () => {
                       </button>
                       <button
                         type="button"
-                        onClick={() => { setUploadMethod('url'); setReceiptFile(null); setReceiptPreview(null); }}
+                        onClick={() => { setUploadMethod('url'); setReceiptFile(null); setReceiptPreview(null); setReceiptError(null); }}
                         className={`flex-1 py-3 px-4 rounded-xl border-2 font-bold text-sm transition-all ${uploadMethod === 'url'
                           ? 'border-red-600 bg-red-50 dark:bg-red-950/30 text-red-600'
                           : 'border-gray-200 dark:border-white/10 text-gray-500 hover:border-gray-300'
@@ -721,20 +731,32 @@ const PaymentForm = () => {
 
                     {/* File Upload Mode */}
                     {uploadMethod === 'file' && !receiptFile && (
-                      <label className="flex flex-col items-center justify-center w-full h-44 border-2 border-dashed border-gray-300 dark:border-white/20 rounded-2xl cursor-pointer hover:border-red-500/50 transition-all bg-gray-50/50 dark:bg-black/30">
-                        <HiOutlineCloudArrowUp className="text-gray-400 mb-3" size={40} />
-                        <span className="text-sm font-bold text-gray-500 dark:text-gray-300">
-                          Click or drag receipt (image / pdf)
-                        </span>
-                        <span className="text-xs text-gray-400 mt-1">Max 5MB</span>
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          className="hidden"
-                          accept="image/*,.pdf"
-                          onChange={handleFileChange}
-                        />
-                      </label>
+                      <>
+                        <label className={`flex flex-col items-center justify-center w-full h-44 border-2 border-dashed rounded-2xl cursor-pointer transition-all bg-gray-50/50 dark:bg-black/30 ${receiptError
+                          ? 'border-red-500 bg-red-50 dark:bg-red-950/20 hover:border-red-600'
+                          : 'border-gray-300 dark:border-white/20 hover:border-red-500/50'
+                          }`}>
+                          <HiOutlineCloudArrowUp className={`mb-3 ${receiptError ? 'text-red-500' : 'text-gray-400'}`} size={40} />
+                          <span className={`text-sm font-bold ${receiptError ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-300'}`}>
+                            Click or drag receipt (image / pdf) <span className="text-red-500">*</span>
+                          </span>
+                          <span className="text-xs text-gray-400 mt-1">Max 5MB</span>
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            className="hidden"
+                            accept="image/*,.pdf"
+                            onChange={handleFileChange}
+                          />
+                        </label>
+                        {/* Field-level error message */}
+                        {receiptError && (
+                          <p className="text-red-500 text-sm mt-2 flex items-center gap-2">
+                            <HiOutlineExclamationTriangle size={16} />
+                            {receiptError}
+                          </p>
+                        )}
+                      </>
                     )}
 
                     {/* URL Input Mode */}
@@ -743,9 +765,9 @@ const PaymentForm = () => {
                         <input
                           type="url"
                           value={receiptUrl || ''}
-                          onChange={(e) => setReceiptUrl(e.target.value)}
+                          onChange={(e) => { setReceiptUrl(e.target.value); setReceiptError(null); setError(null); }}
                           placeholder="Paste payment screenshot link (e.g., https://imgbb.com/...)"
-                          className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-white/10 focus:border-red-600 dark:text-white p-4 rounded-2xl outline-none text-sm"
+                          className={`w-full bg-gray-50 dark:bg-black border ${receiptError ? 'border-red-500 focus:border-red-500' : 'border-gray-200 dark:border-white/10 focus:border-red-600'} dark:text-white p-4 rounded-2xl outline-none text-sm`}
                         />
                         <p className="text-xs text-gray-500">
                           Paste a direct link to your payment screenshot or proof image

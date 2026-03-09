@@ -52,6 +52,8 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
 
     // Garment/Tailor Section
     { path: '/garment', label: 'Workshop', icon: <HiOutlineScissors />, roles: ['garment'] },
+    { path: '/garment/orders', label: t('orders'), icon: <HiOutlineClipboardDocumentList />, roles: ['garment'] },
+    { path: '/garment/messages', label: t('messages'), icon: <HiOutlineChatBubbleLeftRight />, roles: ['garment'] },
 
     // Shared/Common Sections (Admin & Receptionist)
     { path: '/reception/payments', label: t('payments'), icon: <HiOutlineBanknotes />, roles: ['admin', 'receptionist'] },

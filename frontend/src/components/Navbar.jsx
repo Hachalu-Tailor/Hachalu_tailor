@@ -154,11 +154,11 @@ const Navbar = () => {
               {isDarkMode ? <HiSun size={18} /> : <HiMoon size={18} />}
             </button>
 
-            {isAdminOrReceptionist && (
+            {/* {isAdminOrReceptionist && (
               <Link to="/login" className="hidden md:block bg-red-600 hover:bg-red-700 text-white text-[10px] font-black px-6 py-2.5 uppercase tracking-widest transition-all hover:shadow-[0_0_20px_rgba(220,38,38,0.3)]">
                 Access Hub
               </Link>
-            )}
+            )} */}
 
             <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 text-gray-900 dark:text-white">
               <HiMenuAlt3 size={28} />
@@ -270,9 +270,9 @@ const Navbar = () => {
                 ))}
               </div>
 
-              <div className="pt-8">
+              {/* <div className="pt-8">
                 <Link to="/login" onClick={() => handleLinkClick('/login')} className="block w-full py-4 bg-red-600 text-white font-black text-center uppercase text-xs tracking-[.2em]">Hub Authentication</Link>
-              </div>
+              </div> */}
             </motion.aside>
           </>
         )}

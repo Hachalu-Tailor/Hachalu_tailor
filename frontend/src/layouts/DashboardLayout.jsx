@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import AdminReceptionSidebar from '../components/AdminReceptionSidebar';
-import GarmentSidebar from '../components/GarmentSidebar';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import {
   HiOutlineBell,
@@ -132,29 +131,12 @@ const DashboardLayout = () => {
       <div className="flex h-screen bg-[#F8F9FA] dark:bg-[#050505] transition-colors duration-500 overflow-hidden font-sans">
 
         {/* SIDEBAR COMPONENT */}
-        {userRole === 'garment' ? (
-          <GarmentSidebar
-            darkMode={darkMode}
-            setDarkMode={setDarkMode}
-            isOpen={isSidebarOpen}
-            setIsOpen={setIsSidebarOpen}
-            completedOrders={completedOrders}
-            isLoadingOrders={isLoadingCompleted}
-            onOrderClick={(order) => {
-              // Navigate to garment dashboard with order details or show modal
-              navigate(`/garment?order=${order.id}`);
-              setIsSidebarOpen(false);
-            }}
-            onLogout={handleLogout}
-          />
-        ) : (
           <AdminReceptionSidebar
             darkMode={darkMode}
             setDarkMode={setDarkMode}
             isOpen={isSidebarOpen}
             setIsOpen={setIsSidebarOpen}
           />
-        )}
 
         {/* MAIN CONTENT AREA */}
         <div className={`flex-1 flex flex-col min-w-0 h-screen overflow-hidden ${userRole === 'garment' ? 'lg:ml-72 sm:ml-80' : ''}`}>

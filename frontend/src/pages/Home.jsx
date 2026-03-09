@@ -199,7 +199,7 @@ const Home = () => {
                 onClick={() => navigate('/items')}
                 className="group relative overflow-hidden bg-black dark:bg-white text-white dark:text-black px-8 py-3 sm:px-10 sm:py-4 font-black uppercase tracking-widest text-[10px] flex items-center gap-3 hover:text-white transition-colors"
               >
-                <span className="relative z-10">Explore Atelier</span>
+                <span className="relative z-10">Explore A TAILOR</span>
                 <HiOutlineShoppingBag size={18} className="relative z-10" />
                 <div className="absolute inset-0 bg-red-600 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
               </button>

@@ -121,18 +121,18 @@ const DashboardLayout = () => {
 
             {/* Left: Mobile Toggle & Title */}
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => setIsSidebarOpen(true)}
-                className="md:hidden p-2 text-gray-500 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-all"
-              >
+                <button
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="md:hidden p-2 text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-all"
+                >
                 <HiOutlineBars3BottomLeft size={26} />
               </button>
 
               <div className="flex flex-col">
-                <h1 className="text-[10px] md:text-xs font-black uppercase tracking-[0.3em] dark:text-white italic">
+                <h1 className="text-[10px] md:text-xs font-black uppercase tracking-[0.3em] text-gray-900 dark:text-white italic">
                   {getPageTitle()} <span className="text-red-600 font-sans ml-1">/</span>
                 </h1>
-                <span className="text-[7px] font-black text-gray-400 uppercase tracking-[0.4em] hidden sm:block mt-1">
+                <span className="text-[7px] font-black text-gray-600 dark:text-gray-400 uppercase tracking-[0.4em] hidden sm:block mt-1">
                   Terminal: <span className={userRole === 'admin' ? 'text-red-500' : userRole === 'garment' ? 'text-red-500' : 'text-blue-500'}>
                     {userRole === 'admin' ? 'SECURE_MASTER_NODE' : userRole === 'garment' ? 'GARMENT_WORKSHOP' : 'STAFF_ACCESS_PT'}
                   </span>
@@ -146,11 +146,11 @@ const DashboardLayout = () => {
               {/* Desktop Search Bar (hidden on garment views to avoid duplicate search) */}
               {!location.pathname.startsWith('/garment') && (
                 <div className="hidden lg:flex items-center bg-gray-100 dark:bg-white/5 px-4 py-2.5 rounded-2xl border border-transparent focus-within:border-red-600/50 transition-all group">
-                  <HiOutlineMagnifyingGlass className="text-gray-400 group-focus-within:text-red-600" size={18} />
+                  <HiOutlineMagnifyingGlass className="text-gray-500 dark:text-gray-400 group-focus-within:text-red-600" size={18} />
                   <input
                     type="text"
                     placeholder="SEARCH PROTOCOL..."
-                    className="bg-transparent border-none text-[9px] font-black px-3 outline-none dark:text-white w-40 placeholder:text-gray-500"
+                    className="bg-transparent border-none text-[9px] font-black px-3 outline-none text-gray-900 dark:text-white w-40 placeholder:text-gray-500 dark:placeholder:text-gray-400"
                   />
                 </div>
               )}
@@ -159,7 +159,7 @@ const DashboardLayout = () => {
               <div className="relative">
                 <button
                   onClick={() => setShowNotifications(!showNotifications)}
-                  className={`p-3 rounded-2xl transition-all ${showNotifications ? 'bg-red-600 text-white shadow-xl shadow-red-600/40' : 'bg-gray-100 dark:bg-white/5 text-gray-500 hover:text-red-600 hover:bg-gray-200 dark:hover:bg-white/10'}`}
+                  className={`p-3 rounded-2xl transition-all ${showNotifications ? 'bg-red-600 text-white shadow-xl shadow-red-600/40' : 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-400 hover:text-red-600 hover:bg-gray-200 dark:hover:bg-white/10'}`}
                 >
                   <HiOutlineBell size={20} />
                   {pendingCount > 0 && (
@@ -178,7 +178,7 @@ const DashboardLayout = () => {
                       className="absolute top-16 right-0 w-80 bg-white dark:bg-[#0c0c0c] border border-gray-100 dark:border-white/10 rounded-[2.5rem] shadow-2xl p-6 z-50 overflow-hidden"
                     >
                       <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-[10px] font-black uppercase tracking-widest dark:text-white">Central Feed</h3>
+                        <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-900 dark:text-white">Central Feed</h3>
                         <span className="bg-red-600/10 text-red-600 text-[8px] font-black px-2 py-1 rounded-lg uppercase">{pendingCount} Pending</span>
                       </div>
 
@@ -203,7 +203,7 @@ const DashboardLayout = () => {
                         )}
                       </div>
 
-                      <button className="w-full mt-6 py-3 bg-gray-50 dark:bg-white/5 rounded-2xl text-[8px] font-black uppercase tracking-widest text-gray-400 hover:text-white hover:bg-red-600 transition-all">
+                      <button className="w-full mt-6 py-3 bg-gray-50 dark:bg-white/5 rounded-2xl text-[8px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-400 hover:text-white hover:bg-red-600 transition-all">
                         Clear All Logs
                       </button>
                     </motion.div>
@@ -216,7 +216,7 @@ const DashboardLayout = () => {
                 <div className="hidden sm:flex flex-col items-end">
                   <button
                     onClick={() => navigate(userRole === 'admin' ? '/admin/profile' : userRole === 'garment' ? '/garment/profile' : '/reception/profile')}
-                    className="text-[9px] font-black dark:text-white uppercase tracking-wider hover:text-red-500 transition-colors"
+                    className="text-[9px] font-black text-gray-900 dark:text-white uppercase tracking-wider hover:text-red-500 transition-colors"
                   >
                     Profile
                   </button>
@@ -259,12 +259,12 @@ const DashboardLayout = () => {
 /* --- SUB-COMPONENT: NOTIFICATION ITEM --- */
 const NotificationItem = ({ icon, text, time, isRead }) => (
   <div className="flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-white/5 rounded-[1.5rem] transition-all cursor-pointer border border-transparent hover:border-red-600/10 group">
-    <div className={`${isRead ? 'bg-gray-100 dark:bg-white/5 text-gray-400' : 'bg-red-600/10 text-red-600'} p-2 rounded-xl group-hover:bg-red-600 group-hover:text-white transition-all`}>
+    <div className={`${isRead ? 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400' : 'bg-red-600/10 text-red-600'} p-2 rounded-xl group-hover:bg-red-600 group-hover:text-white transition-all`}>
       {icon}
     </div>
     <div className="flex-1 overflow-hidden">
-      <p className="text-[10px] font-black dark:text-gray-200 uppercase truncate tracking-tight">{text}</p>
-      {time && <p className="text-[8px] text-gray-500 font-bold uppercase mt-0.5">{time}</p>}
+      <p className="text-[10px] font-black text-gray-900 dark:text-gray-200 uppercase truncate tracking-tight">{text}</p>
+      {time && <p className="text-[8px] text-gray-600 dark:text-gray-500 font-bold uppercase mt-0.5">{time}</p>}
     </div>
   </div>
 );

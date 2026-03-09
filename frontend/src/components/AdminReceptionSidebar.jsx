@@ -78,7 +78,7 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
             <span className="font-black text-2xl italic">H</span>
           </div>
           <div className="hidden lg:block truncate">
-            <h2 className="text-xl font-black dark:text-white tracking-tighter uppercase italic leading-none">Protocol</h2>
+            <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tighter uppercase italic leading-none">Protocol</h2>
             <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-1">
               Active: <span className="text-red-600">{currentRole || 'NO ROLE DETECTED'}</span>
             </p>
@@ -97,7 +97,7 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
                   w-full flex items-center justify-center lg:justify-start gap-4 p-4 rounded-2xl transition-all group
                   ${isActive
                     ? 'bg-red-600 text-white shadow-xl shadow-red-600/40 ring-1 ring-red-400/20'
-                    : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-black dark:hover:text-white'}
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white'}
                 `}
               >
                 <span className="text-2xl group-hover:scale-110 transition-transform">{item.icon}</span>
@@ -115,15 +115,15 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
 
         <div className="pt-6 mt-6 border-t border-gray-100 dark:border-white/5 space-y-3">
           <button onClick={toggleTheme} className="w-full flex items-center justify-between p-2 bg-gray-100 dark:bg-white/5 rounded-2xl transition-all">
-            <div className={`p-2 rounded-xl transition-all flex-1 flex justify-center ${!darkMode ? 'bg-white text-orange-500 shadow-md' : 'text-gray-500'}`}>
+            <div className={`p-2 rounded-xl transition-all flex-1 flex justify-center ${!darkMode ? 'bg-white text-amber-500 shadow-md ring-1 ring-gray-200' : 'text-gray-500 dark:text-gray-400'}`}>
               <HiOutlineSun size={18} />
             </div>
-            <div className={`p-2 rounded-xl transition-all flex-1 flex justify-center ${darkMode ? 'bg-zinc-800 text-blue-400 shadow-md' : 'text-gray-500'}`}>
+            <div className={`p-2 rounded-xl transition-all flex-1 flex justify-center ${darkMode ? 'bg-zinc-800 text-sky-400 shadow-md ring-1 ring-white/10' : 'text-gray-500 dark:text-gray-400'}`}>
               <HiOutlineMoon size={18} />
             </div>
           </button>
 
-          <button onClick={handleLogout} className="w-full flex items-center justify-center lg:justify-start gap-4 p-4 text-gray-400 hover:text-red-600 transition-all hover:translate-x-1">
+          <button onClick={handleLogout} className="w-full flex items-center justify-center lg:justify-start gap-4 p-4 text-gray-600 dark:text-gray-400 hover:text-red-600 transition-all hover:translate-x-1">
             <HiOutlineArrowLeftOnRectangle size={24} />
             <span className="hidden lg:block text-[10px] font-black uppercase tracking-widest">Logout</span>
           </button>
@@ -153,9 +153,9 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
                   <div className="h-10 w-10 bg-red-600 rounded-xl flex items-center justify-center text-white shadow-lg">
                     <span className="font-black text-xl italic">H</span>
                   </div>
-                  <h2 className="text-lg font-black dark:text-white uppercase italic">Protocol</h2>
+                  <h2 className="text-lg font-black text-gray-900 dark:text-white uppercase italic">Protocol</h2>
                 </div>
-                <button onClick={() => setIsOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl">
+                <button onClick={() => setIsOpen(false)} className="p-2 text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl">
                   <HiOutlineXMark size={20} />
                 </button>
               </div>
@@ -171,7 +171,7 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
                       w-full flex items-center gap-4 p-4 rounded-2xl transition-all
                       ${isActive
                         ? 'bg-red-600 text-white shadow-xl shadow-red-600/40'
-                        : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-black dark:hover:text-white'}
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white'}
                     `}
                   >
                     <span className="text-xl">{item.icon}</span>
@@ -182,14 +182,14 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
 
               <div className="pt-4 border-t border-gray-100 dark:border-white/5 space-y-3">
                 <button onClick={toggleTheme} className="w-full flex items-center justify-between p-2 bg-gray-100 dark:bg-white/5 rounded-2xl">
-                  <div className={`p-2 rounded-xl flex-1 flex justify-center ${!darkMode ? 'bg-white text-orange-500 shadow-md' : 'text-gray-500'}`}>
+                  <div className={`p-2 rounded-xl flex-1 flex justify-center ${!darkMode ? 'bg-white text-amber-500 shadow-md ring-1 ring-gray-200' : 'text-gray-500 dark:text-gray-400'}`}>
                     <HiOutlineSun size={18} />
                   </div>
-                  <div className={`p-2 rounded-xl flex-1 flex justify-center ${darkMode ? 'bg-zinc-800 text-blue-400 shadow-md' : 'text-gray-500'}`}>
+                  <div className={`p-2 rounded-xl flex-1 flex justify-center ${darkMode ? 'bg-zinc-800 text-sky-400 shadow-md ring-1 ring-white/10' : 'text-gray-500 dark:text-gray-400'}`}>
                     <HiOutlineMoon size={18} />
                   </div>
                 </button>
-                <button onClick={handleLogout} className="w-full flex items-center gap-4 p-4 text-gray-400 hover:text-red-600 transition-all">
+                <button onClick={handleLogout} className="w-full flex items-center gap-4 p-4 text-gray-600 dark:text-gray-400 hover:text-red-600 transition-all">
                   <HiOutlineArrowLeftOnRectangle size={20} />
                   <span className="text-[10px] font-black uppercase tracking-widest">Logout</span>
                 </button>

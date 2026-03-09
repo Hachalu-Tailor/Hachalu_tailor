@@ -278,16 +278,16 @@ const GarmentDashboard = () => {
             {/* Header - matches Admin & Reception style */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-xl md:text-2xl font-black dark:text-white uppercase tracking-tighter italic">
+                    <h1 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter italic">
                         Garment<span className="text-red-600"> Workshop</span>
                     </h1>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest mt-1">
+                    <p className="text-[10px] text-gray-600 dark:text-gray-400 font-bold uppercase tracking-widest mt-1">
                         Manage production orders
                     </p>
                 </div>
                 <button
                     onClick={loadOrders}
-                    className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 dark:text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-gray-200 dark:hover:bg-white/10"
+                    className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 text-gray-800 dark:text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-gray-200 dark:hover:bg-white/10"
                 >
                     <HiOutlineArrowPath size={16} /> Refresh
                 </button>
@@ -307,8 +307,8 @@ const GarmentDashboard = () => {
                     >
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-2xl font-black dark:text-white">{tab.count}</p>
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-1">{tab.label}</p>
+                                <p className="text-2xl font-black text-gray-900 dark:text-white">{tab.count}</p>
+                                <p className="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mt-1">{tab.label}</p>
                             </div>
                             <div className={`w-3 h-3 rounded-full ${tab.color === 'blue' ? 'bg-blue-500' :
                                 tab.color === 'green' ? 'bg-green-500' :
@@ -331,7 +331,7 @@ const GarmentDashboard = () => {
                                 onClick={() => setActiveTab(tab.id)}
                                 className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider whitespace-nowrap transition-colors ${activeTab === tab.id
                                     ? 'bg-red-600 text-white'
-                                    : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10 dark:hover:text-white'
+                                    : 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white'
                                     }`}
                             >
                                 {tab.label}
@@ -346,20 +346,20 @@ const GarmentDashboard = () => {
                     <div className="flex items-center gap-2 w-full md:w-auto">
                         {/* Search */}
                         <div className="relative flex-1 md:w-48">
-                            <HiOutlineMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                            <HiOutlineMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 w-4 h-4" />
                             <input
                                 type="text"
                                 placeholder="Search..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-100 dark:border-white/10 bg-white dark:bg-white/5 dark:text-white text-sm focus:ring-2 focus:ring-red-500/50 focus:border-red-500 outline-none"
+                                className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-red-500/50 focus:border-red-500 outline-none placeholder:text-gray-500"
                             />
                         </div>
 
                         {/* Filter Toggle */}
                         <button
                             onClick={() => setShowFilters(!showFilters)}
-                            className={`p-2 rounded-xl border transition-colors ${showFilters ? 'bg-red-600 text-white border-red-600' : 'border-gray-100 dark:border-white/10 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/10'
+                            className={`p-2 rounded-xl border transition-colors ${showFilters ? 'bg-red-600 text-white border-red-600' : 'border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10'
                                 }`}
                         >
                             <HiOutlineScissors className="w-4 h-4" />
@@ -369,13 +369,13 @@ const GarmentDashboard = () => {
                         <div className="flex rounded-xl border border-gray-100 dark:border-white/10 overflow-hidden">
                             <button
                                 onClick={() => setViewMode('grid')}
-                                className={`px-3 py-1.5 text-[10px] font-bold uppercase ${viewMode === 'grid' ? 'bg-red-600 text-white' : 'bg-white dark:bg-white/5 text-gray-500 dark:text-gray-400'}`}
+                                className={`px-3 py-1.5 text-[10px] font-bold uppercase ${viewMode === 'grid' ? 'bg-red-600 text-white' : 'bg-white dark:bg-white/5 text-gray-600 dark:text-gray-400'}`}
                             >
                                 Grid
                             </button>
                             <button
                                 onClick={() => setViewMode('list')}
-                                className={`px-3 py-1.5 text-[10px] font-bold uppercase ${viewMode === 'list' ? 'bg-red-600 text-white' : 'bg-white dark:bg-white/5 text-gray-500 dark:text-gray-400'}`}
+                                className={`px-3 py-1.5 text-[10px] font-bold uppercase ${viewMode === 'list' ? 'bg-red-600 text-white' : 'bg-white dark:bg-white/5 text-gray-600 dark:text-gray-400'}`}
                             >
                                 List
                             </button>

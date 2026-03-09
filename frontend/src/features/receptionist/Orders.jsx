@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   HiOutlineCheck, HiOutlineEye, HiOutlineNoSymbol, HiOutlinePlus,
@@ -9,6 +10,8 @@ import { getOrders, getSuitTypes, createOrder, processOrder, getMaterials, getMa
 import { getHexColor } from '../../utils/colors';
 
 const Orders = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -47,6 +50,16 @@ const Orders = () => {
     fetchSuitTypes();
     fetchMaterials();
   }, []);
+
+  // Open order from dashboard deep link
+  useEffect(() => {
+    const { highlightOrderId } = location.state || {};
+    if (highlightOrderId && orders.length > 0) {
+      const order = orders.find(o => o.id === highlightOrderId || o.order_code === highlightOrderId);
+      if (order) setSelectedOrder(order);
+      navigate('/reception/orders', { replace: true, state: {} }); // Clear state
+    }
+  }, [orders, location.state, navigate]);
 
   const fetchOrders = async () => {
     try {

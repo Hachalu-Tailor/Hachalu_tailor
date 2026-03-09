@@ -275,13 +275,13 @@ const AdminDashboard = () => {
           </button>
           <button
             onClick={() => navigate('/admin/analytics')}
-            className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 dark:text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+            className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 text-gray-800 dark:text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-gray-200 dark:hover:bg-white/10"
           >
             <HiOutlineMegaphone size={16} /> Analytics
           </button>
           <button
             onClick={fetchData}
-            className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 dark:text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+            className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 text-gray-800 dark:text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-gray-200 dark:hover:bg-white/10"
           >
             <HiOutlineArrowPath size={16} /> Refresh
           </button>
@@ -291,13 +291,13 @@ const AdminDashboard = () => {
       {/* 1.5 QUICK SEARCH BAR */}
       <div className="relative">
         <div className="relative">
-          <HiOutlineMagnifyingGlass className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+          <HiOutlineMagnifyingGlass className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400" size={20} />
           <input
             type="text"
             placeholder="Search orders, customers, staff..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 dark:text-white"
+            className="w-full pl-12 pr-4 py-3 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 text-gray-900 dark:text-white placeholder:text-gray-500"
           />
         </div>
         {searchResults.length > 0 && (

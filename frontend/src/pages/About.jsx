@@ -24,7 +24,7 @@ const About = () => {
           <img 
             src={IMAGES.ABOUT.ABOUT01}
             className="w-full h-full object-cover grayscale opacity-40 dark:opacity-20"
-            alt="Tailoring Atelier"
+            alt="Tailoring A TAILOR"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/50 to-white dark:via-[#080808]/50 dark:to-[#080808]" />
         </div>
@@ -66,7 +66,7 @@ const About = () => {
             <p className="text-gray-500 dark:text-gray-400 text-lg leading-relaxed">
               Founded in the heart of Adama, Hachalu Protocol emerged from a desire to merge 
               traditional Ethiopian craftsmanship with the sharp, architectural silhouettes of modern global tailoring. 
-              Our journey began in a small atelier with a single goal: to define the modern African luxury protocol.
+              Our journey began in a small A TAILOR with a single goal: to define the modern African luxury protocol.
             </p>
             <div className="flex flex-wrap gap-10 border-t border-gray-100 dark:border-white/5 pt-10">
               <Stat count="120+" label="Global Clients" />

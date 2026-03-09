@@ -12,75 +12,21 @@ import {
     HiOutlineExclamationCircle,
     HiOutlineScissors,
 } from 'react-icons/hi2';
-import {
-    getGarmentOrdersInProgress,
-    getGarmentShippedOrders,
-    getAllGarmentOrders,
-    processGarmentOrder
-} from '../api/api';
-import { getHexColor } from '../utils/colors';
-
-// Backend status configuration - ONLY use backend statuses (IN_PROGRESS, COMPLETED, SHIPPED)
-const BACKEND_STATUSES = {
-    IN_PROGRESS: {
-        id: 'IN_PROGRESS',
-        label: 'In Production',
-        color: 'blue',
-        bgColor: 'bg-blue-500/10 dark:bg-blue-500/20',
-        borderColor: 'border-blue-200 dark:border-blue-500/30',
-        textColor: 'text-blue-600 dark:text-blue-400',
-        badgeColor: 'bg-blue-500/20 text-blue-600 dark:text-blue-400',
-        icon: '◆'
-    },
-    COMPLETED: {
-        id: 'COMPLETED',
-        label: 'Completed',
-        color: 'green',
-        bgColor: 'bg-green-500/10 dark:bg-green-500/20',
-        borderColor: 'border-green-200 dark:border-green-500/30',
-        textColor: 'text-green-600 dark:text-green-400',
-        badgeColor: 'bg-green-500/20 text-green-600 dark:text-green-400',
-        icon: '✓'
-    },
-    SHIPPED: {
-        id: 'SHIPPED',
-        label: 'Shipped',
-        color: 'purple',
-        bgColor: 'bg-purple-500/10 dark:bg-purple-500/20',
-        borderColor: 'border-purple-200 dark:border-purple-500/30',
-        textColor: 'text-purple-600 dark:text-purple-400',
-        badgeColor: 'bg-purple-500/20 text-purple-600 dark:text-purple-400',
-        icon: '◉'
-    }
-};
-
-// Backend status stages only (IN_PROGRESS, COMPLETED, SHIPPED)
-const BACKEND_STAGE_BARS = [
-    { id: 'IN_PROGRESS', label: 'In Production', color: 'bg-blue-500' },
-    { id: 'COMPLETED', label: 'Completed', color: 'bg-green-500' },
-    { id: 'SHIPPED', label: 'Shipped', color: 'bg-purple-500' }
-];
-
-const getStageIndexFromStatus = (status) => {
-    const idx = BACKEND_STAGE_BARS.findIndex(s => s.id === status);
-    return idx >= 0 ? idx : -1;
-};
+import api, { getGarmentOrdersInProgress, getGarmentShippedOrders, processGarmentOrder, getNotifications, getMaterials, getSuitTypes } from '../api/api';
+import { useAuth } from '../hooks/useAuth';
 
 const GarmentDashboard = () => {
     const [orders, setOrders] = useState([]);
+    const [materials, setMaterials] = useState([]);
+    const [suitTypes, setSuitTypes] = useState([]);
+    const [selectedMaterialFilter, setSelectedMaterialFilter] = useState('');
+    const [selectedSuitTypeFilter, setSelectedSuitTypeFilter] = useState('');
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState('all');
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [error, setError] = useState(null);
-    const [viewMode, setViewMode] = useState('grid');
-    const [showFilters, setShowFilters] = useState(false);
-    const [filters, setFilters] = useState({
-        suitType: 'all',
-        material: 'all',
-        color: 'all',
-        sortBy: 'due_date'
-    });
+    const [shippedCount, setShippedCount] = useState(0);
 
     const handlePaginatedResponse = (response) => {
         if (!response || !response.data) return [];
@@ -93,15 +39,24 @@ const GarmentDashboard = () => {
 
     useEffect(() => {
         loadOrders();
-    }, []);
+        loadNotifications();
+        // load materials and suit types once
+        (async () => {
+            try {
+                const m = await getMaterials();
+                setMaterials(m.data?.results || m.data || []);
+            } catch (e) {
+                console.debug('Could not load materials', e.message);
+            }
 
-    useEffect(() => {
-        const onKeyDown = (e) => {
-            if (e.key === 'Escape') setSelectedOrder(null);
-        };
-        window.addEventListener('keydown', onKeyDown);
-        return () => window.removeEventListener('keydown', onKeyDown);
-    }, []);
+            try {
+                const s = await getSuitTypes();
+                setSuitTypes(s.data || []);
+            } catch (e) {
+                console.debug('Could not load suit types', e.message);
+            }
+        })();
+    }, [activeTab]);
 
     const isOverdue = (dueDate) => {
         if (!dueDate) return false;
@@ -138,11 +93,68 @@ const GarmentDashboard = () => {
                 getAllGarmentOrders().catch(() => ({ data: [] }))
             ]);
 
-            const inProgressOrders = handlePaginatedResponse(inProgressResponse);
-            const shippedOrders = handlePaginatedResponse(shippedResponse);
-            const completedOrders = handlePaginatedResponse(completedResponse);
+            if (isAuthorizedUser) {
+                // Fetch based on active tab to avoid loading unnecessary pages
+                try {
+                    if (activeTab === 'in_progress') {
+                        const inProgressResponse = await getGarmentOrdersInProgress({ suit_type: selectedSuitTypeFilter, material: selectedMaterialFilter });
+                        garmentOrders = [...garmentOrders, ...(inProgressResponse.data?.results || inProgressResponse.data || [])];
+                    } else if (activeTab === 'shipped') {
+                        const shippedResponse = await getGarmentShippedOrders({ suit_type: selectedSuitTypeFilter, material: selectedMaterialFilter });
+                        garmentOrders = [...garmentOrders, ...(shippedResponse.data?.results || shippedResponse.data || [])];
+                    } else if (activeTab === 'completed') {
+                        // completed orders aren't provided by a dedicated garment endpoint, fetch general orders and filter
+                        const allResponse = await api.get('/orders/', { params: { active_only: true, suit_type: selectedSuitTypeFilter || undefined, material: selectedMaterialFilter || undefined } });
+                        let allOrders = allResponse.data;
+                        if (allOrders && typeof allOrders === 'object' && !Array.isArray(allOrders)) {
+                            allOrders = allOrders.results || allOrders.data || allOrders.items || [];
+                        }
+                        garmentOrders = (allOrders || []).filter(o => o.status === 'COMPLETED');
+                    } else {
+                        // default: fetch in-progress and shipped to show combined view
+                        try {
+                            const inProgressResponse = await getGarmentOrdersInProgress({ suit_type: selectedSuitTypeFilter, material: selectedMaterialFilter });
+                            garmentOrders = [...garmentOrders, ...(inProgressResponse.data?.results || inProgressResponse.data || [])];
+                        } catch (err) {
+                            console.log('Could not fetch in-progress orders:', err.message);
+                        }
 
-            const combinedOrders = [...inProgressOrders, ...shippedOrders, ...completedOrders];
+                        try {
+                            const shippedResponse = await getGarmentShippedOrders({ suit_type: selectedSuitTypeFilter, material: selectedMaterialFilter });
+                            garmentOrders = [...garmentOrders, ...(shippedResponse.data?.results || shippedResponse.data || [])];
+                        } catch (err) {
+                            console.log('Could not fetch shipped orders:', err.message);
+                        }
+                    }
+                } catch (err) {
+                    console.log('Garment fetch error:', err.message || err);
+                }
+            }
+
+            if (garmentOrders.length === 0) {
+                try {
+                    const allResponse = await api.get('/orders/', { params: { active_only: true } });
+                    let allOrders = allResponse.data;
+                    if (allOrders && typeof allOrders === 'object' && !Array.isArray(allOrders)) {
+                        allOrders = allOrders.results || allOrders.data || allOrders.items || [];
+                    }
+                    garmentOrders = (allOrders || []).filter(order => {
+                        const status = order.status;
+                        return status === 'IN_PROGRESS' ||
+                            status === 'PENDING_APPROVAL' ||
+                            status === 'COMPLETED' ||
+                            status === 'SHIPPED' ||
+                            status === 'IN_PROGRESS_STITCHING' ||
+                            status === 'IN_PROGRESS_FINISHING';
+                    });
+                } catch (ordersErr) {
+                    if (ordersErr.response?.status === 403) {
+                        setError('Permission denied. Please contact administrator.');
+                    }
+                }
+            }
+
+            // Remove duplicates
             const uniqueOrders = [];
             const seen = new Set();
 
@@ -153,6 +165,10 @@ const GarmentDashboard = () => {
                     uniqueOrders.push(order);
                 }
             });
+
+            // calculate shipped count for stats
+            const shipped = uniqueOrders.filter(o => o.status === 'SHIPPED').length;
+            setShippedCount(shipped);
 
             setOrders(uniqueOrders);
         } catch (error) {
@@ -184,6 +200,18 @@ const GarmentDashboard = () => {
     };
 
     const handleShipOrder = async (orderCode) => {
+        try {
+            await processGarmentOrder(orderCode, { status: 'SHIPPED' });
+            loadOrders();
+            setSelectedOrder(null);
+            alert('Order marked as shipped!');
+        } catch (error) {
+            console.error('Error shipping order:', error);
+            alert('Failed to mark order as shipped.');
+        }
+    };
+
+    const handlePauseOrder = async (orderCode) => {
         try {
             await processGarmentOrder(orderCode, { status: 'SHIPPED' });
             // Optimistically update local state so the change is visible immediately
@@ -220,7 +248,8 @@ const GarmentDashboard = () => {
             if (activeTab === 'in_progress') return order.status === 'IN_PROGRESS';
             if (activeTab === 'completed') return order.status === 'COMPLETED';
             if (activeTab === 'shipped') return order.status === 'SHIPPED';
-            if (activeTab === 'overdue') return isOverdue(order.due_date) && order.status !== 'SHIPPED';
+            if (activeTab === 'pending') return order.status === 'INITIATED' || order.status === 'PENDING_APPROVAL' || order.status === 'AWAITING_PAYMENT';
+            if (activeTab === 'overdue') return isOverdue(order.due_date);
 
             return true;
         });
@@ -256,35 +285,28 @@ const GarmentDashboard = () => {
     }, [orders, searchTerm, activeTab, filters]);
 
     // Stats
-    const stats = useMemo(() => {
-        return {
-            inProgress: orders.filter(o => o.status === 'IN_PROGRESS').length,
-            completed: orders.filter(o => o.status === 'COMPLETED').length,
-            shipped: orders.filter(o => o.status === 'SHIPPED').length,
-            overdue: orders.filter(o => isOverdue(o.due_date) && o.status !== 'SHIPPED').length,
-            total: orders.length
-        };
-    }, [orders]);
+    const stats = {
+        inProgress: orders.filter(o => o.status === 'IN_PROGRESS' || o.status === 'IN_PROGRESS_STITCHING' || o.status === 'IN_PROGRESS_FINISHING').length,
+        completed: orders.filter(o => o.status === 'COMPLETED').length,
+        shipped: orders.filter(o => o.status === 'SHIPPED').length,
+        pending: orders.filter(o => o.status === 'INITIATED' || o.status === 'PENDING_APPROVAL' || o.status === 'AWAITING_PAYMENT').length,
+        overdue: orders.filter(o => isOverdue(o.due_date) && o.status !== 'COMPLETED').length,
+        total: orders.length
+    };
 
     // Tabs
     const tabs = [
         { id: 'all', label: 'All', count: stats.total },
-        { id: 'in_progress', label: 'In Progress', count: stats.inProgress, color: 'blue' },
-        { id: 'completed', label: 'Completed', count: stats.completed, color: 'green' },
-        { id: 'shipped', label: 'Shipped', count: stats.shipped, color: 'purple' },
-        { id: 'overdue', label: 'Overdue', count: stats.overdue, color: 'red' }
-    ];
-
-    // Only use backend status config (IN_PROGRESS, COMPLETED, SHIPPED)
-    const getStatusConfig = (status) => BACKEND_STATUSES[status] || {
-        id: status,
-        label: String(status || 'Unknown'),
+        { id: 'in_progress', label: 'In Progress', count: stats.inProgress },
+        { id: 'completed', label: 'Done', count: stats.completed },
+        { id: 'shipped', label: 'Shipped', count: stats.shipped },
+        { id: 'pending', label: 'Pending', count: stats.pending },
+        { id: 'overdue', label: 'Overdue', count: stats.overdue, isAlert: true },
         color: 'gray',
         bgColor: 'bg-gray-500/10 dark:bg-gray-500/20',
         borderColor: 'border-gray-200 dark:border-gray-500/30',
         textColor: 'text-gray-600 dark:text-gray-400',
         icon: '—'
-    };
 
     const sidebarOrders = useMemo(
         () => ({
@@ -403,6 +425,35 @@ const GarmentDashboard = () => {
                             </button>
                         </div>
                     </div>
+                    <div className="flex gap-2 items-center">
+                        <select
+                            value={selectedMaterialFilter}
+                            onChange={(e) => setSelectedMaterialFilter(e.target.value)}
+                            className="px-3 py-2 rounded-lg border bg-white dark:bg-gray-800 text-sm"
+                        >
+                            <option value="">All Materials</option>
+                            {materials.map(m => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                            ))}
+                        </select>
+
+                        <select
+                            value={selectedSuitTypeFilter}
+                            onChange={(e) => setSelectedSuitTypeFilter(e.target.value)}
+                            className="px-3 py-2 rounded-lg border bg-white dark:bg-gray-800 text-sm"
+                        >
+                            <option value="">All Suit Types</option>
+                            {suitTypes.map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                        </select>
+                        <button
+                            onClick={() => loadOrders()}
+                            className="px-3 py-2 bg-red-600 text-white rounded-lg text-sm"
+                        >
+                            Filter
+                        </button>
+                    </div>
                 </div>
 
                 {/* Advanced Filters */}
@@ -515,6 +566,20 @@ const GarmentDashboard = () => {
                                                 <span className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${statusConfig.bgColor} ${statusConfig.textColor} border ${statusConfig.borderColor}`}>
                                                     {statusConfig.label}
                                                 </span>
+                                                    {timeStatus.isOverdue && (
+                                                        <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full font-bold">
+                                                            OVERDUE
+                                                        </span>
+                                                    )}
+                                                    {/* Inline ship button for completed tab */}
+                                                    {activeTab === 'completed' && order.status === 'COMPLETED' && (
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleShipOrder(order.order_code); }}
+                                                            className="ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded-lg"
+                                                        >
+                                                            Ship
+                                                        </button>
+                                                    )}
                                             </div>
                                         </div>
 
@@ -939,20 +1004,54 @@ const GarmentDashboard = () => {
                                     {selectedOrder.status === 'COMPLETED' && (
                                         <button
                                             onClick={() => handleShipOrder(selectedOrder.order_code)}
-                                            className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors"
+                                            className="w-full py-3 bg-gray-800 hover:bg-gray-900 text-white rounded-xl font-medium flex items-center justify-center gap-2"
                                         >
                                             <HiOutlineTruck className="w-5 h-5" />
                                             Mark as Shipped
                                         </button>
                                     )}
+<<<<<<< HEAD
                                     {selectedOrder.status === 'SHIPPED' && (
                                         <div className="w-full py-3 bg-gray-100 text-gray-500 rounded-xl font-semibold flex items-center justify-center gap-2">
                                             <HiOutlineTruck className="w-5 h-5" />
-                                            Order Completed & Shipped
+                )}
+            </AnimatePresence>
+
+            {/* Notifications Panel */}
+            <AnimatePresence>
+                {showNotifications && (
+                    <div className="fixed inset-0 z-50" onClick={() => setShowNotifications(false)}>
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/50"
+                        />
+                        <motion.div
+                            initial={{ x: '100%' }}
+                            animate={{ x: 0 }}
+                            exit={{ x: '100%' }}
+                            className="absolute right-0 top-0 bottom-0 w-full sm:w-80 bg-white dark:bg-gray-800 shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                                <h2 className="text-lg font-bold dark:text-white">Notifications</h2>
+                                <button onClick={() => setShowNotifications(false)}>
+                                    <HiOutlineXMark className="w-5 h-5 dark:text-white" />
+                                </button>
+                            </div>
+                            <div className="p-4 overflow-y-auto h-[calc(100%-64px)]">
+                                {notifications.length === 0 ? (
+                                    <p className="text-gray-500 text-center">No notifications</p>
+                                ) : (
+                                    notifications.map((notif, index) => (
+                                        <div key={index} className="mb-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                            <p className="font-medium dark:text-white text-sm">{notif.title || 'Notification'}</p>
+                                            <p className="text-gray-500 text-xs mt-1">{notif.message}</p>
+>>>>>>> f2ec6c2 (updated for about shows)
                                         </div>
                                     )}
                                 </div>
-                            </div>
                         </motion.div>
                     </div>
                 )}

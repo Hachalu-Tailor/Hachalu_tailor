@@ -133,7 +133,7 @@ const DashboardLayout = () => {
                   {getPageTitle()} <span className="text-red-600 font-sans ml-1">/</span>
                 </h1>
                 <span className="text-[7px] font-black text-gray-400 uppercase tracking-[0.4em] hidden sm:block mt-1">
-                  Terminal: <span className={userRole === 'admin' ? 'text-red-500' : userRole === 'garment' ? 'text-green-500' : 'text-blue-500'}>
+                  Terminal: <span className={userRole === 'admin' ? 'text-red-500' : userRole === 'garment' ? 'text-red-500' : 'text-blue-500'}>
                     {userRole === 'admin' ? 'SECURE_MASTER_NODE' : userRole === 'garment' ? 'GARMENT_WORKSHOP' : 'STAFF_ACCESS_PT'}
                   </span>
                 </span>

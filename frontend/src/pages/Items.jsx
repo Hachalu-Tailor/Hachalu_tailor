@@ -558,7 +558,7 @@ const Items = ({ isHomePage = false }) => {
                       ))}
                     </div>
 
-                    <button onClick={handleSubmit} className="w-full py-6 bg-red-600 text-white font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:bg-black transition-all">Submit to Atelier</button>
+                    <button onClick={handleSubmit} className="w-full py-6 bg-red-600 text-white font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:bg-black transition-all">Submit to A TAILOR</button>
                   </div>
                 )}
               </div>

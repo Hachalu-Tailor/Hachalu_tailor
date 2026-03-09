@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import AdminReceptionSidebar from '../components/AdminReceptionSidebar';
+import GarmentSidebar from '../components/GarmentSidebar';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import {
   HiOutlineBell,
@@ -27,6 +28,8 @@ const DashboardLayout = () => {
   const [userRole, setUserRole] = useState('');
   const [notifications, setNotifications] = useState([]);
   const [pendingCount, setPendingCount] = useState(0);
+  const [completedOrders, setCompletedOrders] = useState([]);
+  const [isLoadingCompleted, setIsLoadingCompleted] = useState(false);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -59,6 +62,11 @@ const DashboardLayout = () => {
 
     // Fetch notifications
     fetchNotifications();
+
+    // Fetch completed orders for garment users
+    if (storedRole?.toLowerCase() === 'garment') {
+      fetchCompletedOrders();
+    }
   }, [location.pathname]);
 
   // Fetch notifications
@@ -70,6 +78,21 @@ const DashboardLayout = () => {
       setPendingCount(notifs.filter(n => !n.read).length);
     } catch (error) {
       console.error('Error fetching notifications:', error);
+    }
+  };
+
+  // Fetch completed orders for garment users
+  const fetchCompletedOrders = async () => {
+    if (userRole !== 'garment') return;
+    setIsLoadingCompleted(true);
+    try {
+      const response = await api.get('/orders/garment/completed/');
+      const orders = response.data?.results || response.data || [];
+      setCompletedOrders(orders);
+    } catch (error) {
+      console.error('Error fetching completed orders:', error);
+    } finally {
+      setIsLoadingCompleted(false);
     }
   };
 
@@ -109,12 +132,23 @@ const DashboardLayout = () => {
       <div className="flex h-screen bg-[#F8F9FA] dark:bg-[#050505] transition-colors duration-500 overflow-hidden font-sans">
 
         {/* SIDEBAR COMPONENT */}
-        <AdminReceptionSidebar
-          darkMode={darkMode}
-          setDarkMode={setDarkMode}
-          isOpen={isSidebarOpen}
-          setIsOpen={setIsSidebarOpen}
-        />
+        {userRole === 'garment' ? (
+          <GarmentSidebar
+            darkMode={darkMode}
+            setDarkMode={setDarkMode}
+            isOpen={isSidebarOpen}
+            setIsOpen={setIsSidebarOpen}
+            completedOrders={completedOrders}
+            isLoadingOrders={isLoadingCompleted}
+          />
+        ) : (
+          <AdminReceptionSidebar
+            darkMode={darkMode}
+            setDarkMode={setDarkMode}
+            isOpen={isSidebarOpen}
+            setIsOpen={setIsSidebarOpen}
+          />
+        )}
 
         {/* MAIN CONTENT AREA */}
         <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
@@ -147,7 +181,7 @@ const DashboardLayout = () => {
             <div className="flex items-center gap-3 md:gap-6">
 
               {/* Language Switcher */}
-              <div className="scale-75 origin-right">
+              <div className="flex items-center">
                 <LanguageSwitcher />
               </div>
 

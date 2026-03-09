@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import {
   HiOutlineBanknotes,
   HiOutlineShoppingBag,
@@ -29,9 +28,10 @@ import {
 import api, { getOrders, listStaff, getPayments, getNotifications, getMaterials } from '../api/api';
 import { formatCurrency, formatDateTime, formatRelativeTime } from '../utils/helpers';
 import { CURRENCY, ORDER_STATUS_LABELS } from '../utils/constants';
+import { useLanguage } from '../context/LanguageContext';
 
 const AdminDashboard = () => {
-  const { t } = useTranslation();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [staff, setStaff] = useState([]);
@@ -263,7 +263,9 @@ const AdminDashboard = () => {
           <h1 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter italic">
             Admin<span className="text-red-600">Command</span>
           </h1>
-          <p className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest mt-1">System Overview & Analytics</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest mt-1">
+            {t('overview')}
+          </p>
         </div>
 
         <div className="flex gap-2 flex-wrap">
@@ -271,13 +273,13 @@ const AdminDashboard = () => {
             onClick={() => navigate('/admin/staff')}
             className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
           >
-            <HiOutlinePlus size={16} /> Add Staff
+            <HiOutlinePlus size={16} /> {t('add')} {t('staff')}
           </button>
           <button
             onClick={() => navigate('/admin/analytics')}
             className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 text-gray-800 dark:text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-gray-200 dark:hover:bg-white/10"
           >
-            <HiOutlineMegaphone size={16} /> Analytics
+            <HiOutlineMegaphone size={16} /> {t('analytics')}
           </button>
           <button
             onClick={fetchData}
@@ -452,7 +454,12 @@ const AdminDashboard = () => {
             {orderStatusBreakdown.map((item, idx) => {
               const percentage = orders.length > 0 ? (item.count / orders.length * 100).toFixed(1) : 0;
               return (
-                <div key={idx} className="space-y-1">
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => navigate('/reception/orders')}
+                  className="space-y-1 w-full text-left hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl px-2 py-1 transition-colors"
+                >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium dark:text-white">{item.label}</span>
                     <span className="text-xs font-bold dark:text-white">{item.count} ({percentage}%)</span>
@@ -465,7 +472,7 @@ const AdminDashboard = () => {
                       className={`h-full ${item.color} rounded-full`}
                     />
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -484,9 +491,11 @@ const AdminDashboard = () => {
 
           <div className="space-y-3">
             {topCustomersList.length > 0 ? topCustomersList.map((customer, idx) => (
-              <div
+              <button
                 key={idx}
-                className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-white/5 rounded-2xl"
+                type="button"
+                onClick={() => navigate('/reception/orders')}
+                className="w-full flex items-center gap-4 p-3 bg-gray-50 dark:bg-white/5 rounded-2xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
               >
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black ${idx === 0 ? 'bg-yellow-500 text-white' :
                   idx === 1 ? 'bg-gray-400 text-white' :
@@ -500,7 +509,7 @@ const AdminDashboard = () => {
                   <p className="text-[10px] text-gray-500">{customer.orders} orders</p>
                 </div>
                 <span className="text-sm font-black text-green-500">{CURRENCY.SYMBOL}{customer.total.toLocaleString()}</span>
-              </div>
+              </button>
             )) : (
               <div className="text-center py-6">
                 <HiOutlineUser className="mx-auto text-gray-600 mb-2" size={24} />

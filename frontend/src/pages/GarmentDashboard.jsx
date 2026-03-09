@@ -18,6 +18,7 @@ import {
     processGarmentOrder
 } from '../api/api';
 import { getHexColor } from '../utils/colors';
+import GarmentCompletedOrdersSidebar from '../components/GarmentCompletedOrdersSidebar';
 
 // Backend status configuration - ONLY use backend statuses (IN_PROGRESS, COMPLETED, SHIPPED)
 const BACKEND_STATUSES = {
@@ -168,7 +169,12 @@ const GarmentDashboard = () => {
     const handleCompleteOrder = async (orderCode) => {
         try {
             await processGarmentOrder(orderCode, { status: 'COMPLETED' });
-            await loadOrders();
+            // Optimistically update local state so the change is visible immediately
+            setOrders(prev =>
+                prev.map(o =>
+                    (o.order_code || o.id) === orderCode ? { ...o, status: 'COMPLETED' } : o
+                )
+            );
             setSelectedOrder(null);
         } catch (error) {
             alert('Failed to complete order.');
@@ -178,7 +184,12 @@ const GarmentDashboard = () => {
     const handleShipOrder = async (orderCode) => {
         try {
             await processGarmentOrder(orderCode, { status: 'SHIPPED' });
-            await loadOrders();
+            // Optimistically update local state so the change is visible immediately
+            setOrders(prev =>
+                prev.map(o =>
+                    (o.order_code || o.id) === orderCode ? { ...o, status: 'SHIPPED' } : o
+                )
+            );
             setSelectedOrder(null);
         } catch (error) {
             alert('Failed to ship order.');
@@ -272,6 +283,15 @@ const GarmentDashboard = () => {
         textColor: 'text-gray-600 dark:text-gray-400',
         icon: '—'
     };
+
+    const sidebarOrders = useMemo(
+        () => ({
+            inProgress: orders.filter(o => o.status === 'IN_PROGRESS').slice(0, 10),
+            completed: orders.filter(o => o.status === 'COMPLETED').slice(0, 10),
+            shipped: orders.filter(o => o.status === 'SHIPPED').slice(0, 10),
+        }),
+        [orders]
+    );
 
     return (
         <div className="p-2 md:p-3 space-y-3 max-w-7xl mx-auto w-full">
@@ -446,178 +466,319 @@ const GarmentDashboard = () => {
                 </div>
             )}
 
-            {/* Orders */}
-            {loading ? (
-                <div className="flex justify-center items-center h-64">
-                    <div className="text-center">
-                        <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                        <p className="text-gray-400 dark:text-gray-500 text-sm uppercase tracking-wider">Loading orders...</p>
-                    </div>
-                </div>
-            ) : filteredOrders.length === 0 ? (
-                <div className="text-center py-20 bg-white dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/5">
-                    <HiOutlineExclamationCircle className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto" />
-                    <h3 className="text-lg font-semibold text-gray-500 dark:text-gray-400 mt-4">No Orders Found</h3>
-                    <p className="text-gray-400 dark:text-gray-500 mt-1">Try adjusting your filters</p>
-                </div>
-            ) : viewMode === 'grid' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {filteredOrders.map((order) => {
-                        const timeStatus = getTimeStatus(order.due_date);
-                        const statusConfig = getStatusConfig(order.status);
-                        const stageIndex = getStageIndexFromStatus(order.status);
-
-                        return (
-                            <motion.div
-                                key={order.id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                whileHover={{ y: -2 }}
-                                onClick={() => setSelectedOrder(order)}
-                                className={`bg-white dark:bg-white/5 rounded-xl border-2 cursor-pointer transition-all hover:shadow-lg ${timeStatus.isOverdue ? 'border-red-300 dark:border-red-500/50 shadow-red-100 dark:shadow-red-500/10' : 'border-gray-100 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10'
-                                    }`}
-                            >
-                                {/* Header with Status */}
-                                <div className={`p-4 ${statusConfig.bgColor} rounded-t-xl`}>
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <h3 className="font-bold text-lg text-gray-900 dark:text-white">{order.order_code}</h3>
-                                            <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1 mt-0.5">
-                                                <HiOutlineUser className="w-3 h-3" />
-                                                {order.customer_name || 'Unknown'}
-                                            </p>
-                                        </div>
-                                        <span className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${statusConfig.bgColor} ${statusConfig.textColor} border ${statusConfig.borderColor}`}>
-                                            {statusConfig.label}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* Body */}
-                                <div className="p-4 space-y-3">
-                                    {/* Backend status progress bar */}
-                                    <div>
-                                        <div className="flex justify-between items-center mb-1">
-                                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Status</span>
-                                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                                                {statusConfig.label}
-                                            </span>
-                                        </div>
-                                        <div className="flex h-2 rounded-full overflow-hidden bg-gray-100 dark:bg-white/10">
-                                            {BACKEND_STAGE_BARS.map((stage, idx) => (
-                                                <div
-                                                    key={stage.id}
-                                                    className={`flex-1 transition-colors ${idx <= stageIndex ? stage.color : 'bg-gray-200 dark:bg-white/10'}`}
-                                                />
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    {/* Details Grid */}
-                                    <div className="grid grid-cols-2 gap-2 text-sm">
-                                        <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-3 border border-gray-100 dark:border-white/5">
-                                            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Suit</p>
-                                            <p className="font-semibold text-gray-900 dark:text-white truncate mt-0.5">{order.suit_type_name || 'N/A'}</p>
-                                        </div>
-                                        <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-3 border border-gray-100 dark:border-white/5">
-                                            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Material</p>
-                                            <p className="font-semibold text-gray-900 dark:text-white truncate mt-0.5">{order.material_name || 'N/A'}</p>
-                                        </div>
-                                    </div>
-
-                                    {/* Color & Quantity - uses getHexColor for real swatch */}
-                                    <div className="flex items-center justify-between gap-3">
-                                        <div className="flex items-center gap-2 min-w-0">
-                                            <div
-                                                className="w-6 h-6 rounded-lg flex-shrink-0 border-2 border-gray-200 dark:border-white/10 shadow-sm"
-                                                style={{ backgroundColor: getHexColor(order.selected_color) }}
-                                                title={order.selected_color || 'No color'}
-                                            />
-                                            <span className="text-sm text-gray-600 dark:text-gray-400 truncate">{order.selected_color || 'No color'}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400">
-                                            <span>Qty:</span>
-                                            <span className="font-semibold">{order.quantity}</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Due Date */}
-                                    <div className={`flex items-center justify-between pt-3 mt-1 border-t ${timeStatus.isOverdue ? 'border-red-200 dark:border-red-500/30' : 'border-gray-100 dark:border-white/5'
-                                        }`}>
-                                        <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
-                                            <HiOutlineCalendar className="w-4 h-4 flex-shrink-0" />
-                                            <span className="text-sm">{order.due_date || 'No date'}</span>
-                                        </div>
-                                        {timeStatus.isOverdue ? (
-                                            <span className="text-xs font-semibold text-red-600">{timeStatus.text}</span>
-                                        ) : timeStatus.daysLeft <= 2 ? (
-                                            <span className="text-xs font-semibold text-amber-600">{timeStatus.text}</span>
-                                        ) : null}
-                                    </div>
-                                </div>
-                            </motion.div>
-                        );
-                    })}
-                </div>
-            ) : (
-                /* List View */
-                <div className="bg-white dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/5 overflow-hidden shadow-sm">
-                    <table className="w-full">
-                        <thead className="bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-white/10">
-                            <tr>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Order</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Customer</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Status</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Suit</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Color</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Qty</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Due</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-white/5">
+            {/* Main content + sidebars */}
+            <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-3 items-start">
+                <div className="space-y-3">
+                    {/* Orders */}
+                    {loading ? (
+                        <div className="flex justify-center items-center h-64">
+                            <div className="text-center">
+                                <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                                <p className="text-gray-400 dark:text-gray-500 text-sm uppercase tracking-wider">Loading orders...</p>
+                            </div>
+                        </div>
+                    ) : filteredOrders.length === 0 ? (
+                        <div className="text-center py-20 bg-white dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/5">
+                            <HiOutlineExclamationCircle className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto" />
+                            <h3 className="text-lg font-semibold text-gray-500 dark:text-gray-400 mt-4">No Orders Found</h3>
+                            <p className="text-gray-400 dark:text-gray-500 mt-1">Try adjusting your filters</p>
+                        </div>
+                    ) : viewMode === 'grid' ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                             {filteredOrders.map((order) => {
                                 const timeStatus = getTimeStatus(order.due_date);
                                 const statusConfig = getStatusConfig(order.status);
+                                const stageIndex = getStageIndexFromStatus(order.status);
 
                                 return (
-                                    <tr
+                                    <motion.div
                                         key={order.id}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        whileHover={{ y: -2 }}
                                         onClick={() => setSelectedOrder(order)}
-                                        className="cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                                        className={`bg-white dark:bg-white/5 rounded-xl border-2 cursor-pointer transition-all hover:shadow-lg ${timeStatus.isOverdue ? 'border-red-300 dark:border-red-500/50 shadow-red-100 dark:shadow-red-500/10' : 'border-gray-100 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10'
+                                            }`}
                                     >
-                                        <td className="px-4 py-3">
-                                            <span className="font-semibold text-gray-900 dark:text-white">{order.order_code}</span>
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{order.customer_name || 'Unknown'}</td>
-                                        <td className="px-4 py-3">
-                                            <span className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${statusConfig.bgColor} ${statusConfig.textColor}`}>
-                                                {statusConfig.label}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{order.suit_type_name || 'N/A'}</td>
-                                        <td className="px-4 py-3">
-                                            <div className="flex items-center gap-2">
-                                                <div
-                                                    className="w-5 h-5 rounded-md flex-shrink-0 border border-gray-200 dark:border-white/10"
-                                                    style={{ backgroundColor: getHexColor(order.selected_color) }}
-                                                    title={order.selected_color || '-'}
-                                                />
-                                                <span className="text-sm text-gray-600 dark:text-gray-400">{order.selected_color || '-'}</span>
+                                        {/* Header with Status */}
+                                        <div className={`p-4 ${statusConfig.bgColor} rounded-t-xl`}>
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <h3 className="font-bold text-lg text-gray-900 dark:text-white">{order.order_code}</h3>
+                                                    <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1 mt-0.5">
+                                                        <HiOutlineUser className="w-3 h-3" />
+                                                        {order.customer_name || 'Unknown'}
+                                                    </p>
+                                                </div>
+                                                <span className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${statusConfig.bgColor} ${statusConfig.textColor} border ${statusConfig.borderColor}`}>
+                                                    {statusConfig.label}
+                                                </span>
                                             </div>
-                                        </td>
-                                        <td className="px-4 py-3 text-sm font-medium dark:text-white">{order.quantity}</td>
-                                        <td className="px-4 py-3">
-                                            <span className={`text-sm ${timeStatus.isOverdue ? 'text-red-600 font-medium' : 'text-gray-600 dark:text-gray-400'}`}>
-                                                {order.due_date || '-'}
-                                            </span>
-                                        </td>
-                                    </tr>
+                                        </div>
+
+                                        {/* Body */}
+                                        <div className="p-4 space-y-3">
+                                            {/* Backend status progress bar */}
+                                            <div>
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Status</span>
+                                                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                                        {statusConfig.label}
+                                                    </span>
+                                                </div>
+                                                <div className="flex h-2 rounded-full overflow-hidden bg-gray-100 dark:bg-white/10">
+                                                    {BACKEND_STAGE_BARS.map((stage, idx) => (
+                                                        <div
+                                                            key={stage.id}
+                                                            className={`flex-1 transition-colors ${idx <= stageIndex ? stage.color : 'bg-gray-200 dark:bg-white/10'}`}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Details Grid */}
+                                            <div className="grid grid-cols-2 gap-2 text-sm">
+                                                <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-3 border border-gray-100 dark:border-white/5">
+                                                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Suit</p>
+                                                    <p className="font-semibold text-gray-900 dark:text-white truncate mt-0.5">{order.suit_type_name || 'N/A'}</p>
+                                                </div>
+                                                <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-3 border border-gray-100 dark:border-white/5">
+                                                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Material</p>
+                                                    <p className="font-semibold text-gray-900 dark:text-white truncate mt-0.5">{order.material_name || 'N/A'}</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Color & Quantity - uses getHexColor for real swatch */}
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <div
+                                                        className="w-6 h-6 rounded-lg flex-shrink-0 border-2 border-gray-200 dark:border-white/10 shadow-sm"
+                                                        style={{ backgroundColor: getHexColor(order.selected_color) }}
+                                                        title={order.selected_color || 'No color'}
+                                                    />
+                                                    <span className="text-sm text-gray-600 dark:text-gray-400 truncate">{order.selected_color || 'No color'}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400">
+                                                    <span>Qty:</span>
+                                                    <span className="font-semibold">{order.quantity}</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Due Date */}
+                                            <div className={`flex items-center justify-between pt-3 mt-1 border-t ${timeStatus.isOverdue ? 'border-red-200 dark:border-red-500/30' : 'border-gray-100 dark:border-white/5'
+                                                }`}>
+                                                <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+                                                    <HiOutlineCalendar className="w-4 h-4 flex-shrink-0" />
+                                                    <span className="text-sm">{order.due_date || 'No date'}</span>
+                                                </div>
+                                                {timeStatus.isOverdue ? (
+                                                    <span className="text-xs font-semibold text-red-600">{timeStatus.text}</span>
+                                                ) : timeStatus.daysLeft <= 2 ? (
+                                                    <span className="text-xs font-semibold text-amber-600">{timeStatus.text}</span>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                    </motion.div>
                                 );
                             })}
-                        </tbody>
-                    </table>
+                        </div>
+                    ) : (
+                        /* List View */
+                        <div className="bg-white dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/5 overflow-hidden shadow-sm">
+                            <table className="w-full">
+                                <thead className="bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-white/10">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Order</th>
+                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Customer</th>
+                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Suit</th>
+                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Color</th>
+                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Qty</th>
+                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Due</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 dark:divide-white/5">
+                                    {filteredOrders.map((order) => {
+                                        const timeStatus = getTimeStatus(order.due_date);
+                                        const statusConfig = getStatusConfig(order.status);
+
+                                        return (
+                                            <tr
+                                                key={order.id}
+                                                onClick={() => setSelectedOrder(order)}
+                                                className="cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                                            >
+                                                <td className="px-4 py-3">
+                                                    <span className="font-semibold text-gray-900 dark:text-white">{order.order_code}</span>
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{order.customer_name || 'Unknown'}</td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${statusConfig.bgColor} ${statusConfig.textColor}`}>
+                                                        {statusConfig.label}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{order.suit_type_name || 'N/A'}</td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <div
+                                                            className="w-5 h-5 rounded-md flex-shrink-0 border border-gray-200 dark:border-white/10"
+                                                            style={{ backgroundColor: getHexColor(order.selected_color) }}
+                                                            title={order.selected_color || '-'}
+                                                        />
+                                                        <span className="text-sm text-gray-600 dark:text-gray-400">{order.selected_color || '-'}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-sm font-medium dark:text-white">{order.quantity}</td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`text-sm ${timeStatus.isOverdue ? 'text-red-600 font-medium' : 'text-gray-600 dark:text-gray-400'}`}>
+                                                        {order.due_date || '-'}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
-            )}
+
+                {/* Sidebar: quick order list */}
+                <div className="hidden lg:block bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-2xl p-4 max-h-[560px] overflow-y-auto">
+                    <h3 className="text-sm font-black dark:text-white uppercase tracking-widest mb-3">
+                        Orders Sidebar
+                    </h3>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 mb-3">
+                        Quick view of latest garment orders. Click to open details.
+                    </p>
+
+                    {orders.length === 0 && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                            No orders to display.
+                        </p>
+                    )}
+
+                    {/* In Progress */}
+                    {sidebarOrders.inProgress.length > 0 && (
+                        <div className="mb-4">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-1">
+                                In Progress
+                            </p>
+                            <div className="space-y-1.5">
+                                {sidebarOrders.inProgress.map(order => {
+                                    const statusConfig = getStatusConfig(order.status);
+                                    return (
+                                        <button
+                                            key={order.id}
+                                            type="button"
+                                            onClick={() => setSelectedOrder(order)}
+                                            className="w-full flex items-center justify-between gap-3 px-3 py-1.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/10 transition-colors text-left"
+                                        >
+                                            <div className="min-w-0">
+                                                <p className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                                                    {order.order_code}
+                                                </p>
+                                                <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                                                    {order.customer_name || 'Unknown'}
+                                                </p>
+                                            </div>
+                                            <span
+                                                className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${statusConfig.badgeColor || statusConfig.bgColor
+                                                    }`}
+                                            >
+                                                {statusConfig.label}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Completed */}
+                    {sidebarOrders.completed.length > 0 && (
+                        <div className="mb-4">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-green-600 dark:text-green-400 mb-1">
+                                Completed Orders
+                            </p>
+                            <div className="space-y-1.5">
+                                {sidebarOrders.completed.map(order => {
+                                    const statusConfig = getStatusConfig(order.status);
+                                    return (
+                                        <button
+                                            key={order.id}
+                                            type="button"
+                                            onClick={() => setSelectedOrder(order)}
+                                            className="w-full flex items-center justify-between gap-3 px-3 py-1.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/10 transition-colors text-left"
+                                        >
+                                            <div className="min-w-0">
+                                                <p className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                                                    {order.order_code}
+                                                </p>
+                                                <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                                                    {order.customer_name || 'Unknown'}
+                                                </p>
+                                            </div>
+                                            <span
+                                                className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${statusConfig.badgeColor || statusConfig.bgColor
+                                                    }`}
+                                            >
+                                                {statusConfig.label}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Shipped */}
+                    {sidebarOrders.shipped.length > 0 && (
+                        <div className="mb-1">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-purple-600 dark:text-purple-400 mb-1">
+                                Shipped
+                            </p>
+                            <div className="space-y-1.5">
+                                {sidebarOrders.shipped.map(order => {
+                                    const statusConfig = getStatusConfig(order.status);
+                                    return (
+                                        <button
+                                            key={order.id}
+                                            type="button"
+                                            onClick={() => setSelectedOrder(order)}
+                                            className="w-full flex items-center justify-between gap-3 px-3 py-1.5 rounded-xl hover:bg-gray-50 dark:hover:bg:white/10 transition-colors text-left"
+                                        >
+                                            <div className="min-w-0">
+                                                <p className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                                                    {order.order_code}
+                                                </p>
+                                                <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                                                    {order.customer_name || 'Unknown'}
+                                                </p>
+                                            </div>
+                                            <span
+                                                className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${statusConfig.badgeColor || statusConfig.bgColor
+                                                    }`}
+                                            >
+                                                {statusConfig.label}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Enhanced Completed Orders Sidebar */}
+                <div>
+                    <GarmentCompletedOrdersSidebar
+                        completedOrders={sidebarOrders.completed}
+                        onOrderClick={(order) => setSelectedOrder(order)}
+                        isLoading={loading}
+                    />
+                </div>
+            </div>
 
             {/* Detail Modal */}
             <AnimatePresence>

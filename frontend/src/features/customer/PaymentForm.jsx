@@ -400,7 +400,7 @@ const PaymentForm = () => {
   const getPaymentInstructions = () => {
     switch (paymentMethod) {
       case 'bank_transfer':
-        return 'Transfer to: Commercial Bank of Ethiopia – Acct: 1000123456789 (Melaku Trading). Use order code as reference.';
+        return 'Transfer to: Commercial Bank of Ethiopia – Acct: 1000123456789 (Hachalu Tailor). Use order code as reference.';
       case 'mobile_money':
         return 'Send to: Telebirr / HelloCash / M-Birr – +251912345678. Include order code in message.';
       case 'cash_deposit':

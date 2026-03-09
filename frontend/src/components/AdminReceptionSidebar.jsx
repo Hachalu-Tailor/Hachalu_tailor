@@ -125,7 +125,7 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
             </div>
           </button>
 
-          <button onClick={handleLogout} className="w-full flex items-center justify-center lg:justify-start gap-4 p-4 text-gray-600 dark:text-gray-400 hover:text-red-600 transition-all hover:translate-x-1">
+          <button onClick={handleLogout} className="w-full flex items-center justify-center lg:justify-start gap-4 p-1 text-gray-600 dark:text-gray-400 hover:text-red-600 transition-all hover:translate-x-1">
             <HiOutlineArrowLeftOnRectangle size={24} />
             <span className="hidden lg:block text-[10px] font-black uppercase tracking-widest">Logout</span>
           </button>
@@ -191,7 +191,7 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
                     <HiOutlineMoon size={18} />
                   </div>
                 </button>
-                <button onClick={handleLogout} className="w-full flex items-center gap-4 p-4 text-gray-600 dark:text-gray-400 hover:text-red-600 transition-all">
+                <button onClick={handleLogout} className="w-full flex items-center gap-2 p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 transition-all">
                   <HiOutlineArrowLeftOnRectangle size={20} />
                   <span className="text-[10px] font-black uppercase tracking-widest">Logout</span>
                 </button>

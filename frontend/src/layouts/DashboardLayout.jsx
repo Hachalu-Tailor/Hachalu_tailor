@@ -23,7 +23,7 @@ import { useLanguage } from '../context/LanguageContext';
 const DashboardLayout = () => {
   const { t } = useLanguage();
   const [darkMode, setDarkMode] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showNotifications, setShowNotifications] = useState(false);
   const [userRole, setUserRole] = useState('');
   const [notifications, setNotifications] = useState([]);
@@ -86,7 +86,7 @@ const DashboardLayout = () => {
     if (userRole !== 'garment') return;
     setIsLoadingCompleted(true);
     try {
-      const response = await api.get('/orders/garment/completed/');
+      const response = await api.get('/orders/orders/list/', { params: { status: 'COMPLETED' } });
       const orders = response.data?.results || response.data || [];
       setCompletedOrders(orders);
     } catch (error) {
@@ -145,6 +145,7 @@ const DashboardLayout = () => {
               navigate(`/garment?order=${order.id}`);
               setIsSidebarOpen(false);
             }}
+            onLogout={handleLogout}
           />
         ) : (
           <AdminReceptionSidebar
@@ -156,7 +157,7 @@ const DashboardLayout = () => {
         )}
 
         {/* MAIN CONTENT AREA */}
-        <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        <div className={`flex-1 flex flex-col min-w-0 h-screen overflow-hidden ${userRole === 'garment' ? 'lg:ml-72 sm:ml-80' : ''}`}>
 
           {/* HEADER SECTION */}
           <header className="h-16 flex-shrink-0 border-b border-gray-100 dark:border-white/5 bg-white/90 dark:bg-[#080808]/90 backdrop-blur-xl px-4 md:px-6 flex items-center justify-between z-40">
@@ -271,12 +272,14 @@ const DashboardLayout = () => {
                   >
                     {t('profile')}
                   </button>
-                  <button
-                    onClick={handleLogout}
-                    className="text-[7px] font-bold text-red-500 uppercase tracking-[0.2em] hover:tracking-[0.3em] transition-all flex items-center gap-1"
-                  >
-                    {t('logout')} <HiOutlineArrowRightOnRectangle />
-                  </button>
+                  {userRole !== 'garment' && (
+                    <button
+                      onClick={handleLogout}
+                      className="text-[7px] font-bold text-red-500 uppercase tracking-[0.2em] hover:tracking-[0.3em] transition-all flex items-center gap-1"
+                    >
+                      {t('logout')} <HiOutlineArrowRightOnRectangle />
+                    </button>
+                  )}
                 </div>
                 <button
                   onClick={() => navigate(userRole === 'admin' ? '/admin/profile' : userRole === 'garment' ? '/garment/profile' : '/reception/profile')}

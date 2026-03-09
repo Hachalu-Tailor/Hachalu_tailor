@@ -255,6 +255,8 @@ export const getGarmentShippedOrders = (params) => api.get('/garment/orders/ship
 
 export const getGarmentShippedDetail = (code) => api.get(`/garment/orders/shipped/detail/?code=${code}`);
 
+export const getAllGarmentOrders = (params) => api.get('/orders/garment/', { params });
+
 export const processGarmentOrder = (code, data) => api.post(`/garment/orders/${code}/process/`, data);
 
 // ============================================

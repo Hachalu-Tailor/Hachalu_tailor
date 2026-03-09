@@ -15,10 +15,10 @@ import {
 import {
     getGarmentOrdersInProgress,
     getGarmentShippedOrders,
+    getAllGarmentOrders,
     processGarmentOrder
 } from '../api/api';
 import { getHexColor } from '../utils/colors';
-import GarmentCompletedOrdersSidebar from '../components/GarmentCompletedOrdersSidebar';
 
 // Backend status configuration - ONLY use backend statuses (IN_PROGRESS, COMPLETED, SHIPPED)
 const BACKEND_STATUSES = {
@@ -132,15 +132,17 @@ const GarmentDashboard = () => {
         setError(null);
 
         try {
-            const [inProgressResponse, shippedResponse] = await Promise.all([
+            const [inProgressResponse, shippedResponse, completedResponse] = await Promise.all([
                 getGarmentOrdersInProgress().catch(() => ({ data: [] })),
-                getGarmentShippedOrders().catch(() => ({ data: [] }))
+                getGarmentShippedOrders().catch(() => ({ data: [] })),
+                getAllGarmentOrders().catch(() => ({ data: [] }))
             ]);
 
             const inProgressOrders = handlePaginatedResponse(inProgressResponse);
             const shippedOrders = handlePaginatedResponse(shippedResponse);
+            const completedOrders = handlePaginatedResponse(completedResponse);
 
-            const combinedOrders = [...inProgressOrders, ...shippedOrders];
+            const combinedOrders = [...inProgressOrders, ...shippedOrders, ...completedOrders];
             const uniqueOrders = [];
             const seen = new Set();
 
@@ -644,7 +646,7 @@ const GarmentDashboard = () => {
                 </div>
 
                 {/* Sidebar: quick order list */}
-                <div className="hidden lg:block bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-2xl p-4 max-h-[560px] overflow-y-auto">
+                <div className="hidden">
                     <h3 className="text-sm font-black dark:text-white uppercase tracking-widest mb-3">
                         Orders Sidebar
                     </h3>
@@ -768,15 +770,6 @@ const GarmentDashboard = () => {
                             </div>
                         </div>
                     )}
-                </div>
-
-                {/* Enhanced Completed Orders Sidebar */}
-                <div>
-                    <GarmentCompletedOrdersSidebar
-                        completedOrders={sidebarOrders.completed}
-                        onOrderClick={(order) => setSelectedOrder(order)}
-                        isLoading={loading}
-                    />
                 </div>
             </div>
 

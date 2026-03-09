@@ -48,7 +48,7 @@ const Services = () => {
         },
         {
           id: "02",
-          title: "Virtual Atelier",
+          title: "Virtual A TAILOR",
           desc: "Experience luxury from your home. Our measurement suite ensures a flawless fit, no matter where you are.",
           features: ["AI Body Scanning", "1-on-1 Stylist Call", "Digital Fabric Swatches"],
           icon: <HiOutlineGlobeAlt size={32} />,
@@ -83,7 +83,7 @@ const Services = () => {
     },
     {
       id: "02",
-      title: "Virtual Atelier",
+      title: "Virtual A TAILOR",
       desc: "Experience global luxury from your home. Our AI-driven measurement suite and virtual stylists ensure a flawless fit, no matter where you are in the world.",
       features: ["AI Body Scanning", "1-on-1 Stylist Call", "Digital Fabric Swatches"],
       icon: <HiOutlineGlobeAlt size={32} />,
@@ -108,7 +108,7 @@ const Services = () => {
           <img
             src={IMAGES.SERVICES.HERO3}
             className="w-full h-full object-cover opacity-20 dark:opacity-10"
-            alt="Atelier"
+            alt="A TAILOR"
           />
         </div>
         <div className="relative z-10 text-center px-6">

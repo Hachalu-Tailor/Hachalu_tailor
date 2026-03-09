@@ -26,9 +26,9 @@ const Announcement = () => {
 
   useEffect(() => {
     fetchNotifications();
-    // Set up auto-refresh every 60 seconds
-    const interval = setInterval(fetchNotifications, 60000);
-    return () => clearInterval(interval);
+    // // Set up auto-refresh every 60 seconds
+    // const interval = setInterval(fetchNotifications, 60000);
+    // return () => clearInterval(interval);
   }, []);
 
   const fetchNotifications = async () => {

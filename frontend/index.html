@@ -6,117 +6,11 @@
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Hachalu Tailor</title>
-
-  <!-- Google Translate Widget -->
-  <script type="text/javascript">
-    function googleTranslateElementInit() {
-      new google.translate.TranslateElement({
-        pageLanguage: 'en',
-        includedLanguages: 'en,om',
-        layout: google.translate.TranslateElement.InlineLayout.HORIZONTAL,
-        autoDisplay: false
-      }, 'google_translate_element');
-    }
-  </script>
-  <script type="text/javascript"
-    src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
-
-  <style>
-    /* Hide Google Translate banner and messages */
-    .goog-te-banner-frame {
-      display: none !important;
-    }
-
-    body>.skiptranslate {
-      display: none !important;
-    }
-
-    .goog-message {
-      display: none !important;
-    }
-
-    /* Language selector - top right corner */
-    .lang-selector {
-      position: absolute;
-      top: 0;
-      right: 0;
-      z-index: 9999;
-      display: flex;
-      gap: 5px;
-    }
-
-    .lang-btn {
-      padding: 6px 12px;
-      border: 2px solid #dc2626;
-      background: white;
-      color: #dc2626;
-      font-weight: bold;
-      cursor: pointer;
-      border-radius: 4px;
-      font-size: 11px;
-      transition: all 0.3s;
-    }
-
-    .lang-btn:hover {
-      background: #dc2626;
-      color: white;
-    }
-
-    .lang-btn.active {
-      background: #dc2626;
-      color: white;
-    }
-
-    /* Google Translate dropdown styling */
-    .goog-te-gadget {
-      font-family: inherit !important;
-    }
-
-    .goog-te-gadget-simple {
-      background: white !important;
-      border: 2px solid #dc2626 !important;
-      padding: 6px 10px !important;
-      border-radius: 4px !important;
-      font-size: 12px !important;
-    }
-  </style>
 </head>
 
 <body>
-  <!-- Simple Language Selector - Top Right -->
-  <div class="lang-selector">
-    <button class="lang-btn active" onclick="setLanguage('en')">English</button>
-    <button class="lang-btn" onclick="setLanguage('om')">Afaan Oromo</button>
-  </div>
-
-  <!-- Hidden Google Translate element -->
-  <div id="google_translate_element" style="display:none;"></div>
-
   <div id="root"></div>
   <script type="module" src="/src/main.jsx"></script>
-
-  <script type="text/javascript">
-    function setLanguage(lang) {
-      var selectField = document.querySelector('.goog-te-combo');
-      if (selectField) {
-        selectField.value = lang;
-        selectField.dispatchEvent(new Event('change'));
-      }
-
-      // Update button styles
-      document.querySelectorAll('.lang-btn').forEach(function (btn) {
-        btn.classList.remove('active');
-        if (btn.textContent.toLowerCase().includes(lang === 'en' ? 'english' : 'afaan')) {
-          btn.classList.add('active');
-        }
-      });
-    }
-
-    // Set English as default
-    document.addEventListener('DOMContentLoaded', function () {
-      setLanguage('en');
-    });
-  </script>
 </body>
 
 </html>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import AdminReceptionSidebar from '../components/AdminReceptionSidebar';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 import {
   HiOutlineBell,
   HiOutlineMagnifyingGlass,
@@ -16,8 +17,10 @@ import {
 } from 'react-icons/hi2';
 import api from '../api/api';
 import { formatRelativeTime } from '../utils/helpers';
+import { useLanguage } from '../context/LanguageContext';
 
 const DashboardLayout = () => {
+  const { t } = useLanguage();
   const [darkMode, setDarkMode] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -90,7 +93,7 @@ const DashboardLayout = () => {
   // 2. Dynamic Title Logic: Clean up the URL for the header
   const getPageTitle = () => {
     const path = location.pathname.split('/').filter(Boolean).pop();
-    if (!path || path === 'admin' || path === 'reception') return 'Overview';
+    if (!path || path === 'admin' || path === 'reception') return t('overview');
     return path.replace('-', ' ');
   };
 
@@ -121,10 +124,10 @@ const DashboardLayout = () => {
 
             {/* Left: Mobile Toggle & Title */}
             <div className="flex items-center gap-4">
-                <button
-                  onClick={() => setIsSidebarOpen(true)}
-                  className="md:hidden p-2 text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-all"
-                >
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="md:hidden p-2 text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-all"
+              >
                 <HiOutlineBars3BottomLeft size={26} />
               </button>
 
@@ -142,6 +145,11 @@ const DashboardLayout = () => {
 
             {/* Right: Actions */}
             <div className="flex items-center gap-3 md:gap-6">
+
+              {/* Language Switcher */}
+              <div className="scale-75 origin-right">
+                <LanguageSwitcher />
+              </div>
 
               {/* Desktop Search Bar (hidden on garment views to avoid duplicate search) */}
               {!location.pathname.startsWith('/garment') && (
@@ -178,8 +186,12 @@ const DashboardLayout = () => {
                       className="absolute top-16 right-0 w-80 bg-white dark:bg-[#0c0c0c] border border-gray-100 dark:border-white/10 rounded-[2.5rem] shadow-2xl p-6 z-50 overflow-hidden"
                     >
                       <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-900 dark:text-white">Central Feed</h3>
-                        <span className="bg-red-600/10 text-red-600 text-[8px] font-black px-2 py-1 rounded-lg uppercase">{pendingCount} Pending</span>
+                        <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-900 dark:text-white">
+                          {t('messages')}
+                        </h3>
+                        <span className="bg-red-600/10 text-red-600 text-[8px] font-black px-2 py-1 rounded-lg uppercase">
+                          {pendingCount} {t('pending')}
+                        </span>
                       </div>
 
                       <div className="space-y-2">
@@ -192,19 +204,19 @@ const DashboardLayout = () => {
                             >
                               <NotificationItem
                                 icon={getNotificationIcon(notif.type)}
-                                text={notif.message || notif.title || 'New notification'}
+                                text={notif.message || notif.title || t('messages')}
                                 time={formatRelativeTime(notif.created_at)}
                                 isRead={notif.read}
                               />
                             </div>
                           ))
                         ) : (
-                          <NotificationItem icon={<HiOutlineBell />} text="No notifications" time="" />
+                          <NotificationItem icon={<HiOutlineBell />} text={t('noData')} time="" />
                         )}
                       </div>
 
                       <button className="w-full mt-6 py-3 bg-gray-50 dark:bg-white/5 rounded-2xl text-[8px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-400 hover:text-white hover:bg-red-600 transition-all">
-                        Clear All Logs
+                        {t('view')}
                       </button>
                     </motion.div>
                   )}
@@ -218,13 +230,13 @@ const DashboardLayout = () => {
                     onClick={() => navigate(userRole === 'admin' ? '/admin/profile' : userRole === 'garment' ? '/garment/profile' : '/reception/profile')}
                     className="text-[9px] font-black text-gray-900 dark:text-white uppercase tracking-wider hover:text-red-500 transition-colors"
                   >
-                    Profile
+                    {t('profile')}
                   </button>
                   <button
                     onClick={handleLogout}
                     className="text-[7px] font-bold text-red-500 uppercase tracking-[0.2em] hover:tracking-[0.3em] transition-all flex items-center gap-1"
                   >
-                    Logout <HiOutlineArrowRightOnRectangle />
+                    {t('logout')} <HiOutlineArrowRightOnRectangle />
                   </button>
                 </div>
                 <button

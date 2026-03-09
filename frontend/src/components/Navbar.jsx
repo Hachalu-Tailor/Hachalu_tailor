@@ -14,9 +14,11 @@ import {
   HiOutlineArrowRight,
 } from 'react-icons/hi2';
 import logo from '../assets/logo.jpg';
-// Using Google Translate in index.html
+import LanguageSwitcher from './LanguageSwitcher';
+import { useLanguage } from '../context/LanguageContext';
 
 const Navbar = () => {
+  const { t } = useLanguage();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [scrolled, setScrolled] = useState(false);
@@ -63,27 +65,27 @@ const Navbar = () => {
   }, []);
 
   const menuItems = [
-    { name: 'Home', href: '/' },
+    { name: t('home'), href: '/' },
     {
-      name: 'Services',
+      name: t('services'),
       href: '/services',
       subItems: [
-        { title: 'We Offer', desc: 'Authorized Service', icon: <HiOutlineShieldCheck />, href: '/services' },
-        { title: 'Discount', desc: 'Exclusive Loyalty', icon: <HiOutlineCpuChip />, href: '/services/discount' },
-        { title: 'Need Help', desc: 'Customer Support', icon: <HiOutlineGlobeAlt />, href: '/#contact' },
+        { title: t('weOffer'), desc: t('weOfferDesc'), icon: <HiOutlineShieldCheck />, href: '/services' },
+        { title: t('discountMenu'), desc: t('discountMenuDesc'), icon: <HiOutlineCpuChip />, href: '/services/discount' },
+        { title: t('needHelp'), desc: t('needHelpDesc'), icon: <HiOutlineGlobeAlt />, href: '/#contact' },
       ]
     },
     {
-      name: 'Shop',
+      name: t('shop'),
       href: '/items',
       subItems: [
-        { title: "All", desc: 'All in once', icon: <HiOutlineCpuChip />, href: '/items/' },
-        { title: "Men's", desc: 'Advanced Male', icon: <HiOutlineCubeTransparent />, href: '/items/men' },
-        { title: "Children's", desc: 'Quality Children', icon: <HiOutlineArrowRight />, href: '/items/children' }
+        { title: t('shopAll'), desc: t('shopAllDesc'), icon: <HiOutlineCpuChip />, href: '/items/' },
+        { title: t('shopMen'), desc: t('shopMenDesc'), icon: <HiOutlineCubeTransparent />, href: '/items/men' },
+        { title: t('shopChildren'), desc: t('shopChildrenDesc'), icon: <HiOutlineArrowRight />, href: '/items/children' }
       ]
     },
-    { name: 'About', href: '/about' },
-    { name: 'Submit Payment Proof', href: '/submit-payment' }
+    { name: t('about'), href: '/about' },
+    { name: t('submitPaymentProof'), href: '/submit-payment' }
   ];
 
   return (
@@ -146,6 +148,8 @@ const Navbar = () => {
 
           {/* ACTIONS */}
           <div className="flex items-center gap-4">
+            <LanguageSwitcher />
+
             <button onClick={toggleTheme} className="p-2.5 rounded-xl bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-yellow-500 border border-transparent hover:border-red-600/20 transition-all">
               {isDarkMode ? <HiSun size={18} /> : <HiMoon size={18} />}
             </button>

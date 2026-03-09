@@ -8,8 +8,10 @@ import {
   HiOutlineXMark, HiOutlineChartBar, HiOutlineUser, HiOutlineClipboardDocumentList,
   HiOutlineEnvelope, HiOutlineCurrencyDollar, HiOutlineScissors
 } from 'react-icons/hi2';
+import { useLanguage } from '../context/LanguageContext';
 
 const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const [role, setRole] = useState('');
@@ -36,24 +38,24 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
 
   const menuItems = [
     // Admin Section
-    { path: '/admin', label: 'Dashboard', icon: <HiOutlineSquares2X2 />, roles: ['admin'] },
-    { path: '/admin/analytics', label: 'Analytics', icon: <HiOutlineChartBar />, roles: ['admin'] },
-    { path: '/admin/staff', label: 'Staff Management', icon: <HiOutlineUserGroup />, roles: ['admin'] },
+    { path: '/admin', label: t('dashboard'), icon: <HiOutlineSquares2X2 />, roles: ['admin'] },
+    { path: '/admin/analytics', label: t('analytics'), icon: <HiOutlineChartBar />, roles: ['admin'] },
+    { path: '/admin/staff', label: t('staff'), icon: <HiOutlineUserGroup />, roles: ['admin'] },
     { path: '/admin/audit-logs', label: 'Audit Logs', icon: <HiOutlineClipboardDocumentList />, roles: ['admin'] },
 
     // Reception Section
-    { path: '/reception', label: 'Dashboard', icon: <HiOutlineSquares2X2 />, roles: ['receptionist'] },
-    { path: '/reception/orders', label: 'Orders', icon: <HiOutlineShoppingBag />, roles: ['receptionist'] },
-    { path: '/reception/inventory', label: 'Inventory', icon: <HiOutlineCube />, roles: ['receptionist'] },
-    { path: '/reception/clients', label: 'Clients', icon: <HiOutlineUserGroup />, roles: ['receptionist'] },
+    { path: '/reception', label: t('dashboard'), icon: <HiOutlineSquares2X2 />, roles: ['receptionist'] },
+    { path: '/reception/orders', label: t('orders'), icon: <HiOutlineShoppingBag />, roles: ['receptionist'] },
+    { path: '/reception/inventory', label: t('inventory'), icon: <HiOutlineCube />, roles: ['receptionist'] },
+    { path: '/reception/clients', label: t('clients'), icon: <HiOutlineUserGroup />, roles: ['receptionist'] },
     { path: '/reception/announcement', label: 'Bulletins', icon: <HiOutlineMegaphone />, roles: ['receptionist'] },
 
     // Garment/Tailor Section
     { path: '/garment', label: 'Workshop', icon: <HiOutlineScissors />, roles: ['garment'] },
 
     // Shared/Common Sections (Admin & Receptionist)
-    { path: '/reception/payments', label: 'Finance', icon: <HiOutlineBanknotes />, roles: ['admin', 'receptionist'] },
-    { path: '/reception/messages', label: 'Messages', icon: <HiOutlineChatBubbleLeftRight />, roles: ['admin', 'receptionist'] },
+    { path: '/reception/payments', label: t('payments'), icon: <HiOutlineBanknotes />, roles: ['admin', 'receptionist'] },
+    { path: '/reception/messages', label: t('messages'), icon: <HiOutlineChatBubbleLeftRight />, roles: ['admin', 'receptionist'] },
   ];
 
   // 2. DEBUG FILTER LOGIC

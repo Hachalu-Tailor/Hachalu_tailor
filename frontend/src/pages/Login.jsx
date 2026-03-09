@@ -10,6 +10,7 @@ import {
   HiOutlineEyeSlash,
   HiOutlineExclamationTriangle
 } from 'react-icons/hi2';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -69,6 +70,11 @@ const Login = () => {
 
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden font-sans">
+
+      {/* Language Switcher - Top Right */}
+      <div className="absolute top-4 right-4 z-20">
+        <LanguageSwitcher />
+      </div>
 
       {/* 1. CINEMATIC BACKGROUND IMAGE */}
       <div className="absolute inset-0 z-0">

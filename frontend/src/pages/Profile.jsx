@@ -12,10 +12,12 @@ import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../components/Toast';
 import { changePassword, updateProfile } from '../api/api';
 import { getInitials, getAvatarColor } from '../utils/helpers';
+import { useLanguage } from '../context/LanguageContext';
 
 const Profile = () => {
   const { user, updateUser } = useAuth();
   const toast = useToast();
+  const { t } = useLanguage();
   
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
@@ -111,8 +113,8 @@ const Profile = () => {
   `;
 
   const tabs = [
-    { id: 'profile', label: 'Profile', icon: HiOutlineUser },
-    { id: 'security', label: 'Security', icon: HiOutlineLockClosed },
+    { id: 'profile', label: t('profile'), icon: HiOutlineUser },
+    { id: 'security', label: t('security'), icon: HiOutlineLockClosed },
   ];
 
   return (
@@ -120,10 +122,10 @@ const Profile = () => {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white uppercase tracking-tight">
-          Profile Settings
+          {t('profile')} {t('settings') || 'Settings'}
         </h1>
         <p className="text-gray-400 text-sm mt-1">
-          Manage your account settings and preferences
+          {t('welcome')} {user?.name}
         </p>
       </div>
 
@@ -175,7 +177,7 @@ const Profile = () => {
                 name="name"
                 value={profileData.name}
                 onChange={handleProfileChange}
-                placeholder="Full Name"
+                placeholder={t('profile')}
                 className={inputClass('name')}
               />
               {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
@@ -188,7 +190,7 @@ const Profile = () => {
                 name="email"
                 value={profileData.email}
                 onChange={handleProfileChange}
-                placeholder="Email Address"
+                placeholder={t('email') || 'Email'}
                 className={inputClass('email')}
               />
               {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
@@ -201,7 +203,7 @@ const Profile = () => {
                 name="phone"
                 value={profileData.phone}
                 onChange={handleProfileChange}
-                placeholder="Phone Number"
+                placeholder={t('phone') || 'Phone'}
                 className={inputClass('phone')}
               />
             </div>
@@ -217,12 +219,12 @@ const Profile = () => {
                 ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-700'}
               `}
             >
-              {loading ? (
-                <span className="animate-pulse">Saving...</span>
+                {loading ? (
+                <span className="animate-pulse">{t('loading')}</span>
               ) : (
                 <>
                   <HiOutlineCheck size={18} />
-                  Save Changes
+                  {t('save')}
                 </>
               )}
             </motion.button>
@@ -244,7 +246,7 @@ const Profile = () => {
                 name="current_password"
                 value={passwordData.current_password}
                 onChange={handlePasswordChange}
-                placeholder="Current Password"
+                placeholder={t('currentPassword') || 'Current Password'}
                 className={inputClass('current_password')}
               />
               {errors.current_password && <p className="text-red-500 text-xs mt-1">{errors.current_password}</p>}
@@ -257,7 +259,7 @@ const Profile = () => {
                 name="new_password"
                 value={passwordData.new_password}
                 onChange={handlePasswordChange}
-                placeholder="New Password"
+                placeholder={t('newPassword') || 'New Password'}
                 className={inputClass('new_password')}
               />
               {errors.new_password && <p className="text-red-500 text-xs mt-1">{errors.new_password}</p>}
@@ -270,7 +272,7 @@ const Profile = () => {
                 name="confirm_password"
                 value={passwordData.confirm_password}
                 onChange={handlePasswordChange}
-                placeholder="Confirm New Password"
+                placeholder={t('confirmPassword') || 'Confirm New Password'}
                 className={inputClass('confirm_password')}
               />
               {errors.confirm_password && <p className="text-red-500 text-xs mt-1">{errors.confirm_password}</p>}
@@ -288,11 +290,11 @@ const Profile = () => {
               `}
             >
               {loading ? (
-                <span className="animate-pulse">Updating...</span>
+                <span className="animate-pulse">{t('loading')}</span>
               ) : (
                 <>
                   <HiOutlinePencilSquare size={18} />
-                  Change Password
+                  {t('changePassword') || 'Change Password'}
                 </>
               )}
             </motion.button>

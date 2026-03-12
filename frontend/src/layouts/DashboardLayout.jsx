@@ -89,7 +89,7 @@ const DashboardLayout = () => {
       const orders = response.data?.results || response.data || [];
       setCompletedOrders(orders);
     } catch (error) {
-      console.error('Error fetching completed orders:', error);
+      // console.error('Error fetching completed orders:', error);
     } finally {
       setIsLoadingCompleted(false);
     }

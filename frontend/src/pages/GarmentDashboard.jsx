@@ -296,7 +296,7 @@ const GarmentDashboard = () => {
     );
 
     return (
-        <div className="p-2 md:p-3 space-y-3 max-w-7xl mx-auto w-full">
+        <div className="p-2 md:p-3 space-y-3 mx-auto w-full">
             {/* Header - matches Admin & Reception style */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>

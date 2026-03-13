@@ -8,7 +8,7 @@ import {
   HiOutlineCheck,
   HiOutlinePencilSquare,
   HiOutlineEye,
-  HiOutlineEyeOff,
+  HiOutlineEyeSlash,
   HiOutlineShieldCheck,
   HiOutlineCamera
 } from 'react-icons/hi2';
@@ -364,7 +364,7 @@ const Profile = () => {
                       onClick={() => togglePasswordVisibility('current')}
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                     >
-                      {showPasswords.current ? <HiOutlineEyeOff size={18} /> : <HiOutlineEye size={18} />}
+                      {showPasswords.current ? <HiOutlineEyeSlash size={18} /> : <HiOutlineEye size={18} />}
                     </button>
                   </div>
                   {errors.current_password && <p className="text-red-500 text-xs mt-2">{errors.current_password}</p>}
@@ -390,7 +390,7 @@ const Profile = () => {
                       onClick={() => togglePasswordVisibility('new')}
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                     >
-                      {showPasswords.new ? <HiOutlineEyeOff size={18} /> : <HiOutlineEye size={18} />}
+                      {showPasswords.new ? <HiOutlineEyeSlash size={18} /> : <HiOutlineEye size={18} />}
                     </button>
                   </div>
 
@@ -436,7 +436,7 @@ const Profile = () => {
                       onClick={() => togglePasswordVisibility('confirm')}
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                     >
-                      {showPasswords.confirm ? <HiOutlineEyeOff size={18} /> : <HiOutlineEye size={18} />}
+                      {showPasswords.confirm ? <HiOutlineEyeSlash size={18} /> : <HiOutlineEye size={18} />}
                     </button>
                   </div>
                   {errors.confirm_password && <p className="text-red-500 text-xs mt-2">{errors.confirm_password}</p>}

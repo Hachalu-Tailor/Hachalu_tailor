@@ -52,8 +52,8 @@ const PaymentForm = () => {
   const [bankRefNumber, setBankRefNumber] = useState('');
   const [receiptFile, setReceiptFile] = useState(null);
   const [receiptPreview, setReceiptPreview] = useState(null);
-  const [receiptUrl, setReceiptUrl] = useState(null);
-  const [uploadMethod, setUploadMethod] = useState('file'); // 'file' or 'url'
+  const [receiptUrl, setReceiptUrl] = useState('');
+  const [showReceiptUrlInput, setShowReceiptUrlInput] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
@@ -174,9 +174,9 @@ const PaymentForm = () => {
           const exp = parseFloat(foundOrder.expected_price) || 0;
           if (remaining >= exp && exp > 0) setPaymentAmount(exp.toFixed(2));
           else setPaymentAmount(remaining > 0 ? remaining.toFixed(2) : '');
-          if (remaining > 0 && paidSum < exp) {
-            setError('Remaining due is less than expected price. Please contact reception to confirm payment amounts.');
-          }
+          // if (remaining > 0 && paidSum < exp) {
+          //   setError('Remaining due is less than expected price. Please contact reception to confirm payment amounts.');
+          // }
         } else {
           setPaymentAmount(remaining > 0 ? remaining.toFixed(2) : '');
         }
@@ -268,9 +268,9 @@ const PaymentForm = () => {
       return;
     }
 
-    // Require either file or URL
-    if (!receiptFile && !receiptUrl) {
-      const receiptErrorMsg = 'Please upload a receipt image/screenshot OR paste a payment link. This is required.';
+    // Receipt screenshot image is mandatory.
+    if (!receiptFile) {
+      const receiptErrorMsg = 'Please add the Receipt Screenshot.';
       setReceiptError(receiptErrorMsg);
       setError(receiptErrorMsg);
       scrollToError();
@@ -292,8 +292,8 @@ const PaymentForm = () => {
       if (receiptFile) {
         formData.append('receipt_screenshot', receiptFile);
       }
-      if (receiptUrl) {
-        formData.append('receipt_pdf_url', receiptUrl);
+      if (receiptUrl && receiptUrl.trim()) {
+        formData.append('receipt_pdf_url', receiptUrl.trim());
       }
 
       const response = await api.post('/payments/', formData, {
@@ -303,13 +303,18 @@ const PaymentForm = () => {
         },
       });
 
-      setSubmittedPayment(response.data);
+      const enrichedPayment = {
+        ...response.data,
+        payment_method: paymentMethod,
+      };
+
+      setSubmittedPayment(enrichedPayment);
       setPaymentSuccess(true);
       // update payments list and clear any error
       setPayments(prev => {
-        const next = [response.data, ...prev];
+        const next = [enrichedPayment, ...prev];
         // persist locally
-        appendLocalPayment(orderCode.trim().toUpperCase(), response.data);
+        appendLocalPayment(orderCode.trim().toUpperCase(), enrichedPayment);
         return next;
       });
       setError(null);
@@ -370,8 +375,8 @@ const PaymentForm = () => {
     setBankRefNumber('');
     setReceiptFile(null);
     setReceiptPreview(null);
-    setReceiptUrl(null);
-    setUploadMethod('file');
+    setReceiptUrl('');
+    setShowReceiptUrlInput(false);
     setPaymentMethod('bank_transfer');
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -397,7 +402,7 @@ const PaymentForm = () => {
     const remaining = getRemainingDue();
     if (s === 'INITIATED') return 'Your order has been sent to reception. Our receptionist will check it and contact you within 24 hours. Please wait a short time; we will call you on the phone number you provided.';
     if (s === 'IN_PROGRESS') {
-      if (remaining > 0) return 'Your order is in progress. There is still a remaining payment — please complete the expected payment or contact reception for adjustments. Otherwise, wait for our team to call you before your scheduled day.';
+      if (remaining > 0) return 'Your order is in progress. If you have any left payment and want to make a payment, please contact our reception. Otherwise, wait for our team to call you before your scheduled day.';
       return 'Your order is in progress. No remaining payment — please wait for our team to call you before your scheduled day.';
     }
     if (s === 'AWAITING_PAYMENT') return 'Price has been set. Please pay the expected amount below. If you need to pay again, contact reception for guidance.';
@@ -558,8 +563,8 @@ const PaymentForm = () => {
                   <HiOutlineInformationCircle className="text-blue-600 shrink-0 mt-1" size={28} />
                   <div>
                     <h3 className="text-lg font-black dark:text-white uppercase tracking-wide">Order Received</h3>
-                    <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">{getStatusNote()}</p>
-                    <p className="mt-3 text-xs text-gray-500">Please wait — our receptionist will contact you within 24 hours to confirm price and schedule.</p>
+                    {/* <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">{getStatusNote()}</p> */}
+                    <p className="mt-3 text-xs text-gray-500">Please wait — our receptionist will contact you within 2 hours to confirm price and schedule.</p>
                   </div>
                 </div>
                 <div className="mt-6 flex justify-end">
@@ -596,7 +601,7 @@ const PaymentForm = () => {
                     {/* <p className="text-xs text-gray-500 mt-2">{getStatusNote()}</p> */}
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Due Date</p>
+                    <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Scheduled Date</p>
                     <p className="font-medium dark:text-gray-200">{order.due_date || '—'}</p>
                   </div>
                 </div>
@@ -660,6 +665,21 @@ const PaymentForm = () => {
                     </div>
                   </div>
 
+                  {/* Payment Instructions moved to top for quick reading/checking */}
+                  <div className="bg-blue-50 dark:bg-blue-950/20 p-5 rounded-2xl border border-blue-200 dark:border-blue-800/30">
+                    <div className="flex items-start gap-3">
+                      <HiOutlineInformationCircle className="text-blue-600 shrink-0 mt-1" size={22} />
+                      <div>
+                        <p className="font-bold text-sm uppercase tracking-wide mb-1 text-blue-800 dark:text-blue-300">
+                          Payment Instructions ({paymentMethod.replace('_', ' ').toUpperCase()})
+                        </p>
+                        <p className="text-sm text-blue-700 dark:text-blue-300 leading-relaxed">
+                          {getPaymentInstructions()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Amount */}
                   <div>
                     <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
@@ -706,35 +726,46 @@ const PaymentForm = () => {
                   {/* Receipt Upload */}
                   <div>
                     <label className="block text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">
-                      Upload Receipt / Proof <span className="text-red-500">*</span> <span className="text-gray-400 normal-case tracking-normal">(required)</span>
+                      Receipt Screenshot <span className="text-red-500">*</span>
                     </label>
 
-                    {/* Toggle Buttons */}
-                    <div className="flex gap-3 mb-4">
+                    <div className="flex gap-2 mb-3">
                       <button
                         type="button"
-                        onClick={() => { setUploadMethod('file'); setReceiptUrl(''); setReceiptError(null); }}
-                        className={`flex-1 py-3 px-4 rounded-xl border-2 font-bold text-sm transition-all ${uploadMethod === 'file'
+                        onClick={() => setShowReceiptUrlInput(false)}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${!showReceiptUrlInput
                           ? 'border-red-600 bg-red-50 dark:bg-red-950/30 text-red-600'
-                          : 'border-gray-200 dark:border-white/10 text-gray-500 hover:border-gray-300'
+                          : 'border-gray-200 dark:border-white/10 text-gray-500'
                           }`}
                       >
-                        📎 Upload File
+                        Screenshot Required
                       </button>
                       <button
                         type="button"
-                        onClick={() => { setUploadMethod('url'); setReceiptFile(null); setReceiptPreview(null); setReceiptError(null); }}
-                        className={`flex-1 py-3 px-4 rounded-xl border-2 font-bold text-sm transition-all ${uploadMethod === 'url'
-                          ? 'border-red-600 bg-red-50 dark:bg-red-950/30 text-red-600'
-                          : 'border-gray-200 dark:border-white/10 text-gray-500 hover:border-gray-300'
+                        onClick={() => setShowReceiptUrlInput((prev) => !prev)}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${showReceiptUrlInput
+                          ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/30 text-blue-600'
+                          : 'border-gray-200 dark:border-white/10 text-gray-500'
                           }`}
                       >
-                        🔗 Browser Link
+                        Add URL (Optional)
                       </button>
                     </div>
 
-                    {/* File Upload Mode */}
-                    {uploadMethod === 'file' && !receiptFile && (
+                    {showReceiptUrlInput && (
+                      <div className="space-y-2 mb-4">
+                        <input
+                          type="url"
+                          value={receiptUrl}
+                          onChange={(e) => setReceiptUrl(e.target.value)}
+                          placeholder="Paste receipt link (optional)"
+                          className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-white/10 focus:border-blue-600 dark:text-white p-4 rounded-2xl outline-none text-sm"
+                        />
+                        <p className="text-xs text-gray-500">Optional: add a receipt URL in addition to screenshot.</p>
+                      </div>
+                    )}
+
+                    {!receiptFile && (
                       <>
                         <label className={`flex flex-col items-center justify-center w-full h-44 border-2 border-dashed rounded-2xl cursor-pointer transition-all bg-gray-50/50 dark:bg-black/30 ${receiptError
                           ? 'border-red-500 bg-red-50 dark:bg-red-950/20 hover:border-red-600'
@@ -742,14 +773,14 @@ const PaymentForm = () => {
                           }`}>
                           <HiOutlineCloudArrowUp className={`mb-3 ${receiptError ? 'text-red-500' : 'text-gray-400'}`} size={40} />
                           <span className={`text-sm font-bold ${receiptError ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-300'}`}>
-                            Click or drag receipt (image / pdf) <span className="text-red-500">*</span>
+                            Click or drag receipt screenshot (image) <span className="text-red-500">*</span>
                           </span>
                           <span className="text-xs text-gray-400 mt-1">Max 5MB</span>
                           <input
                             ref={fileInputRef}
                             type="file"
                             className="hidden"
-                            accept="image/*,.pdf"
+                            accept="image/*"
                             onChange={handleFileChange}
                           />
                         </label>
@@ -763,31 +794,15 @@ const PaymentForm = () => {
                       </>
                     )}
 
-                    {/* URL Input Mode */}
-                    {uploadMethod === 'url' && (
-                      <div className="space-y-2">
-                        <input
-                          type="url"
-                          value={receiptUrl || ''}
-                          onChange={(e) => { setReceiptUrl(e.target.value); setReceiptError(null); setError(null); }}
-                          placeholder="Paste payment screenshot link (e.g., https://imgbb.com/...)"
-                          className={`w-full bg-gray-50 dark:bg-black border ${receiptError ? 'border-red-500 focus:border-red-500' : 'border-gray-200 dark:border-white/10 focus:border-red-600'} dark:text-white p-4 rounded-2xl outline-none text-sm`}
-                        />
-                        <p className="text-xs text-gray-500">
-                          Paste a direct link to your payment screenshot or proof image
-                        </p>
-                      </div>
-                    )}
-
                     {/* File Preview */}
-                    {uploadMethod === 'file' && receiptFile && (
+                    {receiptFile && (
                       <div className="relative rounded-2xl overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-black/40 p-4">
                         {receiptPreview ? (
                           <img src={receiptPreview} alt="Receipt preview" className="max-h-64 mx-auto rounded-lg" />
                         ) : (
                           <div className="text-center py-8 text-gray-500">
                             <p className="font-medium">{receiptFile.name}</p>
-                            <p className="text-xs mt-1">PDF document</p>
+                            <p className="text-xs mt-1">Image file</p>
                           </div>
                         )}
 
@@ -805,21 +820,6 @@ const PaymentForm = () => {
                       </div>
                     )}
 
-                  </div>
-
-                  {/* Instructions */}
-                  <div className="bg-blue-50 dark:bg-blue-950/20 p-5 rounded-2xl border border-blue-200 dark:border-blue-800/30">
-                    <div className="flex items-start gap-3">
-                      <HiOutlineInformationCircle className="text-blue-600 shrink-0 mt-1" size={22} />
-                      <div>
-                        <p className="font-bold text-sm uppercase tracking-wide mb-1 text-blue-800 dark:text-blue-300">
-                          {paymentMethod.replace('_', ' ').toUpperCase()} Instructions
-                        </p>
-                        <p className="text-sm text-blue-700 dark:text-blue-300 leading-relaxed">
-                          {getPaymentInstructions()}
-                        </p>
-                      </div>
-                    </div>
                   </div>
 
                   {/* Submit */}

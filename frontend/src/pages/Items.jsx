@@ -203,6 +203,12 @@ const Items = ({ isHomePage = false }) => {
   };
 
   const handleSubmit = async () => {
+       // REQUIRE COLOR SELECTION
+    if (!formData.selected_color) {
+      alert('Order color required. Please select a color before proceeding.');
+      setActiveTab('bespoke'); // Move to tailoring tab where colors are
+      return;
+    }
     if (!formData.customer_name || !formData.customer_phone) {
       alert('Please complete contact information');
       return;
@@ -262,19 +268,8 @@ const Items = ({ isHomePage = false }) => {
 
     payload.selected_color = defaultColor;
 
-    console.log('Submitting order with data:', {
-      customer_name: payload.customer_name,
-      customer_phone: payload.customer_phone,
-      suit_type: payload.suit_type,
-      material: payload.material,
-      selected_color: payload.selected_color,
-      quantity: payload.quantity,
-      measurements: payload.measurements
-    });
-
     try {
       const response = await createOrder(payload);
-      console.log('Order response:', response);
       if (response.status === 201 || response.status === 200) {
         setOrderSuccess(response.data.order_code || "ORDER-SUCCESS");
         setSelectedItem(null);
@@ -471,7 +466,7 @@ const Items = ({ isHomePage = false }) => {
                             <p className="text-sm font-bold">{formData.selected_color}</p>
                           </div>
                         </div>
-                        <button onClick={() => { setSelectedItem(null); setIsPaused(false); }} className="text-[9px] font-black uppercase tracking-widest underline text-red-600">Change Color</button>
+                        {/* <button onClick={() => { setSelectedItem(null); setIsPaused(false); }} className="text-[9px] font-black uppercase tracking-widest underline text-red-600">Change Color</button> */}
                       </div>
                     ) : null}
 
@@ -504,7 +499,7 @@ const Items = ({ isHomePage = false }) => {
                     </div>
 
                     {/* Color Selection */}
-                    {activeItem?.colors && activeItem.colors.length > 0 && (
+                    {/* {activeItem?.colors && activeItem.colors.length > 0 && (
                       <div className="space-y-4">
                         <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Select Color</p>
                         <div className="grid grid-cols-4 gap-3">
@@ -533,7 +528,7 @@ const Items = ({ isHomePage = false }) => {
                           })}
                         </div>
                       </div>
-                    )}
+                    )} */}
 
                     <div className="flex items-center justify-between bg-zinc-100 dark:bg-white/5 p-6 rounded-sm border dark:border-white/5">
                       <div>
@@ -548,8 +543,8 @@ const Items = ({ isHomePage = false }) => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-zinc-100 dark:bg-white/5 p-6 rounded-sm">
-                      <Input label="Full Name" type="text" placeholder="Entry Client Name" value={formData.customer_name} onChange={(e) => handleInputChange('customer_name', e.target.value)} />
-                      <Input label="Direct Phone" type="text" placeholder="+251..." value={formData.customer_phone} onChange={(e) => handleInputChange('customer_phone', e.target.value)} />
+                      <Input label="Full Name" type="text" placeholder="Your Full Name" value={formData.customer_name} onChange={(e) => handleInputChange('customer_name', e.target.value)} />
+                      <Input label="Phone Number" type="text" placeholder="09..." value={formData.customer_phone} onChange={(e) => handleInputChange('customer_phone', e.target.value)} />
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
@@ -558,7 +553,7 @@ const Items = ({ isHomePage = false }) => {
                       ))}
                     </div>
 
-                    <button onClick={handleSubmit} className="w-full py-6 bg-red-600 text-white font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:bg-black transition-all">Submit to A TAILOR</button>
+                    <button onClick={handleSubmit} className="w-full py-6 bg-red-600 text-white font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:bg-black transition-all">Submit Order</button>
                   </div>
                 )}
               </div>
@@ -567,15 +562,24 @@ const Items = ({ isHomePage = false }) => {
         )}
       </AnimatePresence>
 
-      {/* ORDER SUCCESS OVERLAY - Handles Copy to Paste */}
+{/* ORDER SUCCESS OVERLAY - Handles Copy to Paste */}
       <AnimatePresence>
         {orderSuccess && (
-          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-300 flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOrderSuccess(null)} className="absolute inset-0 bg-black/90 backdrop-blur-xl" />
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-white dark:bg-[#111] max-w-md w-full p-8 text-center shadow-2xl border dark:border-white/10">
               <HiOutlineCheckBadge className="mx-auto text-green-500 mb-6" size={60} />
+              
               <h3 className="text-2xl font-black dark:text-white uppercase tracking-tighter">Order Successfully Created</h3>
-              <p className="text-gray-400 text-[10px] uppercase tracking-widest mt-2 mb-8">Save your Order ID for tracking</p>
+              
+              <div className="my-6 space-y-2">
+                <p className="text-red-600 text-[11px] font-black uppercase tracking-widest leading-relaxed">
+                  Our reception will call you within 2 hours once they check your order.
+                </p>
+                <p className="text-gray-400 text-[9px] uppercase tracking-widest">
+                  Please copy your order ID using the button below for your records.
+                </p>
+              </div>
 
               {/* Copy Section */}
               <div
@@ -594,7 +598,7 @@ const Items = ({ isHomePage = false }) => {
 
               <button
                 onClick={() => setOrderSuccess(null)}
-                className="mt-8 w-full py-4 bg-red-600 text-white font-black uppercase text-[10px] tracking-widest hover:bg-black transition-colors"
+                className="mt-8 w-full py-5 bg-black dark:bg-white text-white dark:text-black font-black uppercase text-xs tracking-[0.3em] hover:bg-red-600 hover:text-white transition-all shadow-lg"
               >
                 Done
               </button>
@@ -614,11 +618,9 @@ const TabBtn = ({ active, onClick, label, icon }) => (
 
 const Input = ({ label, placeholder, type = "number", value, onChange }) => (
   <div className="flex flex-col gap-2 text-left">
-    <label className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em]">{label}</label>
+    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{label}</label>
     <input type={type} value={value} onChange={onChange} placeholder={placeholder} className="bg-transparent border-b border-gray-200 dark:border-white/10 py-3 text-lg font-bold dark:text-white outline-none focus:border-red-600 transition-all" />
   </div>
 );
 
 export default Items;
-
-

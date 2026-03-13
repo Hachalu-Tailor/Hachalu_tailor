@@ -39,14 +39,10 @@ const Login = () => {
     try {
       const result = await login(formData);
 
-      console.log("Login Result:", result);
-
       if (!result.success) {
         setError(result.error || "Invalid email or password. Please try again.");
         return;
       }
-
-      console.log("Login successful! User:", result.user);
 
       // Navigate based on role
       const role = result.user?.role?.toUpperCase();
@@ -61,7 +57,6 @@ const Login = () => {
       }
 
     } catch (err) {
-      console.error("Login Error:", err);
       setError(err.response?.data?.detail || "Login failed. Please check your credentials and try again.");
     } finally {
       setLoading(false);

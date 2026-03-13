@@ -262,25 +262,13 @@ const Items = ({ isHomePage = false }) => {
 
     payload.selected_color = defaultColor;
 
-    console.log('Submitting order with data:', {
-      customer_name: payload.customer_name,
-      customer_phone: payload.customer_phone,
-      suit_type: payload.suit_type,
-      material: payload.material,
-      selected_color: payload.selected_color,
-      quantity: payload.quantity,
-      measurements: payload.measurements
-    });
-
     try {
       const response = await createOrder(payload);
-      console.log('Order response:', response);
       if (response.status === 201 || response.status === 200) {
         setOrderSuccess(response.data.order_code || "ORDER-SUCCESS");
         setSelectedItem(null);
       }
     } catch (error) {
-      console.error('Order error:', error);
       const errorData = error.response?.data;
       let errorMsg = 'Failed to place order. Please try again.';
       if (errorData) {

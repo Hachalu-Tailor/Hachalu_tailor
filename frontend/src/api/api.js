@@ -219,6 +219,9 @@ export const deleteOrder = (id) => api.delete(`/orders/${id}/`);
 
 export const processOrder = (id, data) => api.post(`/orders/${id}/process`, data);
 
+export const updateReceptionOrderStatusByCode = (code, status) =>
+  api.patch(`/orders/code/${code}/status/`, { status });
+
 export const expireOrders = () => api.post('/orders/expire/');
 
 export const getOrderByCode = (code) => api.get(`/orders/code/${code}/`);

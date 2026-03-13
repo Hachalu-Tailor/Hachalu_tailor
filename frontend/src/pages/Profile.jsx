@@ -31,11 +31,11 @@ const Profile = () => {
     confirm: false
   });
 
-  // Profile form state
+  // Profile form state - match backend field names
   const [profileData, setProfileData] = useState({
-    name: user?.name || '',
+    full_name: user?.full_name || user?.name || '',
     email: user?.email || '',
-    phone: user?.phone || '',
+    phone_number: user?.phone_number || user?.phone || '',
   });
 
   // Password form state
@@ -65,7 +65,7 @@ const Profile = () => {
 
   const validateProfile = () => {
     const newErrors = {};
-    if (!profileData.name.trim()) newErrors.name = 'Please enter your full name';
+    if (!profileData.full_name.trim()) newErrors.full_name = 'Please enter your full name';
     if (!profileData.email.trim()) newErrors.email = 'Please enter your email address';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -250,14 +250,14 @@ const Profile = () => {
                     <HiOutlineUser className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input
                       type="text"
-                      name="name"
-                      value={profileData.name}
+                      name="full_name"
+                      value={profileData.full_name}
                       onChange={handleProfileChange}
                       placeholder="Enter your full name"
-                      className={inputClass('name')}
+                      className={inputClass('full_name')}
                     />
                   </div>
-                  {errors.name && <p className="text-red-500 text-xs mt-2">{errors.name}</p>}
+                  {errors.full_name && <p className="text-red-500 text-xs mt-2">{errors.full_name}</p>}
                 </div>
 
                 <div className="relative">
@@ -286,11 +286,11 @@ const Profile = () => {
                     <HiOutlinePhone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input
                       type="tel"
-                      name="phone"
-                      value={profileData.phone}
+                      name="phone_number"
+                      value={profileData.phone_number}
                       onChange={handleProfileChange}
                       placeholder="Enter your phone number"
-                      className={inputClass('phone')}
+                      className={inputClass('phone_number')}
                     />
                   </div>
                 </div>

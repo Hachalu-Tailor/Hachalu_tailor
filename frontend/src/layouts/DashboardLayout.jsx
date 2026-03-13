@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import AdminReceptionSidebar from '../components/AdminReceptionSidebar';
@@ -33,6 +33,33 @@ const DashboardLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Fetch notifications
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const response = await api.get('/accounts/user/notifications/', { params: { limit: 10 } });
+      const notifs = response.data?.results || response.data || [];
+      setNotifications(notifs);
+      setPendingCount(notifs.filter(n => !n.read).length);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  }, []);
+
+  // Fetch completed orders for garment users
+  const fetchCompletedOrders = useCallback(async () => {
+    if (userRole !== 'garment') return;
+    setIsLoadingCompleted(true);
+    try {
+      const response = await api.get('/orders/orders/list/', { params: { status: 'COMPLETED' } });
+      const orders = response.data?.results || response.data || [];
+      setCompletedOrders(orders);
+    } catch {
+      // console.error('Error fetching completed orders:', error);
+    } finally {
+      setIsLoadingCompleted(false);
+    }
+  }, [userRole]);
+
   // 1. Sync Role and Theme on Mount and location change
   useEffect(() => {
     // Try to get role from multiple sources
@@ -66,40 +93,14 @@ const DashboardLayout = () => {
     if (storedRole?.toLowerCase() === 'garment') {
       fetchCompletedOrders();
     }
-  }, [location.pathname]);
+  }, [location.pathname, location.search, fetchCompletedOrders, fetchNotifications]);
 
-  // Fetch notifications
-  const fetchNotifications = async () => {
-    try {
-      const response = await api.get('/accounts/user/notifications/', { params: { limit: 10 } });
-      const notifs = response.data?.results || response.data || [];
-      setNotifications(notifs);
-      setPendingCount(notifs.filter(n => !n.read).length);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-    }
-  };
-
-  // Fetch completed orders for garment users
-  const fetchCompletedOrders = async () => {
-    if (userRole !== 'garment') return;
-    setIsLoadingCompleted(true);
-    try {
-      const response = await api.get('/orders/orders/list/', { params: { status: 'COMPLETED' } });
-      const orders = response.data?.results || response.data || [];
-      setCompletedOrders(orders);
-    } catch (error) {
-      // console.error('Error fetching completed orders:', error);
-    } finally {
-      setIsLoadingCompleted(false);
-    }
-  };
-
-  // Auto-refresh notifications every 30 seconds
+  // Fetch latest notifications only when user opens the notifications panel.
   useEffect(() => {
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    if (showNotifications) {
+      fetchNotifications();
+    }
+  }, [showNotifications, fetchNotifications]);
 
   // Mark notification as read
   const handleMarkAsRead = async (notifId) => {
@@ -139,7 +140,7 @@ const DashboardLayout = () => {
           />
 
         {/* MAIN CONTENT AREA */}
-        <div className={`flex-1 flex flex-col min-w-0 h-screen overflow-hidden ${userRole === 'garment' ? 'lg:ml-72 sm:ml-80' : ''}`}>
+        <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
 
           {/* HEADER SECTION */}
           <header className="h-16 flex-shrink-0 border-b border-gray-100 dark:border-white/5 bg-white/90 dark:bg-[#080808]/90 backdrop-blur-xl px-4 md:px-6 flex items-center justify-between z-40">
@@ -281,7 +282,7 @@ const DashboardLayout = () => {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
-              className="p-6 md:p-10 max-w-[1600px] mx-auto w-full pb-20"
+              className="p-6 md:p-10 max-w-[] mx-auto w-full pb-20"
             >
               <Outlet />
             </motion.div>

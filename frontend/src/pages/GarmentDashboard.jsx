@@ -15,8 +15,9 @@ import {
 import {
     getGarmentOrdersInProgress,
     getGarmentShippedOrders,
-    getAllGarmentOrders,
-    processGarmentOrder
+    getOrders,
+    processGarmentOrder,
+    getPayments
 } from '../api/api';
 import { getHexColor } from '../utils/colors';
 
@@ -75,6 +76,9 @@ const GarmentDashboard = () => {
     const [error, setError] = useState(null);
     const [viewMode, setViewMode] = useState('grid');
     const [showFilters, setShowFilters] = useState(false);
+    const [showQuickLatest, setShowQuickLatest] = useState(false);
+    const [fullImage, setFullImage] = useState(null);
+    const [receiptByOrderCode, setReceiptByOrderCode] = useState({});
     const [filters, setFilters] = useState({
         suitType: 'all',
         material: 'all',
@@ -89,6 +93,49 @@ const GarmentDashboard = () => {
             data = data.results || data.data || data.items || [];
         }
         return data || [];
+    };
+
+    const getAbsoluteUrl = (url) => {
+        if (!url) return '';
+        if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+        const normalizedPath = url.startsWith('/') ? url : `/${url}`;
+        return `http://127.0.0.1:8000${normalizedPath}`;
+    };
+
+    const getOrderImageUrl = (order) => {
+        if (!order?.image_url) return '';
+        return getAbsoluteUrl(order.image_url);
+    };
+
+    const normalizeStatus = (status) => String(status || '').toUpperCase().trim();
+
+    const fetchAllPages = async (fetchPage, baseParams = {}) => {
+        const collected = [];
+        const seen = new Set();
+        const MAX_PAGES = 50;
+
+        for (let page = 1; page <= MAX_PAGES; page += 1) {
+            const response = await fetchPage({ ...baseParams, page }).catch(() => ({ data: [] }));
+            const pageItems = handlePaginatedResponse(response);
+
+            pageItems.forEach((order) => {
+                const key = order.order_code || order.id;
+                if (!key || seen.has(key)) return;
+                seen.add(key);
+                collected.push(order);
+            });
+
+            const hasNextPage = Boolean(
+                response?.data &&
+                typeof response.data === 'object' &&
+                !Array.isArray(response.data) &&
+                response.data.next
+            );
+
+            if (!hasNextPage) break;
+        }
+
+        return collected;
     };
 
     useEffect(() => {
@@ -132,17 +179,20 @@ const GarmentDashboard = () => {
         setError(null);
 
         try {
-            const [inProgressResponse, shippedResponse, completedResponse] = await Promise.all([
+            const [inProgressResponse, shippedResponse, processedOrders, paymentsResponse] = await Promise.all([
                 getGarmentOrdersInProgress().catch(() => ({ data: [] })),
                 getGarmentShippedOrders().catch(() => ({ data: [] })),
-                getAllGarmentOrders().catch(() => ({ data: [] }))
+                fetchAllPages(getOrders, { processed_only: true }),
+                getPayments().catch(() => ({ data: [] }))
             ]);
 
             const inProgressOrders = handlePaginatedResponse(inProgressResponse);
             const shippedOrders = handlePaginatedResponse(shippedResponse);
-            const completedOrders = handlePaginatedResponse(completedResponse);
+            const completedOrders = (Array.isArray(processedOrders) ? processedOrders : [])
+                .filter((order) => normalizeStatus(order.status) === 'COMPLETED');
 
-            const combinedOrders = [...inProgressOrders, ...shippedOrders, ...completedOrders];
+            // Prefer processed/completed and shipped sources first, then fill with in-progress.
+            const combinedOrders = [...completedOrders, ...shippedOrders, ...inProgressOrders];
             const uniqueOrders = [];
             const seen = new Set();
 
@@ -154,7 +204,36 @@ const GarmentDashboard = () => {
                 }
             });
 
-            setOrders(uniqueOrders);
+            const paymentsData = handlePaginatedResponse(paymentsResponse);
+            const latestReceiptMap = {};
+            paymentsData.forEach(payment => {
+                const orderCode = payment?.order_code;
+                const receiptScreenshot = payment?.receipt_screenshot;
+                if (!orderCode || !receiptScreenshot) return;
+
+                const createdAtMs = new Date(payment.created_at || 0).getTime();
+                const previous = latestReceiptMap[orderCode];
+                if (!previous || createdAtMs > previous.createdAtMs) {
+                    latestReceiptMap[orderCode] = {
+                        createdAtMs,
+                        url: getAbsoluteUrl(receiptScreenshot),
+                    };
+                }
+            });
+
+            const resolvedReceipts = {};
+            Object.keys(latestReceiptMap).forEach(orderCode => {
+                resolvedReceipts[orderCode] = latestReceiptMap[orderCode].url;
+            });
+
+            const normalizedOrders = uniqueOrders.map((order) => ({
+                ...order,
+                status: normalizeStatus(order.status),
+            }));
+
+            setOrders(normalizedOrders);
+            setReceiptByOrderCode(resolvedReceipts);
+            return normalizedOrders;
         } catch (error) {
             console.error('Error loading orders:', error);
             if (error.response?.status === 403) {
@@ -163,6 +242,8 @@ const GarmentDashboard = () => {
                 setError('Network error. Please check your connection.');
             }
             setOrders([]);
+            setReceiptByOrderCode({});
+            return [];
         } finally {
             setLoading(false);
         }
@@ -170,14 +251,22 @@ const GarmentDashboard = () => {
 
     const handleCompleteOrder = async (orderCode) => {
         try {
-            await processGarmentOrder(orderCode, { status: 'COMPLETED' });
-            // Optimistically update local state so the change is visible immediately
-            setOrders(prev =>
-                prev.map(o =>
-                    (o.order_code || o.id) === orderCode ? { ...o, status: 'COMPLETED' } : o
-                )
-            );
-            setSelectedOrder(null);
+            const response = await processGarmentOrder(orderCode, { status: 'COMPLETED' });
+            const updatedOrder = {
+                ...(response?.data || {}),
+                status: 'COMPLETED',
+            };
+
+            setOrders((prev) => {
+                const index = prev.findIndex((order) => order.order_code === orderCode);
+                if (index === -1) return [updatedOrder, ...prev];
+                return prev.map((order, i) => (i === index ? { ...order, ...updatedOrder } : order));
+            });
+
+            const updatedOrders = await loadOrders();
+            const refreshedOrder = updatedOrders.find(o => o.order_code === orderCode);
+            setSelectedOrder(refreshedOrder || updatedOrder || null);
+            setActiveTab('completed');
         } catch (error) {
             alert('Failed to complete order.');
         }
@@ -185,14 +274,22 @@ const GarmentDashboard = () => {
 
     const handleShipOrder = async (orderCode) => {
         try {
-            await processGarmentOrder(orderCode, { status: 'SHIPPED' });
-            // Optimistically update local state so the change is visible immediately
-            setOrders(prev =>
-                prev.map(o =>
-                    (o.order_code || o.id) === orderCode ? { ...o, status: 'SHIPPED' } : o
-                )
-            );
-            setSelectedOrder(null);
+            const response = await processGarmentOrder(orderCode, { status: 'SHIPPED' });
+            const updatedOrder = {
+                ...(response?.data || {}),
+                status: 'SHIPPED',
+            };
+
+            setOrders((prev) => {
+                const index = prev.findIndex((order) => order.order_code === orderCode);
+                if (index === -1) return [updatedOrder, ...prev];
+                return prev.map((order, i) => (i === index ? { ...order, ...updatedOrder } : order));
+            });
+
+            const updatedOrders = await loadOrders();
+            const refreshedOrder = updatedOrders.find(o => o.order_code === orderCode);
+            setSelectedOrder(refreshedOrder || updatedOrder || null);
+            setActiveTab('shipped');
         } catch (error) {
             alert('Failed to ship order.');
         }
@@ -300,58 +397,41 @@ const GarmentDashboard = () => {
             {/* Header - matches Admin & Reception style */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter italic">
-                        Garment<span className="text-red-600"> Workshop</span>
-                    </h1>
-                    <p className="text-[10px] text-gray-600 dark:text-gray-400 font-bold uppercase tracking-widest mt-1">
+                    <p className="text-[12px] text-gray-600 dark:text-gray-400 font-bold uppercase tracking-widest mt-1">
                         Manage production orders
                     </p>
                 </div>
-                <button
-                    onClick={loadOrders}
-                    className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 text-gray-800 dark:text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-gray-200 dark:hover:bg-white/10"
-                >
-                    <HiOutlineArrowPath size={16} /> Refresh
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setShowQuickLatest(prev => !prev)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${showQuickLatest
+                            ? 'bg-red-600 text-white hover:bg-red-700'
+                            : 'bg-gray-100 dark:bg-white/5 text-gray-800 dark:text-white hover:bg-gray-200 dark:hover:bg-white/10'
+                            }`}
+                    >
+                        <HiOutlineDocumentText size={16} /> Quick Latest
+                    </button>
+                    <button
+                        onClick={loadOrders}
+                        className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 text-gray-800 dark:text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-gray-200 dark:hover:bg-white/10"
+                    >
+                        <HiOutlineArrowPath size={16} /> Refresh
+                    </button>
+                </div>
             </div>
 
-            {/* Stats Grid - matches Admin & Reception cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {tabs.slice(1).map((tab, idx) => (
-                    <motion.div
-                        key={tab.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: idx * 0.1 }}
-                        className={`p-4 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-2xl cursor-pointer transition-all hover:shadow-lg ${activeTab === tab.id ? 'ring-2 ring-red-600/50 border-red-600/30' : ''
-                            }`}
-                        onClick={() => setActiveTab(tab.id)}
-                    >
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-2xl font-black text-gray-900 dark:text-white">{tab.count}</p>
-                                <p className="text-[10px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider mt-1">{tab.label}</p>
-                            </div>
-                            <div className={`w-3 h-3 rounded-full ${tab.color === 'blue' ? 'bg-blue-500' :
-                                tab.color === 'green' ? 'bg-green-500' :
-                                    tab.color === 'purple' ? 'bg-purple-500' :
-                                        'bg-red-500'
-                                }`} />
-                        </div>
-                    </motion.div>
-                ))}
-            </div>
+      
 
             {/* Filters & Search Bar - matches Admin & Reception */}
             <div className="bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-2xl p-4">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                     {/* Tabs */}
-                    <div className="flex items-center gap-1 overflow-x-auto pb-2 md:pb-0">
+                    <div className="w-full md:w-auto flex flex-wrap items-center gap-1 pb-1 md:pb-0">
                         {tabs.map(tab => (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider whitespace-nowrap transition-colors ${activeTab === tab.id
+                                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] md:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap transition-colors ${activeTab === tab.id
                                     ? 'bg-red-600 text-white'
                                     : 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white'
                                     }`}
@@ -468,10 +548,132 @@ const GarmentDashboard = () => {
                 </div>
             )}
 
-            {/* Main content + sidebars */}
-            <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-3 items-start">
-                <div className="space-y-3">
-                    {/* Orders */}
+            {/* Main content */}
+            <div className="space-y-3">
+                <AnimatePresence>
+                    {showQuickLatest && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            className="bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl p-4"
+                        >
+                            <h3 className="text-sm font-black dark:text-white uppercase tracking-widest mb-1">
+                                Quick Latest Orders
+                            </h3>
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400 mb-3">
+                                Click an order to open details.
+                            </p>
+
+                            {orders.length === 0 && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    No orders to display.
+                                </p>
+                            )}
+
+                            {sidebarOrders.inProgress.length > 0 && (
+                                <div className="mb-4">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-1">
+                                        In Progress
+                                    </p>
+                                    <div className="space-y-1.5">
+                                        {sidebarOrders.inProgress.map(order => {
+                                            const statusConfig = getStatusConfig(order.status);
+                                            return (
+                                                <button
+                                                    key={order.id}
+                                                    type="button"
+                                                    onClick={() => setSelectedOrder(order)}
+                                                    className="w-full flex items-center justify-between gap-3 px-3 py-1.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/10 transition-colors text-left"
+                                                >
+                                                    <div className="min-w-0">
+                                                        <p className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                                                            {order.order_code}
+                                                        </p>
+                                                        <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                                                            {order.customer_name || 'Unknown'}
+                                                        </p>
+                                                    </div>
+                                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${statusConfig.badgeColor || statusConfig.bgColor}`}>
+                                                        {statusConfig.label}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {sidebarOrders.completed.length > 0 && (
+                                <div className="mb-4">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-green-600 dark:text-green-400 mb-1">
+                                        Completed Orders
+                                    </p>
+                                    <div className="space-y-1.5">
+                                        {sidebarOrders.completed.map(order => {
+                                            const statusConfig = getStatusConfig(order.status);
+                                            return (
+                                                <button
+                                                    key={order.id}
+                                                    type="button"
+                                                    onClick={() => setSelectedOrder(order)}
+                                                    className="w-full flex items-center justify-between gap-3 px-3 py-1.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/10 transition-colors text-left"
+                                                >
+                                                    <div className="min-w-0">
+                                                        <p className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                                                            {order.order_code}
+                                                        </p>
+                                                        <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                                                            {order.customer_name || 'Unknown'}
+                                                        </p>
+                                                    </div>
+                                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${statusConfig.badgeColor || statusConfig.bgColor}`}>
+                                                        {statusConfig.label}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {sidebarOrders.shipped.length > 0 && (
+                                <div>
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-purple-600 dark:text-purple-400 mb-1">
+                                        Shipped
+                                    </p>
+                                    <div className="space-y-1.5">
+                                        {sidebarOrders.shipped.map(order => {
+                                            const statusConfig = getStatusConfig(order.status);
+                                            return (
+                                                <button
+                                                    key={order.id}
+                                                    type="button"
+                                                    onClick={() => setSelectedOrder(order)}
+                                                    className="w-full flex items-center justify-between gap-3 px-3 py-1.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/10 transition-colors text-left"
+                                                >
+                                                    <div className="min-w-0">
+                                                        <p className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                                                            {order.order_code}
+                                                        </p>
+                                                        <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                                                            {order.customer_name || 'Unknown'}
+                                                        </p>
+                                                    </div>
+                                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${statusConfig.badgeColor || statusConfig.bgColor}`}>
+                                                        {statusConfig.label}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* Orders */}
                     {loading ? (
                         <div className="flex justify-center items-center h-64">
                             <div className="text-center">
@@ -491,6 +693,7 @@ const GarmentDashboard = () => {
                                 const timeStatus = getTimeStatus(order.due_date);
                                 const statusConfig = getStatusConfig(order.status);
                                 const stageIndex = getStageIndexFromStatus(order.status);
+                                const orderedImageUrl = getOrderImageUrl(order);
 
                                 return (
                                     <motion.div
@@ -566,6 +769,50 @@ const GarmentDashboard = () => {
                                                 </div>
                                             </div>
 
+                                            <div className="rounded-xl border border-gray-200 dark:border-white/10 overflow-hidden">
+                                                <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-white/10">
+                                                    Ordered Image
+                                                </p>
+                                                {orderedImageUrl ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setFullImage(orderedImageUrl);
+                                                        }}
+                                                        className="w-full"
+                                                    >
+                                                        <img
+                                                            src={orderedImageUrl}
+                                                            alt={`Ordered ${order.order_code}`}
+                                                            className="w-full h-28 object-cover"
+                                                        />
+                                                    </button>
+                                                ) : (
+                                                    <p className="px-3 py-3 text-xs text-gray-400">Not attached</p>
+                                                )}
+                                            </div>
+
+                                            {receiptByOrderCode[order.order_code] && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setFullImage(receiptByOrderCode[order.order_code]);
+                                                    }}
+                                                    className="w-full mt-1 rounded-xl border border-gray-200 dark:border-white/10 overflow-hidden bg-white dark:bg-white/5 hover:opacity-90 transition-opacity"
+                                                >
+                                                    <img
+                                                        src={receiptByOrderCode[order.order_code]}
+                                                        alt={`Receipt ${order.order_code}`}
+                                                        className="w-full h-28 object-cover"
+                                                    />
+                                                    <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 text-left">
+                                                        Payment Receipt (Click to View)
+                                                    </p>
+                                                </button>
+                                            )}
+
                                             {/* Due Date */}
                                             <div className={`flex items-center justify-between pt-3 mt-1 border-t ${timeStatus.isOverdue ? 'border-red-200 dark:border-red-500/30' : 'border-gray-100 dark:border-white/5'
                                                 }`}>
@@ -596,6 +843,8 @@ const GarmentDashboard = () => {
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Suit</th>
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Color</th>
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Qty</th>
+                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Ordered Image</th>
+                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Receipt</th>
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Due</th>
                                     </tr>
                                 </thead>
@@ -603,6 +852,7 @@ const GarmentDashboard = () => {
                                     {filteredOrders.map((order) => {
                                         const timeStatus = getTimeStatus(order.due_date);
                                         const statusConfig = getStatusConfig(order.status);
+                                        const orderedImageUrl = getOrderImageUrl(order);
 
                                         return (
                                             <tr
@@ -632,6 +882,46 @@ const GarmentDashboard = () => {
                                                 </td>
                                                 <td className="px-4 py-3 text-sm font-medium dark:text-white">{order.quantity}</td>
                                                 <td className="px-4 py-3">
+                                                    {orderedImageUrl ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setFullImage(orderedImageUrl);
+                                                            }}
+                                                            className="rounded-lg overflow-hidden border border-gray-200 dark:border-white/10"
+                                                        >
+                                                            <img
+                                                                src={orderedImageUrl}
+                                                                alt={`Ordered ${order.order_code}`}
+                                                                className="w-16 h-10 object-cover"
+                                                            />
+                                                        </button>
+                                                    ) : (
+                                                        <span className="text-xs text-gray-400">Not attached</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {receiptByOrderCode[order.order_code] ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setFullImage(receiptByOrderCode[order.order_code]);
+                                                            }}
+                                                            className="rounded-lg overflow-hidden border border-gray-200 dark:border-white/10"
+                                                        >
+                                                            <img
+                                                                src={receiptByOrderCode[order.order_code]}
+                                                                alt={`Receipt ${order.order_code}`}
+                                                                className="w-16 h-10 object-cover"
+                                                            />
+                                                        </button>
+                                                    ) : (
+                                                        <span className="text-xs text-gray-400">-</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3">
                                                     <span className={`text-sm ${timeStatus.isOverdue ? 'text-red-600 font-medium' : 'text-gray-600 dark:text-gray-400'}`}>
                                                         {order.due_date || '-'}
                                                     </span>
@@ -643,134 +933,6 @@ const GarmentDashboard = () => {
                             </table>
                         </div>
                     )}
-                </div>
-
-                {/* Sidebar: quick order list */}
-                <div className="hidden">
-                    <h3 className="text-sm font-black dark:text-white uppercase tracking-widest mb-3">
-                        Orders Sidebar
-                    </h3>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400 mb-3">
-                        Quick view of latest garment orders. Click to open details.
-                    </p>
-
-                    {orders.length === 0 && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                            No orders to display.
-                        </p>
-                    )}
-
-                    {/* In Progress */}
-                    {sidebarOrders.inProgress.length > 0 && (
-                        <div className="mb-4">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-1">
-                                In Progress
-                            </p>
-                            <div className="space-y-1.5">
-                                {sidebarOrders.inProgress.map(order => {
-                                    const statusConfig = getStatusConfig(order.status);
-                                    return (
-                                        <button
-                                            key={order.id}
-                                            type="button"
-                                            onClick={() => setSelectedOrder(order)}
-                                            className="w-full flex items-center justify-between gap-3 px-3 py-1.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/10 transition-colors text-left"
-                                        >
-                                            <div className="min-w-0">
-                                                <p className="text-xs font-bold text-gray-900 dark:text-white truncate">
-                                                    {order.order_code}
-                                                </p>
-                                                <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
-                                                    {order.customer_name || 'Unknown'}
-                                                </p>
-                                            </div>
-                                            <span
-                                                className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${statusConfig.badgeColor || statusConfig.bgColor
-                                                    }`}
-                                            >
-                                                {statusConfig.label}
-                                            </span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Completed */}
-                    {sidebarOrders.completed.length > 0 && (
-                        <div className="mb-4">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-green-600 dark:text-green-400 mb-1">
-                                Completed Orders
-                            </p>
-                            <div className="space-y-1.5">
-                                {sidebarOrders.completed.map(order => {
-                                    const statusConfig = getStatusConfig(order.status);
-                                    return (
-                                        <button
-                                            key={order.id}
-                                            type="button"
-                                            onClick={() => setSelectedOrder(order)}
-                                            className="w-full flex items-center justify-between gap-3 px-3 py-1.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/10 transition-colors text-left"
-                                        >
-                                            <div className="min-w-0">
-                                                <p className="text-xs font-bold text-gray-900 dark:text-white truncate">
-                                                    {order.order_code}
-                                                </p>
-                                                <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
-                                                    {order.customer_name || 'Unknown'}
-                                                </p>
-                                            </div>
-                                            <span
-                                                className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${statusConfig.badgeColor || statusConfig.bgColor
-                                                    }`}
-                                            >
-                                                {statusConfig.label}
-                                            </span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Shipped */}
-                    {sidebarOrders.shipped.length > 0 && (
-                        <div className="mb-1">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-purple-600 dark:text-purple-400 mb-1">
-                                Shipped
-                            </p>
-                            <div className="space-y-1.5">
-                                {sidebarOrders.shipped.map(order => {
-                                    const statusConfig = getStatusConfig(order.status);
-                                    return (
-                                        <button
-                                            key={order.id}
-                                            type="button"
-                                            onClick={() => setSelectedOrder(order)}
-                                            className="w-full flex items-center justify-between gap-3 px-3 py-1.5 rounded-xl hover:bg-gray-50 dark:hover:bg:white/10 transition-colors text-left"
-                                        >
-                                            <div className="min-w-0">
-                                                <p className="text-xs font-bold text-gray-900 dark:text-white truncate">
-                                                    {order.order_code}
-                                                </p>
-                                                <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
-                                                    {order.customer_name || 'Unknown'}
-                                                </p>
-                                            </div>
-                                            <span
-                                                className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${statusConfig.badgeColor || statusConfig.bgColor
-                                                    }`}
-                                            >
-                                                {statusConfig.label}
-                                            </span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-                </div>
             </div>
 
             {/* Detail Modal */}
@@ -886,6 +1048,42 @@ const GarmentDashboard = () => {
                                     </div>
                                 </div>
 
+                                <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4">
+                                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Ordered Image</p>
+                                    {getOrderImageUrl(selectedOrder) ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => setFullImage(getOrderImageUrl(selectedOrder))}
+                                            className="w-full rounded-xl overflow-hidden border border-gray-200 dark:border-white/10"
+                                        >
+                                            <img
+                                                src={getOrderImageUrl(selectedOrder)}
+                                                alt={`Ordered ${selectedOrder.order_code}`}
+                                                className="w-full max-h-72 object-contain bg-black/5"
+                                            />
+                                        </button>
+                                    ) : (
+                                        <p className="text-xs text-gray-400">Not attached</p>
+                                    )}
+                                </div>
+
+                                {receiptByOrderCode[selectedOrder.order_code] && (
+                                    <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4">
+                                        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Payment Receipt Screenshot</p>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFullImage(receiptByOrderCode[selectedOrder.order_code])}
+                                            className="w-full rounded-xl overflow-hidden border border-gray-200 dark:border-white/10"
+                                        >
+                                            <img
+                                                src={receiptByOrderCode[selectedOrder.order_code]}
+                                                alt={`Receipt ${selectedOrder.order_code}`}
+                                                className="w-full max-h-72 object-contain bg-black/5"
+                                            />
+                                        </button>
+                                    </div>
+                                )}
+
                                 {/* Measurements */}
                                 {selectedOrder.measurements && (
                                     <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4">
@@ -953,6 +1151,39 @@ const GarmentDashboard = () => {
                                     )}
                                 </div>
                             </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {fullImage && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/80"
+                            onClick={() => setFullImage(null)}
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="relative max-w-5xl w-full"
+                        >
+                            <button
+                                type="button"
+                                onClick={() => setFullImage(null)}
+                                className="absolute -top-3 -right-3 z-10 p-2 rounded-full bg-white text-black shadow"
+                            >
+                                <HiOutlineXMark className="w-5 h-5" />
+                            </button>
+                            <img
+                                src={fullImage}
+                                alt="Order receipt preview"
+                                className="w-full max-h-[85vh] object-contain rounded-xl bg-black"
+                            />
                         </motion.div>
                     </div>
                 )}

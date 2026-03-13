@@ -90,10 +90,14 @@ const Profile = () => {
     setLoading(true);
     try {
       await updateProfile(user.id, profileData);
-      updateUser(profileData);
+      updateUser({ ...user, ...profileData });
       toast.success('Profile updated successfully!');
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to update profile');
+      const errorMsg = error.response?.data?.detail ||
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        'Failed to update profile. Please try again.';
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -112,7 +116,21 @@ const Profile = () => {
       setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
       toast.success('Password changed successfully!');
     } catch (error) {
-      toast.error(error.response?.data?.detail || error.response?.data?.error || 'Failed to change password');
+      // Handle specific error cases
+      const errorData = error.response?.data;
+      let errorMsg = 'Failed to change password. Please check your current password.';
+
+      if (errorData?.detail) {
+        errorMsg = errorData.detail;
+      } else if (errorData?.error) {
+        errorMsg = errorData.error;
+      } else if (errorData?.old_password) {
+        errorMsg = Array.isArray(errorData.old_password) ? errorData.old_password[0] : errorData.old_password;
+      } else if (errorData?.new_password) {
+        errorMsg = Array.isArray(errorData.new_password) ? errorData.new_password[0] : errorData.new_password;
+      }
+
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }

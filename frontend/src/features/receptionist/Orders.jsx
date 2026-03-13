@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   HiOutlineCheck, HiOutlineEye, HiOutlineNoSymbol, HiOutlinePlus,
-  HiOutlineShoppingBag, HiOutlineClock, HiOutlineXMark, 
+  HiOutlineShoppingBag, HiOutlineClock, HiOutlineXMark, HiOutlineArrowPath,
   HiOutlineClipboardDocumentCheck, HiOutlineBanknotes
 } from 'react-icons/hi2';
-import { getOrders, getSuitTypes, createOrder, processOrder, getMaterials, getMaterialDetail, getColorsFromMaterials, getPaymentByOrderId } from '../../api/api';
+import { getOrders, getSuitTypes, createOrder, processOrder, getMaterials, getMaterialDetail, getColorsFromMaterials, getPaymentByOrderId, updateReceptionOrderStatusByCode, updateOrder } from '../../api/api';
 import { getHexColor } from '../../utils/colors';
 
 const Orders = () => {
@@ -18,6 +18,7 @@ const Orders = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all');
   const [payments, setPayments] = useState([]);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [fullImage, setFullImage] = useState(null);
@@ -64,7 +65,8 @@ const Orders = () => {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const response = await getOrders({ active_only: true });
+      // Fetch all statuses for receptionist monitoring and filtering.
+      const response = await getOrders();
       // Handle both array and paginated responses
       let ordersData = response.data;
       if (ordersData && typeof ordersData === 'object' && !Array.isArray(ordersData)) {
@@ -200,6 +202,23 @@ const Orders = () => {
     setShowReceiveModal(true);
   };
 
+  const handleReceptionStatusUpdate = async (status) => {
+    if (!selectedOrder?.order_code) return;
+    try {
+      try {
+        await updateReceptionOrderStatusByCode(selectedOrder.order_code, status);
+      } catch {
+        await updateOrder(selectedOrder.id, { status });
+      }
+
+      setSelectedOrder(null);
+      await fetchOrders();
+    } catch (error) {
+      console.error('Error updating receptionist status:', error);
+      alert(error.response?.data?.error || error.response?.data?.detail || `Failed to mark order as ${status}`);
+    }
+  };
+
   const pendingCount = orders.filter(o => ['INITIATED', 'AWAITING_PAYMENT', 'PENDING_APPROVAL'].includes(o.status)).length;
   const inProgressCount = orders.filter(o => o.status === 'IN_PROGRESS').length;
   const fullyPaidCount = orders.filter(o => o.status === 'FULLY_PAID').length;
@@ -210,6 +229,23 @@ const Orders = () => {
   // const completedCount = orders.filter(o => ['COMPLETED', 'SHIPPED', 'IN_STORE', 'CLOSED'].includes(o.status)).length;
   const completedCount = orders.filter(o => o.status === 'COMPLETED').length;
   const closedCount = orders.filter(o => o.status === 'CLOSED').length;
+
+  const getStatusLabel = (status) => {
+    const labels = {
+      INITIATED: 'Initiated',
+      AWAITING_PAYMENT: 'Awaiting Payment',
+      PENDING_APPROVAL: 'Pending Approval',
+      IN_PROGRESS: 'In Progress',
+      COMPLETED: 'Completed',
+      SHIPPED: 'Shipping',
+      IN_STORE: 'In Store',
+      CLOSED: 'Closed',
+      FULLY_PAID: 'Fully Paid',
+      REJECTED: 'Rejected',
+      CANCELLED: 'Cancelled',
+    };
+    return labels[status] || status;
+  };
 
   const getStatusColor = (status) => {
     const colors = {
@@ -226,6 +262,25 @@ const Orders = () => {
     };
     return colors[status] || 'bg-gray-500/10 text-gray-400';
   };
+
+  const filteredOrders = useMemo(() => {
+    if (statusFilter === 'all') return orders;
+    if (statusFilter === 'initiated') return orders.filter(o => o.status === 'INITIATED');
+    if (statusFilter === 'pending_approval') return orders.filter(o => o.status === 'PENDING_APPROVAL');
+    if (statusFilter === 'in_progress') return orders.filter(o => o.status === 'IN_PROGRESS');
+    if (statusFilter === 'shipped') return orders.filter(o => o.status === 'SHIPPED');
+    if (statusFilter === 'in_store') return orders.filter(o => o.status === 'IN_STORE');
+    return orders;
+  }, [orders, statusFilter]);
+
+  const statusFilters = [
+    { id: 'all', label: 'All', count: orders.length },
+    { id: 'initiated', label: 'Initiated', count: orders.filter(o => o.status === 'INITIATED').length },
+    { id: 'pending_approval', label: 'Pending Approval', count: orders.filter(o => o.status === 'PENDING_APPROVAL').length },
+    { id: 'in_progress', label: 'In Progress', count: inProgressCount },
+    { id: 'shipped', label: 'Shipped', count: shippedCount },
+    { id: 'in_store', label: 'In Store', count: instoreCount },
+  ];
 
   // Fetch payments when selectedOrder changes
   useEffect(() => {
@@ -252,35 +307,52 @@ const Orders = () => {
   }, [selectedOrder]);
 
   return (
-    <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-        <StatBox label="Pending" count={pendingCount} color="text-orange-500" icon={<HiOutlineClock />} />
-        <StatBox label="In Progress" count={inProgressCount} color="text-blue-500" icon={<HiOutlineShoppingBag />} />
-        <StatBox label="Completed" count={completedCount} color="text-green-500" icon={<HiOutlineCheck />} />
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="bg-red-600 text-white p-8 rounded-3xl flex items-center justify-center gap-3 hover:bg-red-700 transition-all"
-        >
-          <HiOutlinePlus size={24} />
-          <span className="text-[10px] font-black uppercase tracking-widest">New Order</span>
-        </button>
-      </div>
-
+    <div className="-mt-2 md:-mt-3 space-y-4 animate-in slide-in-from-bottom-4 duration-500">
       {/* Orders List */}
       <div className="bg-white dark:bg-[#0c0c0c] border border-gray-100 dark:border-white/5 rounded-3xl overflow-hidden shadow-sm">
-        <div className="p-6 border-b border-gray-100 dark:border-white/5 flex justify-between items-center">
-          <h4 className="text-[10px] font-black uppercase tracking-widest dark:text-white">Active Orders</h4>
-          <span className="text-[10px] font-bold text-gray-400">{orders.length} total</span>
+        <div className="p-2 border-b border-gray-100 dark:border-white/5 flex justify-between items-center">
+          <h4 className="text-[10px] font-black uppercase tracking-widest dark:text-white">Orders</h4>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={fetchOrders}
+              className="bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-white p-3 rounded-2xl flex items-center justify-center gap-2 hover:bg-gray-200 dark:hover:bg-white/10 transition-all"
+            >
+              <HiOutlineArrowPath size={16} />
+              <span className="text-[9px] font-black uppercase tracking-widest">Refresh</span>
+            </button>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-red-600 text-white p-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-red-700 transition-all"
+            >
+              <HiOutlinePlus size={18} />
+              <span className="text-[9px] font-black uppercase tracking-widest">New Order</span>
+            </button>
+            <span className="text-[10px] font-bold text-gray-400">{filteredOrders.length} shown / {orders.length} total</span>
+          </div>
+        </div>
+
+        <div className="px-6 py-3 border-b border-gray-100 dark:border-white/5 flex flex-wrap gap-2">
+          {statusFilters.map((filter) => (
+            <button
+              key={filter.id}
+              onClick={() => setStatusFilter(filter.id)}
+              className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider transition-colors ${statusFilter === filter.id
+                ? 'bg-red-600 text-white'
+                : 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10'
+                }`}
+            >
+              {filter.label} ({filter.count})
+            </button>
+          ))}
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : orders.length > 0 ? (
+        ) : filteredOrders.length > 0 ? (
           <div className="divide-y divide-gray-50 dark:divide-white/5">
-            {orders.map((order) => (
+            {filteredOrders.map((order) => (
               <div
                 key={order.id}
                 className="p-6 flex flex-col md:flex-row items-center justify-between gap-6 hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors cursor-pointer"
@@ -337,7 +409,7 @@ const Orders = () => {
                 </div>
                 <div className="flex items-center gap-4">
                   <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${getStatusColor(order.status)}`}>
-                    {order.status}
+                    {getStatusLabel(order.status)}
                   </span>
                   <span className="text-sm font-black dark:text-white">${order.total_price}</span>
                 </div>
@@ -563,13 +635,14 @@ const Orders = () => {
                 {selectedOrder.status === 'COMPLETED' && (
                   <div className="flex gap-3 w-full">
                     <button
-                      onClick={() => handleProcessOrder('ship')}
-                      className="flex-1 py-4 bg-purple-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-purple-700 transition-all"
+                      type="button"
+                      disabled
+                      className="flex-1 py-4 bg-purple-500/20 text-purple-700 dark:text-purple-300 rounded-2xl text-[10px] font-black uppercase tracking-widest cursor-not-allowed"
                     >
-                      Mark Shipped
+                      Shipping
                     </button>
                     <button
-                      onClick={() => handleProcessOrder('in_store')}
+                      onClick={() => handleReceptionStatusUpdate('IN_STORE')}
                       className="flex-1 py-4 bg-teal-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-700 transition-all"
                     >
                       Mark In Store
@@ -580,7 +653,7 @@ const Orders = () => {
                 {selectedOrder.status === 'SHIPPED' && (
                   <div className="flex gap-3 w-full">
                     <button
-                      onClick={() => handleProcessOrder('in_store')}
+                      onClick={() => handleReceptionStatusUpdate('IN_STORE')}
                       className="flex-1 py-4 bg-teal-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-700 transition-all"
                     >
                       Mark In Store
@@ -591,10 +664,22 @@ const Orders = () => {
                 {selectedOrder.status === 'IN_STORE' && (
                   <div className="flex gap-3 w-full">
                     <button
-                      onClick={() => handleProcessOrder('close')}
+                      onClick={() => handleReceptionStatusUpdate('CLOSED')}
                       className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all"
                     >
                       Mark Collected (Close)
+                    </button>
+                  </div>
+                )}
+
+                {selectedOrder.status === 'IN_PROGRESS' && (
+                  <div className="flex gap-3 w-full">
+                    <button
+                      type="button"
+                      disabled
+                      className="flex-1 py-4 bg-blue-500/20 text-blue-700 dark:text-blue-300 rounded-2xl text-[10px] font-black uppercase tracking-widest cursor-not-allowed"
+                    >
+                      In Progress
                     </button>
                   </div>
                 )}

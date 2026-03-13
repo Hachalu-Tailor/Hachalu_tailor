@@ -275,7 +275,6 @@ const Items = ({ isHomePage = false }) => {
         setSelectedItem(null);
       }
     } catch (error) {
-      console.error('Order error:', error);
       const errorData = error.response?.data;
       let errorMsg = 'Failed to place order. Please try again.';
       if (errorData) {

@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { 
-  HiOutlineUser, 
-  HiOutlineEnvelope, 
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  HiOutlineUser,
+  HiOutlineEnvelope,
   HiOutlinePhone,
   HiOutlineLockClosed,
   HiOutlineCheck,
-  HiOutlinePencilSquare
+  HiOutlinePencilSquare,
+  HiOutlineEye,
+  HiOutlineEyeSlash,
+  HiOutlineShieldCheck,
+  HiOutlineCamera
 } from 'react-icons/hi2';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../components/Toast';
@@ -18,24 +22,29 @@ const Profile = () => {
   const { user, updateUser } = useAuth();
   const toast = useToast();
   const { t } = useLanguage();
-  
+
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
-  
-  // Profile form state
-  const [profileData, setProfileData] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
-    phone: user?.phone || '',
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false
   });
-  
+
+  // Profile form state - match backend field names
+  const [profileData, setProfileData] = useState({
+    full_name: user?.full_name || user?.name || '',
+    email: user?.email || '',
+    phone_number: user?.phone_number || user?.phone || '',
+  });
+
   // Password form state
   const [passwordData, setPasswordData] = useState({
     current_password: '',
     new_password: '',
     confirm_password: '',
   });
-  
+
   const [errors, setErrors] = useState({});
 
   const handleProfileChange = (e) => {
@@ -50,9 +59,13 @@ const Profile = () => {
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   };
 
+  const togglePasswordVisibility = (field) => {
+    setShowPasswords(prev => ({ ...prev, [field]: !prev[field] }));
+  };
+
   const validateProfile = () => {
     const newErrors = {};
-    if (!profileData.name.trim()) newErrors.name = 'Please enter your full name';
+    if (!profileData.full_name.trim()) newErrors.full_name = 'Please enter your full name';
     if (!profileData.email.trim()) newErrors.email = 'Please enter your email address';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -73,14 +86,18 @@ const Profile = () => {
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
     if (!validateProfile()) return;
-    
+
     setLoading(true);
     try {
       await updateProfile(user.id, profileData);
-      updateUser(profileData);
+      updateUser({ ...user, ...profileData });
       toast.success('Profile updated successfully!');
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to update profile');
+      const errorMsg = error.response?.data?.detail ||
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        'Failed to update profile. Please try again.';
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -89,218 +106,404 @@ const Profile = () => {
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
     if (!validatePassword()) return;
-    
+
     setLoading(true);
     try {
       await changePassword({
-        current_password: passwordData.current_password,
+        old_password: passwordData.current_password,
         new_password: passwordData.new_password,
       });
       setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
       toast.success('Password changed successfully!');
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to change password');
+      // Handle specific error cases
+      const errorData = error.response?.data;
+      let errorMsg = 'Failed to change password. Please check your current password.';
+
+      if (errorData?.detail) {
+        errorMsg = errorData.detail;
+      } else if (errorData?.error) {
+        errorMsg = errorData.error;
+      } else if (errorData?.old_password) {
+        errorMsg = Array.isArray(errorData.old_password) ? errorData.old_password[0] : errorData.old_password;
+      } else if (errorData?.new_password) {
+        errorMsg = Array.isArray(errorData.new_password) ? errorData.new_password[0] : errorData.new_password;
+      }
+
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
   };
 
+  // Password strength calculation
+  const getPasswordStrength = (password) => {
+    if (!password) return { strength: 0, label: '', color: '' };
+    let strength = 0;
+    if (password.length >= 8) strength += 25;
+    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength += 25;
+    if (/\d/.test(password)) strength += 25;
+    if (/[^a-zA-Z0-9]/.test(password)) strength += 25;
+
+    if (strength <= 25) return { strength, label: 'Weak', color: 'bg-red-500' };
+    if (strength <= 50) return { strength, label: 'Fair', color: 'bg-orange-500' };
+    if (strength <= 75) return { strength, label: 'Good', color: 'bg-yellow-500' };
+    return { strength, label: 'Strong', color: 'bg-green-500' };
+  };
+
+  const passwordStrength = getPasswordStrength(passwordData.new_password);
+
   const inputClass = (fieldName) => `
-    w-full bg-white/5 border ${errors[fieldName] ? 'border-red-500' : 'border-white/10'} 
-    rounded-lg px-4 py-3 pl-11 text-white text-sm font-medium
-    focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500
-    placeholder:text-gray-500 transition-all
+    w-full bg-gray-50 dark:bg-white/5 border ${errors[fieldName] ? 'border-red-500' : 'border-gray-200 dark:border-white/10'} 
+    rounded-xl px-4 py-3.5 pl-11 text-gray-900 dark:text-white text-sm font-medium
+    focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20
+    placeholder:text-gray-400 dark:placeholder:text-gray-500 transition-all
+  `;
+
+  const passwordInputClass = (fieldName) => `
+    w-full bg-gray-50 dark:bg-white/5 border ${errors[fieldName] ? 'border-red-500' : 'border-gray-200 dark:border-white/10'} 
+    rounded-xl px-4 py-3.5 pl-11 pr-11 text-gray-900 dark:text-white text-sm font-medium
+    focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20
+    placeholder:text-gray-400 dark:placeholder:text-gray-500 transition-all
   `;
 
   const tabs = [
-    { id: 'profile', label: t('profile'), icon: HiOutlineUser },
-    { id: 'security', label: t('security'), icon: HiOutlineLockClosed },
+    { id: 'profile', label: t('profile') || 'My Profile', icon: HiOutlineUser },
+    { id: 'security', label: t('security') || 'Security', icon: HiOutlineLockClosed },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-white uppercase tracking-tight">
-          {t('profile')} {t('settings') || 'Settings'}
-        </h1>
-        <p className="text-gray-400 text-sm mt-1">
-          {t('welcome')} {user?.name}
-        </p>
-      </div>
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-red-600 to-red-800 p-6 sm:p-8"
+      >
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
 
-      {/* Profile Card */}
-      <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-        <div className="flex items-center gap-4 mb-6">
-          <div className={`w-16 h-16 rounded-full ${getAvatarColor(user?.name)} flex items-center justify-center`}>
-            <span className="text-white font-bold text-xl">
-              {getInitials(user?.name)}
-            </span>
+        <div className="relative flex items-center gap-6">
+          <div className="relative group">
+            <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl ${getAvatarColor(user?.name)} flex items-center justify-center shadow-2xl`}>
+              <span className="text-white font-bold text-2xl sm:text-3xl">
+                {getInitials(user?.name)}
+              </span>
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+              <HiOutlineCamera className="text-white w-8 h-8" />
+            </div>
           </div>
-          <div>
-            <h2 className="text-white font-bold text-lg">{user?.name}</h2>
-            <p className="text-gray-400 text-sm capitalize">{user?.role}</p>
+          <div className="flex-1">
+            <h1 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight">
+              {user?.name}
+            </h1>
+            <p className="text-red-100 text-sm font-medium capitalize mt-1">
+              {user?.role} Account
+            </p>
+            <div className="flex items-center gap-2 mt-2">
+              <HiOutlineShieldCheck className="text-white/80 w-4 h-4" />
+              <span className="text-white/80 text-xs font-medium">
+                Your account is secure
+              </span>
+            </div>
           </div>
         </div>
+      </motion.div>
 
-        {/* Tabs */}
-        <div className="flex gap-2 border-b border-white/10 pb-4 mb-6">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`
-                flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-all
-                ${activeTab === tab.id 
-                  ? 'bg-red-600 text-white' 
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'}
-              `}
-            >
-              <tab.icon size={18} />
-              {tab.label}
-            </button>
-          ))}
-        </div>
+      {/* Tabs */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="flex gap-2 p-1.5 bg-gray-100 dark:bg-white/5 rounded-xl"
+      >
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`
+              flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-bold uppercase tracking-wider transition-all
+              ${activeTab === tab.id
+                ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-lg'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white'}
+            `}
+          >
+            <tab.icon size={18} />
+            {tab.label}
+          </button>
+        ))}
+      </motion.div>
 
+      {/* Content */}
+      <AnimatePresence mode="wait">
         {/* Profile Tab */}
         {activeTab === 'profile' && (
-          <motion.form
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            onSubmit={handleProfileSubmit}
-            className="space-y-6"
+          <motion.div
+            key="profile"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.2 }}
+            className="bg-white dark:bg-[#0c0c0c] rounded-2xl shadow-xl shadow-black/5 dark:shadow-black/20 border border-gray-100 dark:border-white/5 overflow-hidden"
           >
-            <div className="relative">
-              <HiOutlineUser className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input
-                type="text"
-                name="name"
-                value={profileData.name}
-                onChange={handleProfileChange}
-                placeholder={t('profile')}
-                className={inputClass('name')}
-              />
-              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+            <div className="p-6 sm:p-8 border-b border-gray-100 dark:border-white/5">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <HiOutlineUser className="text-red-600" />
+                Personal Information
+              </h2>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+                Update your personal details and contact information
+              </p>
             </div>
 
-            <div className="relative">
-              <HiOutlineEnvelope className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input
-                type="email"
-                name="email"
-                value={profileData.email}
-                onChange={handleProfileChange}
-                placeholder={t('email') || 'Email'}
-                className={inputClass('email')}
-              />
-              {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-            </div>
+            <form onSubmit={handleProfileSubmit} className="p-6 sm:p-8 space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="relative">
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                    Full Name
+                  </label>
+                  <div className="relative">
+                    <HiOutlineUser className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input
+                      type="text"
+                      name="full_name"
+                      value={profileData.full_name}
+                      onChange={handleProfileChange}
+                      placeholder="Enter your full name"
+                      className={inputClass('full_name')}
+                    />
+                  </div>
+                  {errors.full_name && <p className="text-red-500 text-xs mt-2">{errors.full_name}</p>}
+                </div>
 
-            <div className="relative">
-              <HiOutlinePhone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input
-                type="tel"
-                name="phone"
-                value={profileData.phone}
-                onChange={handleProfileChange}
-                placeholder={t('phone') || 'Phone'}
-                className={inputClass('phone')}
-              />
-            </div>
+                <div className="relative">
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <HiOutlineEnvelope className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input
+                      type="email"
+                      name="email"
+                      value={profileData.email}
+                      onChange={handleProfileChange}
+                      placeholder="Enter your email"
+                      className={inputClass('email')}
+                    />
+                  </div>
+                  {errors.email && <p className="text-red-500 text-xs mt-2">{errors.email}</p>}
+                </div>
 
-            <motion.button
-              type="submit"
-              disabled={loading}
-              whileHover={!loading ? { scale: 1.02 } : {}}
-              whileTap={!loading ? { scale: 0.98 } : {}}
-              className={`
-                w-full py-3 bg-red-600 text-white font-bold uppercase tracking-wider text-sm rounded-lg
-                flex items-center justify-center gap-2 transition-all
-                ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-700'}
-              `}
-            >
-                {loading ? (
-                <span className="animate-pulse">{t('loading')}</span>
-              ) : (
-                <>
-                  <HiOutlineCheck size={18} />
-                  {t('save')}
-                </>
-              )}
-            </motion.button>
-          </motion.form>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                    Phone Number
+                  </label>
+                  <div className="relative">
+                    <HiOutlinePhone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input
+                      type="tel"
+                      name="phone_number"
+                      value={profileData.phone_number}
+                      onChange={handleProfileChange}
+                      placeholder="Enter your phone number"
+                      className={inputClass('phone_number')}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-4">
+                <motion.button
+                  type="submit"
+                  disabled={loading}
+                  whileHover={!loading ? { scale: 1.02 } : {}}
+                  whileTap={!loading ? { scale: 0.98 } : {}}
+                  className={`
+                    px-8 py-3.5 bg-gradient-to-r from-red-600 to-red-700 text-white font-bold uppercase tracking-wider text-sm rounded-xl
+                    flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-600/25
+                    ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-xl hover:shadow-red-600/40'}
+                  `}
+                >
+                  {loading ? (
+                    <span className="animate-pulse">Processing...</span>
+                  ) : (
+                    <>
+                      <HiOutlineCheck size={18} />
+                      Save Changes
+                    </>
+                  )}
+                </motion.button>
+              </div>
+            </form>
+          </motion.div>
         )}
 
         {/* Security Tab */}
         {activeTab === 'security' && (
-          <motion.form
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            onSubmit={handlePasswordSubmit}
-            className="space-y-6"
+          <motion.div
+            key="security"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.2 }}
+            className="bg-white dark:bg-[#0c0c0c] rounded-2xl shadow-xl shadow-black/5 dark:shadow-black/20 border border-gray-100 dark:border-white/5 overflow-hidden"
           >
-            <div className="relative">
-              <HiOutlineLockClosed className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input
-                type="password"
-                name="current_password"
-                value={passwordData.current_password}
-                onChange={handlePasswordChange}
-                placeholder={t('currentPassword') || 'Current Password'}
-                className={inputClass('current_password')}
-              />
-              {errors.current_password && <p className="text-red-500 text-xs mt-1">{errors.current_password}</p>}
+            <div className="p-6 sm:p-8 border-b border-gray-100 dark:border-white/5">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <HiOutlineLockClosed className="text-red-600" />
+                Change Password
+              </h2>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+                Ensure your account stays secure with a strong password
+              </p>
             </div>
 
-            <div className="relative">
-              <HiOutlineLockClosed className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input
-                type="password"
-                name="new_password"
-                value={passwordData.new_password}
-                onChange={handlePasswordChange}
-                placeholder={t('newPassword') || 'New Password'}
-                className={inputClass('new_password')}
-              />
-              {errors.new_password && <p className="text-red-500 text-xs mt-1">{errors.new_password}</p>}
-            </div>
+            <form onSubmit={handlePasswordSubmit} className="p-6 sm:p-8 space-y-6">
+              <div className="space-y-5">
+                {/* Current Password */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                    Current Password
+                  </label>
+                  <div className="relative">
+                    <HiOutlineLockClosed className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input
+                      type={showPasswords.current ? 'text' : 'password'}
+                      name="current_password"
+                      value={passwordData.current_password}
+                      onChange={handlePasswordChange}
+                      placeholder="Enter your current password"
+                      className={passwordInputClass('current_password')}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => togglePasswordVisibility('current')}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                    >
+                      {showPasswords.current ? <HiOutlineEyeSlash size={18} /> : <HiOutlineEye size={18} />}
+                    </button>
+                  </div>
+                  {errors.current_password && <p className="text-red-500 text-xs mt-2">{errors.current_password}</p>}
+                </div>
 
-            <div className="relative">
-              <HiOutlineLockClosed className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input
-                type="password"
-                name="confirm_password"
-                value={passwordData.confirm_password}
-                onChange={handlePasswordChange}
-                placeholder={t('confirmPassword') || 'Confirm New Password'}
-                className={inputClass('confirm_password')}
-              />
-              {errors.confirm_password && <p className="text-red-500 text-xs mt-1">{errors.confirm_password}</p>}
-            </div>
+                {/* New Password */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                    New Password
+                  </label>
+                  <div className="relative">
+                    <HiOutlineLockClosed className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input
+                      type={showPasswords.new ? 'text' : 'password'}
+                      name="new_password"
+                      value={passwordData.new_password}
+                      onChange={handlePasswordChange}
+                      placeholder="Enter your new password"
+                      className={passwordInputClass('new_password')}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => togglePasswordVisibility('new')}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                    >
+                      {showPasswords.new ? <HiOutlineEyeSlash size={18} /> : <HiOutlineEye size={18} />}
+                    </button>
+                  </div>
 
-            <motion.button
-              type="submit"
-              disabled={loading}
-              whileHover={!loading ? { scale: 1.02 } : {}}
-              whileTap={!loading ? { scale: 0.98 } : {}}
-              className={`
-                w-full py-3 bg-red-600 text-white font-bold uppercase tracking-wider text-sm rounded-lg
-                flex items-center justify-center gap-2 transition-all
-                ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-700'}
-              `}
-            >
-              {loading ? (
-                <span className="animate-pulse">{t('loading')}</span>
-              ) : (
-                <>
-                  <HiOutlinePencilSquare size={18} />
-                  {t('changePassword') || 'Change Password'}
-                </>
-              )}
-            </motion.button>
-          </motion.form>
+                  {/* Password Strength Indicator */}
+                  {passwordData.new_password && (
+                    <div className="mt-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full ${passwordStrength.color} transition-all duration-300`}
+                            style={{ width: `${passwordStrength.strength}%` }}
+                          ></div>
+                        </div>
+                        <span className={`text-xs font-bold ${passwordStrength.color.replace('bg-', 'text-')}`}>
+                          {passwordStrength.label}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400">
+                        Use 8+ characters with a mix of letters, numbers & symbols
+                      </p>
+                    </div>
+                  )}
+                  {errors.new_password && <p className="text-red-500 text-xs mt-2">{errors.new_password}</p>}
+                </div>
+
+                {/* Confirm Password */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                    Confirm New Password
+                  </label>
+                  <div className="relative">
+                    <HiOutlineLockClosed className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input
+                      type={showPasswords.confirm ? 'text' : 'password'}
+                      name="confirm_password"
+                      value={passwordData.confirm_password}
+                      onChange={handlePasswordChange}
+                      placeholder="Confirm your new password"
+                      className={passwordInputClass('confirm_password')}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => togglePasswordVisibility('confirm')}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                    >
+                      {showPasswords.confirm ? <HiOutlineEyeSlash size={18} /> : <HiOutlineEye size={18} />}
+                    </button>
+                  </div>
+                  {errors.confirm_password && <p className="text-red-500 text-xs mt-2">{errors.confirm_password}</p>}
+
+                  {/* Match indicator */}
+                  {passwordData.confirm_password && passwordData.new_password && (
+                    <div className="mt-2 flex items-center gap-2">
+                      {passwordData.new_password === passwordData.confirm_password ? (
+                        <>
+                          <HiOutlineCheck className="text-green-500 w-4 h-4" />
+                          <span className="text-xs text-green-500 font-medium">Passwords match</span>
+                        </>
+                      ) : (
+                        <>
+                          <HiOutlinePencilSquare className="text-red-500 w-4 h-4" />
+                          <span className="text-xs text-red-500 font-medium">Passwords do not match</span>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-4">
+                <motion.button
+                  type="submit"
+                  disabled={loading}
+                  whileHover={!loading ? { scale: 1.02 } : {}}
+                  whileTap={!loading ? { scale: 0.98 } : {}}
+                  className={`
+                    px-8 py-3.5 bg-gradient-to-r from-red-600 to-red-700 text-white font-bold uppercase tracking-wider text-sm rounded-xl
+                    flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-600/25
+                    ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-xl hover:shadow-red-600/40'}
+                  `}
+                >
+                  {loading ? (
+                    <span className="animate-pulse">Processing...</span>
+                  ) : (
+                    <>
+                      <HiOutlinePencilSquare size={18} />
+                      Update Password
+                    </>
+                  )}
+                </motion.button>
+              </div>
+            </form>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
     </div>
   );
 };

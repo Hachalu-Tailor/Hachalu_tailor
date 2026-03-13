@@ -6,7 +6,7 @@ import {
     HiOutlineChatBubbleLeftEllipsis,
     HiOutlineUser,
     HiOutlineCheckCircle,
-    HiOutlineTruck,
+    HiOutlineLockClosed,
     HiOutlineSun,
     HiOutlineMoon,
     HiOutlineXMark,
@@ -47,6 +47,7 @@ const GarmentSidebar = ({
         { path: '/garment', label: t('dashboard') || 'Dashboard', icon: <HiOutlineSquares2X2 /> },
         { path: '/garment/messages', label: t('messages') || 'Messages', icon: <HiOutlineChatBubbleLeftEllipsis /> },
         { path: '/garment/orders', label: t('orders') || 'Orders', icon: <HiOutlineClipboardDocumentList /> },
+        { path: '/garment/profile', label: t('profile') || 'Profile', icon: <HiOutlineUser /> },
     ];
 
     const formatDate = (dateString) => {

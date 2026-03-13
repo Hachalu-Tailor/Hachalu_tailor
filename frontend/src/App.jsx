@@ -8,7 +8,6 @@ import Items from './pages/Items';
 import Services from './pages/Services';
 import About from './pages/About';
 import Login from './pages/Login';
-import Orders from './pages/Orders'; // Public tracking
 import NotFound from './pages/NotFound';
 import DiscountPage from './pages/DiscountPage';
 

@@ -54,10 +54,13 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
     { path: '/garment', label: 'Workshop', icon: <HiOutlineScissors />, roles: ['garment'] },
     { path: '/garment/orders', label: t('orders'), icon: <HiOutlineClipboardDocumentList />, roles: ['garment'] },
     { path: '/garment/messages', label: t('messages'), icon: <HiOutlineChatBubbleLeftRight />, roles: ['garment'] },
+    { path: '/garment/profile', label: t('profile'), icon: <HiOutlineUser />, roles: ['garment'] },
 
     // Shared/Common Sections (Admin & Receptionist)
     { path: '/reception/payments', label: t('payments'), icon: <HiOutlineBanknotes />, roles: ['admin', 'receptionist'] },
     { path: '/reception/messages', label: t('messages'), icon: <HiOutlineChatBubbleLeftRight />, roles: ['admin', 'receptionist'] },
+    { path: '/admin/profile', label: t('profile'), icon: <HiOutlineUser />, roles: ['admin'] },
+    { path: '/reception/profile', label: t('profile'), icon: <HiOutlineUser />, roles: ['receptionist'] },
   ];
 
   // 2. DEBUG FILTER LOGIC

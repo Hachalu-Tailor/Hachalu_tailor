@@ -1,6 +1,5 @@
 import axios from 'axios';
 import { API_BASE_URL, STORAGE_KEYS } from '../utils/constants';
-import { getHexColor } from '../utils/colors';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -134,7 +133,7 @@ export const deleteStaff = (id) => api.delete(`/accounts/admin/staff/${id}/`);
 
 export const resetPassword = (id) => api.post(`/accounts/admin/users/${id}/reset-password/`);
 
-export const updateProfile = (id, data) => api.post(`/accounts/admin/users/${id}/update-profile/`, data);
+export const updateProfile = (id, data) => api.patch(`/accounts/admin/users/${id}/update-profile/`, data);
 
 export const changePassword = (data) => api.post('/accounts/user/change-password/', data);
 

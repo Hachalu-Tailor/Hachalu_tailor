@@ -35,6 +35,3 @@ Thumbs.db
 # Build outputs
 frontend/dist/
 frontend/.vite/
-
-# Media
-backend/media/receipts/

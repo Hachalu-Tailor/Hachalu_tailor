@@ -1,0 +1,2 @@
+# API Proxy - Forward /api requests to Render backend
+/api/* https://hachalu-tailor.onrender.com/api/:splat 200!

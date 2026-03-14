@@ -25,7 +25,7 @@ SECRET_KEY = "django-insecure-4z1%1eyiv)qb$_61eqtq#=^$22%7p1!0!cz6p+n6u+9@5_6d8%
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'hachalu-tailor.onrender.com', 'hachaluportcol.netlify.app']
 
 # Application definition
 
@@ -190,7 +190,11 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # Default React port
     "http://127.0.0.1:3000",
     "http://localhost:5173",  # Default Vite port (if using Vite)
+    "https://hachaluportcol.netlify.app",  # Netlify frontend
 ]
+
+# Allow all origins for API access
+CORS_ALLOW_ALL_ORIGINS = True
 
 # To allow the login to send tokens/cookies back and forth
 CORS_ALLOW_CREDENTIALS = True

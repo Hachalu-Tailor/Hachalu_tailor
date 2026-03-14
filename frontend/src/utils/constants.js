@@ -1,7 +1,8 @@
 // Application Constants
 
 // API Configuration
-export const API_BASE_URL = '/api';
+// Use environment variable or fallback to relative path for local development
+export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Route Constants
 export const ROUTES = {

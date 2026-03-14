@@ -1,8 +1,9 @@
 // Application Constants
 
-// API Configuration
-// Use environment variable or fallback to relative path for local development
-export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+// API Configuration - Point directly to Render backend in production
+export const API_BASE_URL = import.meta.env.PROD
+  ? 'https://hachalu-tailor.onrender.com/api'
+  : '/api';
 
 // Route Constants
 export const ROUTES = {

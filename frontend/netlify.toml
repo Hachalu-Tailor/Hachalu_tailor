@@ -1,7 +1,6 @@
-/*
- * Netlify configuration for Vite React project
- * This file tells Netlify how to build and serve your app
- */
+# Netlify configuration for Vite React project
+# This file tells Netlify how to build and serve your app
+
 [build]
   command = "npm run build"
   publish = "dist"

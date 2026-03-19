@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import {
   HiOutlineCube,
@@ -97,13 +97,13 @@ const Inventory = () => {
     texture: "",
     quantity_meters: "",
     image_url: "",
-    imageFile: null,
+    material_image_file: null,
+    suit_sample_image_file: null,
     category: "",
     description: ""
   });
-  const [imagePreview, setImagePreview] = useState(null);
-  const [showImageInput, setShowImageInput] = useState("url"); // 'url' or 'upload'
-  const fileInputRef = useRef(null);
+  const [materialImagePreview, setMaterialImagePreview] = useState(null);
+  const [suitSamplePreview, setSuitSamplePreview] = useState(null);
   const [stockUpdate, setStockUpdate] = useState({ action_type: "add", quantity_meters: 0 });
   const [editingImage, setEditingImage] = useState(false); // false, 'url', or 'upload'
   const [editingField, setEditingField] = useState(null); // 'category', 'description', or null
@@ -206,6 +206,13 @@ const Inventory = () => {
     return cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
   };
 
+  const getAbsoluteUrl = (url) => {
+    if (!url) return "";
+    if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) return url;
+    const path = url.startsWith("/") ? url.substring(1) : url;
+    return `http://127.0.0.1:8000/${path}`;
+  };
+
   useEffect(() => {
     if (selectedItem) {
       // Normalize colors into simple name array
@@ -265,25 +272,32 @@ const Inventory = () => {
   const handleAddMaterial = async (e) => {
   e.preventDefault();
   try {
+    if (!newMaterial.material_image_file || !newMaterial.suit_sample_image_file) {
+      alert("Please upload both images: material sample and suit sample.");
+      return;
+    }
+
     // 1. Ensure colors is ONLY an array of strings (e.g., ["Red", "Blue"])
     const cleanColors = Array.isArray(newMaterial.colors) 
       ? newMaterial.colors.map(c => typeof c === 'object' ? c.value : c).map(name => toDisplayColorNameValue(name)) 
       : [];
 
-    const materialData = {
-      material: {
-        name: newMaterial.name,
-        colors: cleanColors, // Send the clean array
-        texture: newMaterial.texture,   
-        image_url: newMaterial.image_url || null,
-        category: newMaterial.category || null,
-        description: newMaterial.description || null
-      },
-      quantity_meters: parseFloat(newMaterial.quantity_meters) || 0
+    const materialPayload = {
+      name: newMaterial.name,
+      colors: cleanColors,
+      texture: newMaterial.texture,
+      image_url: newMaterial.image_url || null,
+      category: newMaterial.category || null,
+      description: newMaterial.description || null
     };
 
-    // console.log("POSTING TO BACKEND:", JSON.stringify(materialData, null, 2));
-    await createMaterial(materialData);
+    const formData = new FormData();
+    formData.append("material", JSON.stringify(materialPayload));
+    formData.append("quantity_meters", (parseFloat(newMaterial.quantity_meters) || 0).toString());
+    formData.append("material_image", newMaterial.material_image_file);
+    formData.append("suit_sample_image", newMaterial.suit_sample_image_file);
+
+    await createMaterial(formData);
 
     setShowAddModal(false);
     setNewMaterial({
@@ -293,9 +307,13 @@ const Inventory = () => {
       texture: "",
       quantity_meters: "",
       image_url: "",
+      material_image_file: null,
+      suit_sample_image_file: null,
       category: "",
       description: ""
     });
+    setMaterialImagePreview(null);
+    setSuitSamplePreview(null);
     fetchInventory();
   } catch (error) {
     // console.error("Backend Error:", error.response?.data);
@@ -312,6 +330,21 @@ const Inventory = () => {
     } catch (error) {
       console.error("Error updating stock:", error);
       alert("Stock update failed. Please try again.");
+    }
+  };
+
+  const handleUpdateMaterialMedia = async (field, file) => {
+    if (!selectedItem || !file) return;
+
+    try {
+      const formData = new FormData();
+      formData.append(field, file);
+      const response = await updateMaterial(selectedItem.id, formData);
+      setSelectedItem(response.data || selectedItem);
+      fetchInventory();
+    } catch (error) {
+      console.error(`Error updating ${field}:`, error);
+      alert(error?.response?.data?.error || `Failed to update ${field}`);
     }
   };
 
@@ -411,8 +444,8 @@ const Inventory = () => {
                         <td className="p-4 md:p-6">
                           <div className="flex items-center gap-4">
                             <div className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden shrink-0 ${qty === 0 ? 'grayscale' : ''}`}>
-                              {item.image_url ? (
-                                <img src={item.image_url} className="w-full h-full object-cover" alt={item.name} />
+                              {(item.material_image || item.image_url) ? (
+                                <img src={getAbsoluteUrl(item.material_image || item.image_url)} className="w-full h-full object-cover" alt={item.name} />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-100 to-zinc-200 dark:from-zinc-800 dark:to-zinc-900">
                                   <span className="text-2xl font-black text-zinc-400 italic">{item.name?.charAt(0) || '?'}</span>
@@ -448,6 +481,28 @@ const Inventory = () => {
                                 )}
                               </div>
                               <p className="text-[10px] text-zinc-400 uppercase font-bold">{item.texture}</p>
+                              <div className="flex items-center gap-3 mt-2">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[8px] font-black text-zinc-500 uppercase">Material</span>
+                                  {(item.material_image || item.image_url) && (
+                                    <img
+                                      src={getAbsoluteUrl(item.material_image || item.image_url)}
+                                      alt="Material sample"
+                                      className="w-8 h-8 rounded-md object-cover border border-zinc-300 dark:border-zinc-700"
+                                    />
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[8px] font-black text-zinc-500 uppercase">Suit</span>
+                                  {item.suit_sample_image && (
+                                    <img
+                                      src={getAbsoluteUrl(item.suit_sample_image)}
+                                      alt="Suit sample"
+                                      className="w-8 h-8 rounded-md object-cover border border-zinc-300 dark:border-zinc-700"
+                                    />
+                                  )}
+                                </div>
+                              </div>
                               {item.category && <p className="text-[9px] text-red-500 uppercase font-bold mt-1">{item.category}</p>}
                               {item.description && <p className="text-[9px] text-zinc-500 mt-1 max-w-xs truncate">{item.description}</p>}
                             </div>
@@ -506,10 +561,64 @@ const Inventory = () => {
               </button>
 
               {/* Material Image Display */}
+              <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="rounded-2xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                  <div className="px-3 py-2 text-[9px] font-black uppercase tracking-widest text-zinc-500 bg-zinc-200/60 dark:bg-zinc-900/60">Material Sample</div>
+                  <div className="h-40">
+                    {(selectedItem.material_image || selectedItem.image_url) ? (
+                      <img src={getAbsoluteUrl(selectedItem.material_image || selectedItem.image_url)} alt={`${selectedItem.name} material sample`} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-zinc-400 text-sm">No material sample image</div>
+                    )}
+                  </div>
+                  <div className="p-2 border-t border-zinc-200 dark:border-zinc-700">
+                    <input
+                      id={`material-image-update-${selectedItem.id}`}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleUpdateMaterialMedia("material_image", e.target.files?.[0])}
+                    />
+                    <label
+                      htmlFor={`material-image-update-${selectedItem.id}`}
+                      className="w-full inline-flex items-center justify-center py-2 rounded-xl bg-red-600 text-white text-[10px] font-black uppercase tracking-wider cursor-pointer hover:bg-red-700 transition-all"
+                    >
+                      Update Material Image
+                    </label>
+                  </div>
+                </div>
+                <div className="rounded-2xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                  <div className="px-3 py-2 text-[9px] font-black uppercase tracking-widest text-zinc-500 bg-zinc-200/60 dark:bg-zinc-900/60">Suit Sample</div>
+                  <div className="h-40">
+                    {selectedItem.suit_sample_image ? (
+                      <img src={getAbsoluteUrl(selectedItem.suit_sample_image)} alt={`${selectedItem.name} suit sample`} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-zinc-400 text-sm">No suit sample image</div>
+                    )}
+                  </div>
+                  <div className="p-2 border-t border-zinc-200 dark:border-zinc-700">
+                    <input
+                      id={`suit-image-update-${selectedItem.id}`}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleUpdateMaterialMedia("suit_sample_image", e.target.files?.[0])}
+                    />
+                    <label
+                      htmlFor={`suit-image-update-${selectedItem.id}`}
+                      className="w-full inline-flex items-center justify-center py-2 rounded-xl bg-red-600 text-white text-[10px] font-black uppercase tracking-wider cursor-pointer hover:bg-red-700 transition-all"
+                    >
+                      Update Suit Image
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Legacy Image Display */}
               <div className="mb-6">
                 <div className="relative w-full h-48 rounded-2xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 mb-4">
                   {selectedItem.image_url ? (
-                    <img src={selectedItem.image_url} alt={selectedItem.name} className="w-full h-full object-cover" />
+                    <img src={getAbsoluteUrl(selectedItem.image_url)} alt={selectedItem.name} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-100 to-zinc-200 dark:from-zinc-800 dark:to-zinc-900">
                       <span className="text-6xl font-black text-zinc-300 dark:text-zinc-600 italic">{selectedItem.name?.charAt(0) || '?'}</span>
@@ -1214,93 +1323,86 @@ const Inventory = () => {
                   />
                 </div>
 
-                {/* Image Upload Section */}
+                {/* Image Upload Section (two file uploads required) */}
                 <div>
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Material Image</label>
-
-                  {/* Toggle between URL and File upload */}
-                  <div className="flex gap-2 mt-2 mb-3">
-                    <button
-                      type="button"
-                      onClick={() => setShowImageInput("url")}
-                      className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${showImageInput === "url"
-                        ? "bg-red-600 text-white"
-                        : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400"
-                        }`}
-                    >
-                      Image URL
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowImageInput("upload")}
-                      className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${showImageInput === "upload"
-                        ? "bg-red-600 text-white"
-                        : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400"
-                        }`}
-                    >
-                      Upload File
-                    </button>
-                  </div>
-
-                  {showImageInput === "url" ? (
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Material Sample Image *</label>
+                  <div className="relative mt-2">
                     <input
-                      type="url"
-                      placeholder="https://example.com/material-image.jpg"
-                      value={newMaterial.image_url}
-                      onChange={(e) => setNewMaterial({ ...newMaterial, image_url: e.target.value })}
-                      className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setMaterialImagePreview(reader.result);
+                          setNewMaterial({ ...newMaterial, material_image_file: file });
+                        };
+                        reader.readAsDataURL(file);
+                      }}
+                      className="hidden"
+                      id="material-image-upload"
                     />
-                  ) : (
-                    <div className="relative">
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files[0];
-                          if (file) {
-                            // Create preview URL
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              setImagePreview(reader.result);
-                              setNewMaterial({ ...newMaterial, image_url: reader.result, imageFile: file });
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                        className="hidden"
-                        id="material-image-upload"
-                      />
-                      <label
-                        htmlFor="material-image-upload"
-                        className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-2xl cursor-pointer hover:border-red-600 hover:bg-red-50 dark:hover:bg-red-600/5 transition-all"
-                      >
-                        <HiOutlineCloudArrowUp className="text-zinc-400 mb-2" size={32} />
-                        <span className="text-[10px] font-bold text-zinc-400 uppercase">Click to upload image</span>
-                        <span className="text-[8px] text-zinc-500 mt-1">PNG, JPG, WEBP up to 5MB</span>
-                      </label>
-                    </div>
-                  )}
-
-                  {/* Image Preview */}
-                  {(imagePreview || newMaterial.image_url) && (
-                    <div className="mt-3 relative">
-                      <div className="w-full h-32 rounded-2xl overflow-hidden bg-zinc-100 dark:bg-zinc-800">
-                        <img
-                          src={imagePreview || newMaterial.image_url}
-                          alt="Preview"
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                          }}
-                        />
-                      </div>
+                    <label
+                      htmlFor="material-image-upload"
+                      className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-2xl cursor-pointer hover:border-red-600 hover:bg-red-50 dark:hover:bg-red-600/5 transition-all"
+                    >
+                      <HiOutlineCloudArrowUp className="text-zinc-400 mb-2" size={28} />
+                      <span className="text-[10px] font-bold text-zinc-400 uppercase">Upload Material Sample</span>
+                    </label>
+                  </div>
+                  {materialImagePreview && (
+                    <div className="mt-2 relative">
+                      <img src={materialImagePreview} alt="Material sample preview" className="w-full h-28 rounded-2xl object-cover" />
                       <button
                         type="button"
                         onClick={() => {
-                          setImagePreview(null);
-                          setNewMaterial({ ...newMaterial, image_url: "", imageFile: null });
-                          if (fileInputRef.current) fileInputRef.current.value = "";
+                          setMaterialImagePreview(null);
+                          setNewMaterial({ ...newMaterial, material_image_file: null });
+                        }}
+                        className="absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition-all"
+                      >
+                        <HiOutlineTrash size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Suit Sample Image *</label>
+                  <div className="relative mt-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setSuitSamplePreview(reader.result);
+                          setNewMaterial({ ...newMaterial, suit_sample_image_file: file });
+                        };
+                        reader.readAsDataURL(file);
+                      }}
+                      className="hidden"
+                      id="suit-sample-image-upload"
+                    />
+                    <label
+                      htmlFor="suit-sample-image-upload"
+                      className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-2xl cursor-pointer hover:border-red-600 hover:bg-red-50 dark:hover:bg-red-600/5 transition-all"
+                    >
+                      <HiOutlineCloudArrowUp className="text-zinc-400 mb-2" size={28} />
+                      <span className="text-[10px] font-bold text-zinc-400 uppercase">Upload Suit Sample</span>
+                    </label>
+                  </div>
+                  {suitSamplePreview && (
+                    <div className="mt-2 relative">
+                      <img src={suitSamplePreview} alt="Suit sample preview" className="w-full h-28 rounded-2xl object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSuitSamplePreview(null);
+                          setNewMaterial({ ...newMaterial, suit_sample_image_file: null });
                         }}
                         className="absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition-all"
                       >

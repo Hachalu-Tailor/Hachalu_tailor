@@ -10,15 +10,15 @@ import {
   HiOutlineArrowPath, HiOutlineTruck, HiOutlineChatBubbleLeftRight,
   HiOutlineSwatch, HiOutlineMagnifyingGlass, HiOutlineMegaphone
 } from 'react-icons/hi2';
-import api, { getOrders, getMaterials, getPayments } from '../api/api';
+import { getOrders, getMaterials, getPayments } from '../api/api';
 import { useAuth } from '../hooks/useAuth';
-import { formatCurrency, formatDate, formatRelativeTime } from '../utils/helpers';
+import { formatCurrency, formatRelativeTime } from '../utils/helpers';
 import {
   ORDER_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
   CURRENCY
 } from '../utils/constants';
-import { getHexColor, extractColorsFromMaterials, getAvailableColors, isLightColor, getContrastingTextColor } from '../utils/colors';
+import { getHexColor, extractColorsFromMaterials, isLightColor } from '../utils/colors';
 
 const ReceptionDashboard = () => {
   const navigate = useNavigate();

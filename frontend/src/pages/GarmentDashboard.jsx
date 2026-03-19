@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import {
     HiOutlineDocumentText,
     HiOutlineCheckCircle,
@@ -20,10 +20,12 @@ import {
     getPayments
 } from '../api/api';
 import { getHexColor } from '../utils/colors';
+import { API_BASE_URL } from '../utils/constants';
 
 // Backend status configuration - ONLY use backend statuses (IN_PROGRESS, COMPLETED, SHIPPED)
 const BACKEND_STATUSES = {
-    IN_PROGRESS: {
+    IN_PROGRESS: 
+    {
         id: 'IN_PROGRESS',
         label: 'In Production',
         color: 'blue',
@@ -95,16 +97,29 @@ const GarmentDashboard = () => {
         return data || [];
     };
 
+    const backendOrigin = useMemo(() => {
+        if (typeof API_BASE_URL === 'string' && API_BASE_URL.startsWith('http')) {
+            try {
+                return new URL(API_BASE_URL).origin;
+            } catch {
+                return 'http://127.0.0.1:8000';
+            }
+        }
+        if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
+        return 'http://127.0.0.1:8000';
+    }, []);
+
     const getAbsoluteUrl = (url) => {
         if (!url) return '';
         if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
         const normalizedPath = url.startsWith('/') ? url : `/${url}`;
-        return `http://127.0.0.1:8000${normalizedPath}`;
+        return `${backendOrigin}${normalizedPath}`;
     };
 
-    const getOrderImageUrl = (order) => {
-        if (!order?.image_url) return '';
-        return getAbsoluteUrl(order.image_url);
+    const getOrderImages = (order) => {
+        const materialImage = getAbsoluteUrl(order?.material_image || order?.image_url || '');
+        const suitSampleImage = getAbsoluteUrl(order?.suit_sample_image || '');
+        return { materialImage, suitSampleImage };
     };
 
     const normalizeStatus = (status) => String(status || '').toUpperCase().trim();
@@ -140,6 +155,8 @@ const GarmentDashboard = () => {
 
     useEffect(() => {
         loadOrders();
+        // Initial dashboard load only.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -267,7 +284,7 @@ const GarmentDashboard = () => {
             const refreshedOrder = updatedOrders.find(o => o.order_code === orderCode);
             setSelectedOrder(refreshedOrder || updatedOrder || null);
             setActiveTab('completed');
-        } catch (error) {
+        } catch {
             alert('Failed to complete order.');
         }
     };
@@ -290,7 +307,7 @@ const GarmentDashboard = () => {
             const refreshedOrder = updatedOrders.find(o => o.order_code === orderCode);
             setSelectedOrder(refreshedOrder || updatedOrder || null);
             setActiveTab('shipped');
-        } catch (error) {
+        } catch {
             alert('Failed to ship order.');
         }
     };
@@ -488,7 +505,7 @@ const GarmentDashboard = () => {
                 {/* Advanced Filters */}
                 <AnimatePresence>
                     {showFilters && (
-                        <motion.div
+                        <Motion.div
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
@@ -535,7 +552,7 @@ const GarmentDashboard = () => {
                                     <option value="status">Sort by Status</option>
                                 </select>
                             </div>
-                        </motion.div>
+                        </Motion.div>
                     )}
                 </AnimatePresence>
             </div>
@@ -552,7 +569,7 @@ const GarmentDashboard = () => {
             <div className="space-y-3">
                 <AnimatePresence>
                     {showQuickLatest && (
-                        <motion.div
+                        <Motion.div
                             initial={{ opacity: 0, y: -8 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -8 }}
@@ -669,7 +686,7 @@ const GarmentDashboard = () => {
                                     </div>
                                 </div>
                             )}
-                        </motion.div>
+                        </Motion.div>
                     )}
                 </AnimatePresence>
 
@@ -693,10 +710,10 @@ const GarmentDashboard = () => {
                                 const timeStatus = getTimeStatus(order.due_date);
                                 const statusConfig = getStatusConfig(order.status);
                                 const stageIndex = getStageIndexFromStatus(order.status);
-                                const orderedImageUrl = getOrderImageUrl(order);
+                                const { materialImage, suitSampleImage } = getOrderImages(order);
 
                                 return (
-                                    <motion.div
+                                    <Motion.div
                                         key={order.id}
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
@@ -771,26 +788,52 @@ const GarmentDashboard = () => {
 
                                             <div className="rounded-xl border border-gray-200 dark:border-white/10 overflow-hidden">
                                                 <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-white/10">
-                                                    Ordered Image
+                                                    Order Images (Material and Suit)
                                                 </p>
-                                                {orderedImageUrl ? (
+                                                <div className="grid grid-cols-2 gap-2 p-2">
                                                     <button
                                                         type="button"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            setFullImage(orderedImageUrl);
+                                                            if (materialImage) setFullImage(materialImage);
                                                         }}
-                                                        className="w-full"
+                                                        className="rounded-lg overflow-hidden border border-gray-200 dark:border-white/10"
                                                     >
-                                                        <img
-                                                            src={orderedImageUrl}
-                                                            alt={`Ordered ${order.order_code}`}
-                                                            className="w-full h-28 object-cover"
-                                                        />
+                                                        {materialImage ? (
+                                                            <img
+                                                                src={materialImage}
+                                                                alt={`Material sample ${order.order_code}`}
+                                                                className="w-full h-24 object-cover"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-full h-24 flex items-center justify-center text-[10px] text-gray-400">No Material</div>
+                                                        )}
+                                                        <p className="text-[9px] font-bold uppercase tracking-wider py-1 bg-gray-50 dark:bg-white/5 text-gray-600 dark:text-gray-300">
+                                                            Material
+                                                        </p>
                                                     </button>
-                                                ) : (
-                                                    <p className="px-3 py-3 text-xs text-gray-400">Not attached</p>
-                                                )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (suitSampleImage) setFullImage(suitSampleImage);
+                                                        }}
+                                                        className="rounded-lg overflow-hidden border border-gray-200 dark:border-white/10"
+                                                    >
+                                                        {suitSampleImage ? (
+                                                            <img
+                                                                src={suitSampleImage}
+                                                                alt={`Suit sample ${order.order_code}`}
+                                                                className="w-full h-24 object-cover"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-full h-24 flex items-center justify-center text-[10px] text-gray-400">No Suit</div>
+                                                        )}
+                                                        <p className="text-[9px] font-bold uppercase tracking-wider py-1 bg-gray-50 dark:bg-white/5 text-gray-600 dark:text-gray-300">
+                                                            Suit
+                                                        </p>
+                                                    </button>
+                                                </div>
                                             </div>
 
                                             {receiptByOrderCode[order.order_code] && (
@@ -827,7 +870,7 @@ const GarmentDashboard = () => {
                                                 ) : null}
                                             </div>
                                         </div>
-                                    </motion.div>
+                                    </Motion.div>
                                 );
                             })}
                         </div>
@@ -843,7 +886,8 @@ const GarmentDashboard = () => {
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Suit</th>
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Color</th>
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Qty</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Ordered Image</th>
+                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Material Img</th>
+                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Suit Img</th>
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Receipt</th>
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Due</th>
                                     </tr>
@@ -852,7 +896,7 @@ const GarmentDashboard = () => {
                                     {filteredOrders.map((order) => {
                                         const timeStatus = getTimeStatus(order.due_date);
                                         const statusConfig = getStatusConfig(order.status);
-                                        const orderedImageUrl = getOrderImageUrl(order);
+                                        const { materialImage, suitSampleImage } = getOrderImages(order);
 
                                         return (
                                             <tr
@@ -882,18 +926,38 @@ const GarmentDashboard = () => {
                                                 </td>
                                                 <td className="px-4 py-3 text-sm font-medium dark:text-white">{order.quantity}</td>
                                                 <td className="px-4 py-3">
-                                                    {orderedImageUrl ? (
+                                                    {materialImage ? (
                                                         <button
                                                             type="button"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                setFullImage(orderedImageUrl);
+                                                                setFullImage(materialImage);
                                                             }}
                                                             className="rounded-lg overflow-hidden border border-gray-200 dark:border-white/10"
                                                         >
                                                             <img
-                                                                src={orderedImageUrl}
-                                                                alt={`Ordered ${order.order_code}`}
+                                                                src={materialImage}
+                                                                alt={`Material ${order.order_code}`}
+                                                                className="w-16 h-10 object-cover"
+                                                            />
+                                                        </button>
+                                                    ) : (
+                                                        <span className="text-xs text-gray-400">Not attached</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {suitSampleImage ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setFullImage(suitSampleImage);
+                                                            }}
+                                                            className="rounded-lg overflow-hidden border border-gray-200 dark:border-white/10"
+                                                        >
+                                                            <img
+                                                                src={suitSampleImage}
+                                                                alt={`Suit ${order.order_code}`}
                                                                 className="w-16 h-10 object-cover"
                                                             />
                                                         </button>
@@ -939,14 +1003,14 @@ const GarmentDashboard = () => {
             <AnimatePresence>
                 {selectedOrder && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                        <motion.div
+                        <Motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             className="absolute inset-0 bg-black/60"
                             onClick={() => setSelectedOrder(null)}
                         />
-                        <motion.div
+                        <Motion.div
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.9, opacity: 0 }}
@@ -1049,22 +1113,46 @@ const GarmentDashboard = () => {
                                 </div>
 
                                 <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4">
-                                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Ordered Image</p>
-                                    {getOrderImageUrl(selectedOrder) ? (
-                                        <button
-                                            type="button"
-                                            onClick={() => setFullImage(getOrderImageUrl(selectedOrder))}
-                                            className="w-full rounded-xl overflow-hidden border border-gray-200 dark:border-white/10"
-                                        >
-                                            <img
-                                                src={getOrderImageUrl(selectedOrder)}
-                                                alt={`Ordered ${selectedOrder.order_code}`}
-                                                className="w-full max-h-72 object-contain bg-black/5"
-                                            />
-                                        </button>
-                                    ) : (
-                                        <p className="text-xs text-gray-400">Not attached</p>
-                                    )}
+                                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Order Images (Material and Suit)</p>
+                                    {(() => {
+                                        const { materialImage, suitSampleImage } = getOrderImages(selectedOrder);
+                                        return (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => materialImage && setFullImage(materialImage)}
+                                                    className="rounded-xl overflow-hidden border border-gray-200 dark:border-white/10"
+                                                >
+                                                    {materialImage ? (
+                                                        <img
+                                                            src={materialImage}
+                                                            alt={`Material ${selectedOrder.order_code}`}
+                                                            className="w-full h-48 object-cover bg-black/5"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-48 flex items-center justify-center text-xs text-gray-400">No material image</div>
+                                                    )}
+                                                    <p className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 text-left">Material Sample</p>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => suitSampleImage && setFullImage(suitSampleImage)}
+                                                    className="rounded-xl overflow-hidden border border-gray-200 dark:border-white/10"
+                                                >
+                                                    {suitSampleImage ? (
+                                                        <img
+                                                            src={suitSampleImage}
+                                                            alt={`Suit ${selectedOrder.order_code}`}
+                                                            className="w-full h-48 object-cover bg-black/5"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-full h-48 flex items-center justify-center text-xs text-gray-400">No suit image</div>
+                                                    )}
+                                                    <p className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 text-left">Suit Sample</p>
+                                                </button>
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
 
                                 {receiptByOrderCode[selectedOrder.order_code] && (
@@ -1151,7 +1239,7 @@ const GarmentDashboard = () => {
                                     )}
                                 </div>
                             </div>
-                        </motion.div>
+                        </Motion.div>
                     </div>
                 )}
             </AnimatePresence>
@@ -1159,14 +1247,14 @@ const GarmentDashboard = () => {
             <AnimatePresence>
                 {fullImage && (
                     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-                        <motion.div
+                        <Motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             className="absolute inset-0 bg-black/80"
                             onClick={() => setFullImage(null)}
                         />
-                        <motion.div
+                        <Motion.div
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
@@ -1184,7 +1272,7 @@ const GarmentDashboard = () => {
                                 alt="Order receipt preview"
                                 className="w-full max-h-[85vh] object-contain rounded-xl bg-black"
                             />
-                        </motion.div>
+                        </Motion.div>
                     </div>
                 )}
             </AnimatePresence>

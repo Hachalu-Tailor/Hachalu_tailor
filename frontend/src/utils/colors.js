@@ -1,462 +1,281 @@
-// Color utility for mapping color names to hex values and vice versa
-// Based on backend Color model (name field)
+// Backend-driven color utility.
+// This file intentionally avoids hardcoded frontend color catalogs.
 
-// Predefined color mappings with hex values
-export const COLOR_MAP = {
-    // Reds
-    'red': '#ef4444',
-    'crimson': '#dc2626',
-    'maroon': '#7f1d1d',
-    'burgundy': '#881337',
-    'scarlet': '#ef4444',
-    'firebrick': '#b22222',
-    'dark red': '#8b0000',
-    'light red': '#ff6b6b',
-    'salmon': '#fa8072',
-    'tomato': '#ff6347',
+const DEFAULT_FALLBACK_COLOR = '#6b7280';
 
-    // Blues
-    'blue': '#3b82f6',
-    'navy': '#1e3a8a',
-    'navy blue': '#1e3a8a',
-    'royal blue': '#2563eb',
-    'sky blue': '#0ea5e9',
-    'steel blue': '#475569',
-    'slate': '#475569',
-    'slate gray': '#475569',
-    'light blue': '#93c5fd',
-    'dark blue': '#1e40af',
-    'powder blue': '#b0e0e6',
-    'cornflower blue': '#6495ed',
-    'dodger blue': '#1e90ff',
+export const COLOR_MAP = Object.create(null);
+export const COLOR_LIST = [];
+export const COLOR_PALETTE = { backend: [] };
 
-    // Blacks
-    'black': '#1a1a1a',
-    'charcoal': '#374151',
-    'jet': '#0a0a0a',
-    'onyx': '#353839',
-    'ebony': '#555d50',
+const backendColorRegistry = new Map();
 
-    // Whites
-    'white': '#ffffff',
-    'ivory': '#fffff0',
-    'cream': '#fdfbf7',
-    'snow': '#fffafa',
-    'ghost white': '#f8f8ff',
-    'linen': '#faf0e6',
-    'seashell': '#fff5ee',
+const normalizeColorKey = (value) =>
+    (value || '')
+        .toString()
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/[_-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
 
-    // Grays
-    'gray': '#6b7280',
-    'grey': '#6b7280',
-    'silver': '#c0c0c0',
-    'ash': '#b2beb5',
-    'light gray': '#d1d5db',
-    'dark gray': '#374151',
-    'slate gray': '#708090',
-    'dim gray': '#696969',
-    'gainsboro': '#dcdcdc',
+const normalizeHex = (input) => {
+    if (!input) return null;
+    const match = input.toString().trim().match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+    if (!match) return null;
 
-    // Browns
-    'brown': '#92400e',
-    'earth brown': '#7d6e5d',
-    'tan': '#d2b48c',
-    'chocolate': '#7b341e',
-    'coffee': '#4a2c2a',
-    'beige': '#f5f5dc',
-    'saddle brown': '#8b4513',
-    'sienna': '#a0522d',
-    'peru': '#cd853f',
-    'wheat': '#f5deb3',
-    'burlywood': '#deb887',
-    'raw umber': '#826644',
-    'khaki': '#c3b091',
+    const raw = match[1].toLowerCase();
+    if (raw.length === 3) {
+        return `#${raw.split('').map((ch) => `${ch}${ch}`).join('')}`;
+    }
 
-    // Greens
-    'green': '#22c55e',
-    'emerald': '#059669',
-    'olive': '#84cc16',
-    'forest green': '#166534',
-    'sage': '#9dc183',
-    'lime': '#32cd32',
-    'mint': '#98fb98',
-    'sea green': '#2e8b57',
-    'light green': '#90ee90',
-    'dark green': '#006400',
-    'medium sea green': '#3cb371',
-    'pale green': '#98fb98',
-    'lawn green': '#7cfc00',
-
-    // Purples
-    'purple': '#a855f7',
-    'violet': '#8b5cf6',
-    'lavender': '#c4b5fd',
-    'plum': '#7e22ce',
-    'indigo': '#4b0082',
-    'dark violet': '#9400d3',
-    'medium violet red': '#c71585',
-    'thistle': '#d8bfd8',
-    'orchid': '#da70d6',
-    'medium purple': '#9370db',
-    'rebecca purple': '#663399',
-
-    // Pinks
-    'pink': '#ec4899',
-    'rose': '#f43f5e',
-    'magenta': '#d946ef',
-    'hot pink': '#ff69b4',
-    'deep pink': '#ff1493',
-    'light pink': '#ffb6c1',
-    'dark pink': '#c71585',
-    'pale violet red': '#db7093',
-    'misty rose': '#ffe4e1',
-
-    // Oranges
-    'orange': '#f97316',
-    'peach': '#fed7aa',
-    'coral': '#f97316',
-    'terracotta': '#c2410c',
-    'dark orange': '#ff8c00',
-    'tangerine': '#ff9966',
-    'papaya whip': '#ffefd5',
-    'bisque': '#ffe4c4',
-    'sandy brown': '#f4a460',
-
-    // Yellows/Golds
-    'yellow': '#eab308',
-    'gold': '#ffd700',
-    'mustard': '#eab308',
-    'champagne': '#f7e7ce',
-    'lemon chiffon': '#fffacd',
-    'cornsilk': '#fff8dc',
-    'moccasin': '#ffe4b5',
-    'pale goldenrod': '#eee8aa',
-    'khaki': '#f0e68c',
-    'olive drab': '#6b8e23',
-    'marigold': '#eaa221',
-
-    // Other
-    'teal': '#14b8a6',
-    'cyan': '#06b6d4',
-    'aqua': '#06b6d4',
-    'turquoise': '#40e0d0',
-    'aquamarine': '#7fffd4',
-    'medium turquoise': '#48d1cc',
-    'dark cyan': '#008b8b',
-    'cadet blue': '#5f9ea0',
-    'cadmium yellow': '#fff600',
-    'zinc': '#7a7a7a',
-    'bronze': '#cd7f32',
-    'copper': '#b87333',
-    'pewter': '#8e8e8e',
-    'gunmetal': '#2a3439',
+    return `#${raw}`;
 };
 
-// Complete list of all available colors (matching backend Color model)
-export const COLOR_LIST = [
-    // Basic Colors
-    'Black', 'White', 'Gray', 'Brown', 'Red', 'Blue', 'Green', 'Yellow', 'Orange', 'Purple', 'Pink',
-    // Extended Colors
-    'Navy Blue', 'Navy', 'Royal Blue', 'Sky Blue', 'Steel Blue', 'Slate Gray', 'Charcoal',
-    'Ivory', 'Cream', 'Beige', 'Tan', 'Khaki',
-    'Maroon', 'Burgundy', 'Crimson', 'Scarlet', 'Rose', 'Firebrick', 'Dark Red',
-    'Emerald', 'Forest Green', 'Olive', 'Sage', 'Teal', 'Cyan', 'Aqua', 'Turquoise', 'Mint', 'Lime',
-    'Lavender', 'Violet', 'Plum', 'Magenta', 'Indigo', 'Orchid',
-    'Gold', 'Silver', 'Mustard', 'Champagne', 'Peach', 'Coral', 'Terracotta', 'Marigold',
-    'Earth Brown', 'Coffee', 'Chocolate', 'Ash', 'Sienna', 'Saddle Brown',
-    'Light Blue', 'Dark Blue', 'Light Gray', 'Dark Gray', 'Light Green', 'Dark Green',
-    'Light Pink', 'Dark Pink', 'Light Purple', 'Dark Purple',
-    'Light Yellow', 'Dark Yellow', 'Light Orange', 'Dark Orange',
-    'Hot Pink', 'Deep Pink', 'Salmon', 'Tomato', 'Wheat', 'Burlywood',
-    'Snow', 'Ghost White', 'Linen', 'Seashell', 'Misty Rose', 'Bisque',
-    'Cornsilk', 'Lemon Chiffon', 'Pale Goldenrod', 'Papaya Whip',
-    'Sea Green', 'Medium Sea Green', 'Lawn Green', 'Pale Green',
-    'Medium Purple', 'Thistle', 'Rebecca Purple',
-    'Medium Violet Red', 'Pale Violet Red',
-    'Dark Violet', 'Medium Turquoise', 'Dark Cyan', 'Cadet Blue',
-    'Bronze', 'Copper', 'Pewter', 'Gunmetal'
-];
+const extractHex = (value) => {
+    const text = (value || '').toString().trim();
+    const direct = normalizeHex(text);
+    if (direct) return direct;
 
-// Organized color palette for UI selection
-export const COLOR_PALETTE = {
-    neutrals: [
-        { name: 'Black', hex: '#1a1a1a' },
-        { name: 'White', hex: '#ffffff' },
-        { name: 'Charcoal', hex: '#374151' },
-        { name: 'Gray', hex: '#6b7280' },
-        { name: 'Silver', hex: '#c0c0c0' },
-        { name: 'Ivory', hex: '#fffff0' },
-        { name: 'Cream', hex: '#fdfbf7' },
-        { name: 'Beige', hex: '#f5f5dc' },
-        { name: 'Tan', hex: '#d2b48c' },
-        { name: 'Khaki', hex: '#c3b091' },
-    ],
-    blues: [
-        { name: 'Navy Blue', hex: '#1e3a8a' },
-        { name: 'Royal Blue', hex: '#2563eb' },
-        { name: 'Blue', hex: '#3b82f6' },
-        { name: 'Sky Blue', hex: '#0ea5e9' },
-        { name: 'Steel Blue', hex: '#475569' },
-        { name: 'Slate Gray', hex: '#708090' },
-        { name: 'Light Blue', hex: '#93c5fd' },
-        { name: 'Dark Blue', hex: '#1e40af' },
-        { name: 'Powder Blue', hex: '#b0e0e6' },
-        { name: 'Cornflower Blue', hex: '#6495ed' },
-    ],
-    reds: [
-        { name: 'Maroon', hex: '#7f1d1d' },
-        { name: 'Burgundy', hex: '#881337' },
-        { name: 'Crimson', hex: '#dc2626' },
-        { name: 'Red', hex: '#ef4444' },
-        { name: 'Scarlet', hex: '#ef4444' },
-        { name: 'Firebrick', hex: '#b22222' },
-        { name: 'Dark Red', hex: '#8b0000' },
-        { name: 'Salmon', hex: '#fa8072' },
-        { name: 'Tomato', hex: '#ff6347' },
-        { name: 'Rose', hex: '#f43f5e' },
-    ],
-    greens: [
-        { name: 'Forest Green', hex: '#166534' },
-        { name: 'Green', hex: '#22c55e' },
-        { name: 'Emerald', hex: '#059669' },
-        { name: 'Sage', hex: '#9dc183' },
-        { name: 'Olive', hex: '#84cc16' },
-        { name: 'Lime', hex: '#32cd32' },
-        { name: 'Mint', hex: '#98fb98' },
-        { name: 'Sea Green', hex: '#2e8b57' },
-        { name: 'Light Green', hex: '#90ee90' },
-        { name: 'Dark Green', hex: '#006400' },
-    ],
-    purples: [
-        { name: 'Indigo', hex: '#4b0082' },
-        { name: 'Purple', hex: '#a855f7' },
-        { name: 'Violet', hex: '#8b5cf6' },
-        { name: 'Plum', hex: '#7e22ce' },
-        { name: 'Lavender', hex: '#c4b5fd' },
-        { name: 'Magenta', hex: '#d946ef' },
-        { name: 'Orchid', hex: '#da70d6' },
-        { name: 'Medium Purple', hex: '#9370db' },
-        { name: 'Thistle', hex: '#d8bfd8' },
-        { name: 'Dark Violet', hex: '#9400d3' },
-    ],
-    pinks: [
-        { name: 'Pink', hex: '#ec4899' },
-        { name: 'Hot Pink', hex: '#ff69b4' },
-        { name: 'Deep Pink', hex: '#ff1493' },
-        { name: 'Light Pink', hex: '#ffb6c1' },
-        { name: 'Magenta', hex: '#d946ef' },
-        { name: 'Rose', hex: '#f43f5e' },
-        { name: 'Pale Violet Red', hex: '#db7093' },
-        { name: 'Misty Rose', hex: '#ffe4e1' },
-    ],
-    yellows: [
-        { name: 'Gold', hex: '#ffd700' },
-        { name: 'Yellow', hex: '#eab308' },
-        { name: 'Mustard', hex: '#eab308' },
-        { name: 'Champagne', hex: '#f7e7ce' },
-        { name: 'Marigold', hex: '#eaa221' },
-        { name: 'Lemon Chiffon', hex: '#fffacd' },
-        { name: 'Cornsilk', hex: '#fff8dc' },
-        { name: 'Pale Goldenrod', hex: '#eee8aa' },
-        { name: 'Wheat', hex: '#f5deb3' },
-        { name: 'Moccasin', hex: '#ffe4b5' },
-    ],
-    oranges: [
-        { name: 'Orange', hex: '#f97316' },
-        { name: 'Dark Orange', hex: '#ff8c00' },
-        { name: 'Coral', hex: '#f97316' },
-        { name: 'Terracotta', hex: '#c2410c' },
-        { name: 'Peach', hex: '#fed7aa' },
-        { name: 'Tangerine', hex: '#ff9966' },
-        { name: 'Sandy Brown', hex: '#f4a460' },
-        { name: 'Papaya Whip', hex: '#ffefd5' },
-        { name: 'Bisque', hex: '#ffe4c4' },
-        { name: 'Burlywood', hex: '#deb887' },
-    ],
-    browns: [
-        { name: 'Brown', hex: '#92400e' },
-        { name: 'Earth Brown', hex: '#7d6e5d' },
-        { name: 'Coffee', hex: '#4a2c2a' },
-        { name: 'Chocolate', hex: '#7b341e' },
-        { name: 'Saddle Brown', hex: '#8b4513' },
-        { name: 'Sienna', hex: '#a0522d' },
-        { name: 'Peru', hex: '#cd853f' },
-        { name: 'Bronze', hex: '#cd7f32' },
-        { name: 'Copper', hex: '#b87333' },
-    ],
-    teals: [
-        { name: 'Teal', hex: '#14b8a6' },
-        { name: 'Turquoise', hex: '#40e0d0' },
-        { name: 'Cyan', hex: '#06b6d4' },
-        { name: 'Aqua', hex: '#06b6d4' },
-        { name: 'Aquamarine', hex: '#7fffd4' },
-        { name: 'Medium Turquoise', hex: '#48d1cc' },
-        { name: 'Dark Cyan', hex: '#008b8b' },
-        { name: 'Cadet Blue', hex: '#5f9ea0' },
-    ],
+    const embedded = text.match(/#([0-9a-f]{3}|[0-9a-f]{6})\b/i);
+    return embedded ? normalizeHex(embedded[1]) : null;
 };
 
-// Get hex color from name
+const rgbToHex = (rgbText) => {
+    const rgbMatch = rgbText.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+    if (!rgbMatch) return null;
+
+    const toHex = (num) => Number(num).toString(16).padStart(2, '0');
+    return `#${toHex(rgbMatch[1])}${toHex(rgbMatch[2])}${toHex(rgbMatch[3])}`;
+};
+
+const resolveCssKeywordToHex = (name) => {
+    if (typeof document === 'undefined' || !name) return null;
+
+    const normalized = normalizeColorKey(name);
+    const candidates = [normalized, normalized.replace(/\s+/g, '')];
+
+    for (const candidate of candidates) {
+        const el = document.createElement('span');
+        el.style.color = '';
+        el.style.color = candidate;
+        if (!el.style.color) {
+            continue;
+        }
+
+        document.body.appendChild(el);
+        const resolved = window.getComputedStyle(el).color;
+        document.body.removeChild(el);
+
+        const hex = rgbToHex(resolved);
+        if (hex) {
+            return hex;
+        }
+    }
+
+    return null;
+};
+
+const hashColorNameToHex = (name) => {
+    const key = normalizeColorKey(name) || 'color';
+    let hash = 0;
+    for (let i = 0; i < key.length; i += 1) {
+        hash = key.charCodeAt(i) + ((hash << 5) - hash);
+    }
+
+    const hue = Math.abs(hash) % 360;
+    const saturation = 55;
+    const lightness = 52;
+
+    const c = (1 - Math.abs((2 * lightness) / 100 - 1)) * (saturation / 100);
+    const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
+    const m = lightness / 100 - c / 2;
+
+    let r = 0;
+    let g = 0;
+    let b = 0;
+
+    if (hue < 60) {
+        r = c;
+        g = x;
+    } else if (hue < 120) {
+        r = x;
+        g = c;
+    } else if (hue < 180) {
+        g = c;
+        b = x;
+    } else if (hue < 240) {
+        g = x;
+        b = c;
+    } else if (hue < 300) {
+        r = x;
+        b = c;
+    } else {
+        r = c;
+        b = x;
+    }
+
+    const toHex = (channel) => Math.round((channel + m) * 255).toString(16).padStart(2, '0');
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+};
+
+const refreshCompatibilityExports = () => {
+    Object.keys(COLOR_MAP).forEach((key) => {
+        delete COLOR_MAP[key];
+    });
+
+    COLOR_LIST.splice(0, COLOR_LIST.length);
+    COLOR_PALETTE.backend = [];
+
+    Array.from(backendColorRegistry.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .forEach(([name, hex]) => {
+            COLOR_MAP[name] = hex;
+            COLOR_LIST.push(formatColorName(name));
+            COLOR_PALETTE.backend.push({ name: formatColorName(name), hex });
+        });
+};
+
+export const setBackendColors = (colors = []) => {
+    backendColorRegistry.clear();
+
+    colors.forEach((color) => {
+        const rawName = typeof color === 'object' ? color?.name : color;
+        const key = normalizeColorKey(rawName);
+        if (!key) return;
+
+        const candidateHex =
+            extractHex(typeof color === 'object' ? color?.hex_color || color?.hex || color?.name : color) ||
+            hashColorNameToHex(rawName);
+
+        backendColorRegistry.set(key, candidateHex);
+    });
+
+    refreshCompatibilityExports();
+};
+
+export const upsertBackendColor = (color) => {
+    const rawName = typeof color === 'object' ? color?.name : color;
+    const key = normalizeColorKey(rawName);
+    if (!key) return;
+
+    const nextHex =
+        extractHex(typeof color === 'object' ? color?.hex_color || color?.hex || color?.name : color) ||
+        backendColorRegistry.get(key) ||
+        hashColorNameToHex(rawName);
+
+    backendColorRegistry.set(key, nextHex);
+    refreshCompatibilityExports();
+};
+
+// Get hex color from a backend color name/value.
 export const getHexColor = (colorName) => {
-    if (!colorName) return '#6b7280'; // default gray
+    if (!colorName) return DEFAULT_FALLBACK_COLOR;
 
-    const normalized = colorName.toLowerCase().trim();
-    return COLOR_MAP[normalized] || '#6b7280';
+    if (typeof colorName === 'object') {
+        const objectHex = extractHex(colorName.hex_color || colorName.hex || colorName.name);
+        if (objectHex) return objectHex;
+        const objectKey = normalizeColorKey(colorName.name);
+        if (objectKey && backendColorRegistry.has(objectKey)) {
+            return backendColorRegistry.get(objectKey);
+        }
+    }
+
+    const raw = colorName.toString().trim();
+    const directHex = extractHex(raw);
+    if (directHex) return directHex;
+
+    const key = normalizeColorKey(raw);
+    if (backendColorRegistry.has(key)) {
+        return backendColorRegistry.get(key);
+    }
+
+    const cssHex = resolveCssKeywordToHex(raw);
+    if (cssHex) {
+        return cssHex;
+    }
+
+    return hashColorNameToHex(raw) || DEFAULT_FALLBACK_COLOR;
 };
 
-// Get all available colors as array of objects (for UI dropdowns)
-export const getAvailableColors = () => [
-    { name: 'Black', hex: '#1a1a1a' },
-    { name: 'White', hex: '#ffffff' },
-    { name: 'Navy Blue', hex: '#1e3a8a' },
-    { name: 'Royal Blue', hex: '#2563eb' },
-    { name: 'Blue', hex: '#3b82f6' },
-    { name: 'Sky Blue', hex: '#0ea5e9' },
-    { name: 'Steel Blue', hex: '#475569' },
-    { name: 'Slate Gray', hex: '#475569' },
-    { name: 'Charcoal', hex: '#374151' },
-    { name: 'Gray', hex: '#6b7280' },
-    { name: 'Silver', hex: '#c0c0c0' },
-    { name: 'Ivory', hex: '#fffff0' },
-    { name: 'Cream', hex: '#fdfbf7' },
-    { name: 'Beige', hex: '#f5f5dc' },
-    { name: 'Tan', hex: '#d2b48c' },
-    { name: 'Khaki', hex: '#c3b091' },
-    { name: 'Earth Brown', hex: '#7d6e5d' },
-    { name: 'Brown', hex: '#92400e' },
-    { name: 'Coffee', hex: '#4a2c2a' },
-    { name: 'Chocolate', hex: '#7b341e' },
-    { name: 'Maroon', hex: '#7f1d1d' },
-    { name: 'Burgundy', hex: '#881337' },
-    { name: 'Crimson', hex: '#dc2626' },
-    { name: 'Red', hex: '#ef4444' },
-    { name: 'Scarlet', hex: '#ef4444' },
-    { name: 'Rose', hex: '#f43f5e' },
-    { name: 'Pink', hex: '#ec4899' },
-    { name: 'Magenta', hex: '#d946ef' },
-    { name: 'Purple', hex: '#a855f7' },
-    { name: 'Violet', hex: '#8b5cf6' },
-    { name: 'Lavender', hex: '#c4b5fd' },
-    { name: 'Plum', hex: '#7e22ce' },
-    { name: 'Indigo', hex: '#4b0082' },
-    { name: 'Green', hex: '#22c55e' },
-    { name: 'Emerald', hex: '#059669' },
-    { name: 'Forest Green', hex: '#166534' },
-    { name: 'Olive', hex: '#84cc16' },
-    { name: 'Sage', hex: '#9dc183' },
-    { name: 'Teal', hex: '#14b8a6' },
-    { name: 'Turquoise', hex: '#40e0d0' },
-    { name: 'Cyan', hex: '#06b6d4' },
-    { name: 'Aqua', hex: '#06b6d4' },
-    { name: 'Mint', hex: '#98fb98' },
-    { name: 'Lime', hex: '#32cd32' },
-    { name: 'Yellow', hex: '#eab308' },
-    { name: 'Gold', hex: '#ffd700' },
-    { name: 'Mustard', hex: '#eab308' },
-    { name: 'Champagne', hex: '#f7e7ce' },
-    { name: 'Orange', hex: '#f97316' },
-    { name: 'Peach', hex: '#fed7aa' },
-    { name: 'Coral', hex: '#f97316' },
-    { name: 'Terracotta', hex: '#c2410c' },
-    { name: 'Marigold', hex: '#eaa221' },
-    { name: 'Ash', hex: '#b2beb5' }
-];
-
-// Extract unique colors from materials
-export const extractColorsFromMaterials = (materials) => {
+// Extract unique colors from materials and sync backend registry as we learn them.
+export const extractColorsFromMaterials = (materials = []) => {
     const colorsMap = new Map();
 
-    materials.forEach(material => {
-        // Handle colors array from backend
-        if (material.colors && Array.isArray(material.colors)) {
-            material.colors.forEach(color => {
-                const name = typeof color === 'object' ? color.name : color;
-                if (name && !colorsMap.has(name.toLowerCase())) {
-                    colorsMap.set(name.toLowerCase(), {
-                        name: name,
-                        hex: getHexColor(name)
-                    });
-                }
+    materials.forEach((material) => {
+        if (material?.colors && Array.isArray(material.colors)) {
+            material.colors.forEach((color) => {
+                const name = typeof color === 'object' ? color?.name : color;
+                const key = normalizeColorKey(name);
+                if (!key || colorsMap.has(key)) return;
+
+                const hex =
+                    extractHex(typeof color === 'object' ? color?.hex_color || color?.hex || color?.name : color) ||
+                    getHexColor(name);
+
+                colorsMap.set(key, { name, hex });
+                upsertBackendColor({ name, hex_color: hex });
             });
         }
 
-        // Handle legacy color field
-        if (material.color) {
-            const colorName = material.color;
-            if (!colorsMap.has(colorName.toLowerCase())) {
-                colorsMap.set(colorName.toLowerCase(), {
-                    name: colorName,
-                    hex: getHexColor(colorName)
-                });
-            }
+        if (material?.color) {
+            const key = normalizeColorKey(material.color);
+            if (!key || colorsMap.has(key)) return;
+            const hex = getHexColor(material.color);
+            colorsMap.set(key, { name: material.color, hex });
+            upsertBackendColor({ name: material.color, hex_color: hex });
         }
     });
 
     return Array.from(colorsMap.values());
 };
 
-// Format color name for display
 export const formatColorName = (colorName) => {
     if (!colorName) return '';
     return colorName
+        .toString()
         .split(/[\s_-]+/)
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .filter(Boolean)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
         .join(' ');
 };
 
 // Check if color is light or dark
 export const isLightColor = (hexColor) => {
-    if (!hexColor) return true;
+    const normalized = normalizeHex(hexColor) || getHexColor(hexColor);
+    const safeHex = normalizeHex(normalized) || DEFAULT_FALLBACK_COLOR;
+    const hex = safeHex.replace('#', '');
 
-    // Remove # if present
-    const hex = hexColor.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
 
-    // Parse RGB values
-    const r = parseInt(hex.substr(0, 2), 16);
-    const g = parseInt(hex.substr(2, 2), 16);
-    const b = parseInt(hex.substr(4, 2), 16);
-
-    // Calculate brightness (perceived luminance)
     const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-
     return brightness > 128;
 };
 
-// Get contrasting text color (black or white)
-export const getContrastingTextColor = (hexColor) => {
-    return isLightColor(hexColor) ? '#000000' : '#ffffff';
-};
+export const getContrastingTextColor = (hexColor) =>
+    isLightColor(hexColor) ? '#000000' : '#ffffff';
 
-// Color selector component data - for forms
-export const getColorSelectorData = () => {
-    const allColors = [];
+export const getColorSelectorData = () =>
+    (COLOR_PALETTE.backend || []).map((color) => ({ ...color, category: 'Backend' }));
 
-    Object.entries(COLOR_PALETTE).forEach(([category, colors]) => {
-        colors.forEach(color => {
-            allColors.push({
-                ...color,
-                category: category.charAt(0).toUpperCase() + category.slice(1)
-            });
-        });
-    });
-
-    return allColors;
-};
-
-// Get colors by category
 export const getColorsByCategory = (category) => {
-    return COLOR_PALETTE[category] || [];
+    const key = (category || '').toString().toLowerCase();
+    if (key === 'backend') {
+        return COLOR_PALETTE.backend || [];
+    }
+    return [];
 };
 
-// Get all category names
-export const getColorCategories = () => Object.keys(COLOR_PALETTE);
+export const getColorCategories = () => ['backend'];
 
 export default {
     COLOR_MAP,
     COLOR_LIST,
     COLOR_PALETTE,
+    setBackendColors,
+    upsertBackendColor,
     getHexColor,
-    getAvailableColors,
     extractColorsFromMaterials,
     formatColorName,
     isLightColor,

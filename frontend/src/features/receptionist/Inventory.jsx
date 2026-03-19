@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { motion as Motion, AnimatePresence } from "framer-motion";
 import {
   HiOutlineCube,
   HiOutlineMagnifyingGlass,
@@ -16,10 +16,72 @@ import {
   HiOutlineTrash,
   HiOutlinePencil
 } from "react-icons/hi2";
-import api, { getMaterials, createMaterial, adjustStock, updateMaterial, createColor } from "../../api/api";
-import { getHexColor, getAvailableColors, formatColorName } from "../../utils/colors";
+import api, { getMaterials, createMaterial, adjustStock, updateMaterial, createColor, getColors } from "../../api/api";
 import ColorCreateCollection from './ColorCreateCollection';
 // import { STORAGE_KEYS } from "../../utils/constants";
+
+const normalizeColorInputValue = (value) => {
+  if (!value) return "";
+  return value
+    .toString()
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+const normalizeHexValue = (value) => {
+  const raw = value.toString().trim().replace(/^#/, "").toLowerCase();
+  if (/^[0-9a-f]{3}$/i.test(raw)) {
+    return `#${raw.split("").map((c) => `${c}${c}`).join("").toUpperCase()}`;
+  }
+  if (/^[0-9a-f]{6}$/i.test(raw)) {
+    return `#${raw.toUpperCase()}`;
+  }
+  return value;
+};
+
+const toDisplayColorNameValue = (value) => {
+  const normalized = normalizeColorInputValue(value);
+  if (!normalized) return "";
+
+  const colorWithHex = normalized.match(/^color\s+#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (colorWithHex) {
+    return `#${normalizeHexValue(colorWithHex[1]).replace("#", "")}`;
+  }
+
+  return normalized
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+};
+
+const extractHexFromColorValue = (value) => {
+  if (!value) return null;
+  const raw = value.toString().trim();
+
+  const directHex = raw.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (directHex) return normalizeHexValue(raw);
+
+  const namedHex = raw.match(/^color\s+#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (namedHex) return normalizeHexValue(namedHex[1]);
+
+  return null;
+};
+
+const toColorCssValue = (value) => {
+  const parsedHex = extractHexFromColorValue(value);
+  if (parsedHex) return parsedHex;
+
+  const normalized = normalizeColorInputValue(value);
+  if (!normalized) return "#6b7280";
+
+  // Use browser named-color parser by collapsing spaces (e.g., light blue -> lightblue)
+  return normalized.replace(/\s+/g, "").toLowerCase();
+};
+
+const toColorPickerValue = (value) => extractHexFromColorValue(value) || "#6B7280";
 
 const Inventory = () => {
   const [inventory, setInventory] = useState([]);
@@ -49,10 +111,91 @@ const Inventory = () => {
   const [materialColors, setMaterialColors] = useState([]);
   const [materialColorInput, setMaterialColorInput] = useState("");
   const [showCreateColorModal, setShowCreateColorModal] = useState(false);
+  const [availableColors, setAvailableColors] = useState([]);
+  const [colorsLoading, setColorsLoading] = useState(false);
+
+  const colorKey = (value) => normalizeColorInputValue(value).toLowerCase();
+
+  const fetchAvailableColors = useCallback(async () => {
+    try {
+      setColorsLoading(true);
+      const response = await getColors();
+      let colorsData = response.data;
+      if (colorsData && typeof colorsData === "object" && !Array.isArray(colorsData)) {
+        colorsData = colorsData.results || colorsData.data || colorsData.items || [];
+      }
+
+      const unique = new Map();
+      (colorsData || []).forEach((color) => {
+        const rawName = color?.name || "";
+        const displayName = toDisplayColorNameValue(rawName);
+        if (!displayName) return;
+        const key = colorKey(displayName);
+        if (!unique.has(key)) {
+          unique.set(key, {
+            id: color?.id,
+            name: displayName,
+          });
+        }
+      });
+
+      setAvailableColors(Array.from(unique.values()).sort((a, b) => a.name.localeCompare(b.name)));
+    } catch (error) {
+      console.error("Error fetching available colors:", error);
+    } finally {
+      setColorsLoading(false);
+    }
+  }, []);
+
+  const fetchInventory = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await getMaterials();
+      // Handle both array and paginated responses
+      let materialsData = response.data;
+      if (materialsData && typeof materialsData === 'object' && !Array.isArray(materialsData)) {
+        materialsData = materialsData.results || materialsData.data || materialsData.items || [];
+      }
+      setInventory(materialsData || []);
+    } catch (error) {
+      console.error("Error fetching inventory:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetchInventory();
-  }, []);
+    fetchAvailableColors();
+  }, [fetchInventory, fetchAvailableColors]);
+
+  const upsertAvailableColor = (name, id = null) => {
+    const displayName = toDisplayColorNameValue(name);
+    if (!displayName) return;
+
+    setAvailableColors((prev) => {
+      const key = colorKey(displayName);
+      const exists = prev.some((c) => colorKey(c.name) === key);
+      if (exists) return prev;
+      return [...prev, { id, name: displayName }].sort((a, b) => a.name.localeCompare(b.name));
+    });
+  };
+
+  const findExistingColor = (value) => {
+    const key = colorKey(value);
+    return availableColors.find((c) => colorKey(c.name) === key) || null;
+  };
+
+  const getFilteredAvailableColors = (query) => {
+    const text = normalizeColorInputValue(query).toLowerCase();
+    if (!text) return availableColors;
+
+    return availableColors.filter((color) => {
+      const colorName = color.name.toLowerCase();
+      const colorHex = toColorCssValue(color.name).toLowerCase();
+      return colorName.includes(text) || colorHex.includes(text);
+    });
+  };
 
   const normalizeCategory = (cat) => {
     if (!cat) return null;
@@ -69,7 +212,7 @@ const Inventory = () => {
       const colors = selectedItem.colors && Array.isArray(selectedItem.colors)
         ? selectedItem.colors.map(c => c.name || c).filter(Boolean)
         : selectedItem.color ? [selectedItem.color] : [];
-      setMaterialColors(colors.map(formatColorName));
+      setMaterialColors(colors.map(toDisplayColorNameValue));
       setMaterialColorInput("");
     } else {
       setMaterialColors([]);
@@ -77,26 +220,9 @@ const Inventory = () => {
     }
   }, [selectedItem]);
 
-  const fetchInventory = async () => {
-    try {
-      setLoading(true);
-      const response = await getMaterials();
-      // Handle both array and paginated responses
-      let materialsData = response.data;
-      if (materialsData && typeof materialsData === 'object' && !Array.isArray(materialsData)) {
-        materialsData = materialsData.results || materialsData.data || materialsData.items || [];
-      }
-      setInventory(materialsData || []);
-    } catch (error) {
-      console.error("Error fetching inventory:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Resolve an input (hex or name) to a proper color name.
-  // If input is hex and matches a known palette color, return that palette name.
-  // If input is hex and not known, create the color via API and return created name.
+  // Supports #hex, lowercase/UPPERCASE names, and camelCase names.
+  // Missing colors are created in backend before returning.
   const resolveOrCreateColor = async (input) => {
     if (!input) return null;
     const val = input.trim();
@@ -104,26 +230,36 @@ const Inventory = () => {
     // hex pattern (#rgb or #rrggbb)
     const hexMatch = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(val);
     if (hexMatch) {
-      const hex = val.toLowerCase();
-      const paletteMatch = getAvailableColors().find(c => c.hex.toLowerCase() === hex);
-      if (paletteMatch) return formatColorName(paletteMatch.name);
+      const normalizedHex = normalizeHexValue(val);
+      const preferredName = `${normalizedHex}`;
+      const existing = findExistingColor(preferredName);
+      if (existing) return existing.name;
 
-      // Not in palette - attempt to create on backend and return created name
       try {
-        const payloadName = `Color ${hex.toUpperCase()}`;
-        const res = await createColor({ name: payloadName });
-        const createdName = res.data?.name || res.name || payloadName;
-        // refresh inventory so backend colors are visible where applicable
-        fetchInventory();
-        return formatColorName(createdName);
+        const res = await createColor({ name: preferredName });
+        const createdName = toDisplayColorNameValue(res.data?.name || res.name || preferredName);
+        upsertAvailableColor(createdName, res.data?.id || res.id || null);
+        return createdName;
       } catch (err) {
-        console.error('Failed to create color for hex', err);
-        return `Color ${val.toUpperCase()}`;
+        console.error("Failed to create color for hex", err);
+        return preferredName;
       }
     }
 
-    // Otherwise treat as a name - normalize capitalization
-    return formatColorName(val);
+    // Otherwise treat as a name.
+    const normalizedName = toDisplayColorNameValue(val);
+    const existing = findExistingColor(normalizedName) || findExistingColor(val);
+    if (existing) return existing.name;
+
+    try {
+      const res = await createColor({ name: normalizedName });
+      const createdName = toDisplayColorNameValue(res.data?.name || res.name || normalizedName);
+      upsertAvailableColor(createdName, res.data?.id || res.id || null);
+      return createdName;
+    } catch (err) {
+      console.error("Failed to create color by name", err);
+      return normalizedName;
+    }
   };
 
   const handleAddMaterial = async (e) => {
@@ -131,7 +267,7 @@ const Inventory = () => {
   try {
     // 1. Ensure colors is ONLY an array of strings (e.g., ["Red", "Blue"])
     const cleanColors = Array.isArray(newMaterial.colors) 
-      ? newMaterial.colors.map(c => typeof c === 'object' ? c.value : c).map(name => formatColorName(name)) 
+      ? newMaterial.colors.map(c => typeof c === 'object' ? c.value : c).map(name => toDisplayColorNameValue(name)) 
       : [];
 
     const materialData = {
@@ -197,6 +333,8 @@ const Inventory = () => {
   });
 
   const depletedCount = inventory.filter(i => parseFloat(i.inventory?.quantity_meters || 0) === 0).length;
+  const addColorOptions = getFilteredAvailableColors(newMaterial.colorInput);
+  const editColorOptions = getFilteredAvailableColors(materialColorInput);
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#050505] text-zinc-900 dark:text-zinc-100 transition-colors duration-300">
@@ -292,14 +430,14 @@ const Inventory = () => {
                                         <div
                                           key={idx}
                                           className="w-3 h-3 rounded-full border border-zinc-300"
-                                          style={{ backgroundColor: getHexColor(c.name || c) }}
+                                          style={{ backgroundColor: toColorCssValue(c.name || c) }}
                                           title={c.name || c}
                                         />
                                       ))
                                     ) : (
                                       <div
                                         className="w-3 h-3 rounded-full border border-zinc-300"
-                                        style={{ backgroundColor: getHexColor(item.color) }}
+                                        style={{ backgroundColor: toColorCssValue(item.color) }}
                                         title={item.color}
                                       />
                                     )}
@@ -319,7 +457,7 @@ const Inventory = () => {
                         <td className="p-6 hidden md:table-cell w-1/3">
                           <div className="flex items-center gap-4">
                             <div className="flex-1 h-2 bg-zinc-100 dark:bg-white/5 rounded-full overflow-hidden">
-                              <motion.div
+                              <Motion.div
                                 initial={{ width: 0 }} animate={{ width: `${Math.min(qty, 100)}%` }}
                                 className={`h-full rounded-full ${qty === 0 ? 'bg-zinc-300' : qty < 15 ? 'bg-orange-500' : 'bg-red-600'}`}
                               />
@@ -351,13 +489,13 @@ const Inventory = () => {
       <AnimatePresence>
         {selectedItem && (
           <div className="fixed inset-0 z-[100] flex items-start justify-center p-2 sm:p-4 md:p-6 overflow-y-auto overflow-x-hidden">
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => { setSelectedItem(null); setEditingImage(false); }}
               className="absolute inset-0 bg-black/80 backdrop-blur-md"
             />
 
-            <motion.div
+            <Motion.div
               initial={{ scale: 0.95, opacity: 0, y: 12 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 12 }}
@@ -531,7 +669,7 @@ const Inventory = () => {
                             <div
                               key={idx}
                               className="w-5 h-5 rounded-full border-2 border-white dark:border-zinc-800"
-                              style={{ backgroundColor: getHexColor(c), zIndex: materialColors.length - idx }}
+                              style={{ backgroundColor: toColorCssValue(c), zIndex: materialColors.length - idx }}
                               title={c}
                             />
                           ))}
@@ -596,10 +734,43 @@ const Inventory = () => {
                         <div className="text-xs text-zinc-400">You can add hex or name</div>
                       </div>
                       <div className="mt-3">
+                        <div className="max-h-36 overflow-y-auto rounded-2xl border border-zinc-200 dark:border-zinc-700 p-2 bg-white dark:bg-zinc-900 mb-3">
+                          {colorsLoading ? (
+                            <div className="text-xs text-zinc-400 px-2 py-2">Loading colors...</div>
+                          ) : editColorOptions.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {editColorOptions.map((color) => {
+                                const selected = materialColors.some((c) => colorKey(c) === colorKey(color.name));
+                                return (
+                                  <button
+                                    key={color.id || color.name}
+                                    type="button"
+                                    onClick={() => {
+                                      if (!selected) {
+                                        setMaterialColors([...materialColors, color.name]);
+                                      }
+                                    }}
+                                    className={`flex items-center gap-2 rounded-lg border text-xs font-bold transition-all ${
+                                      selected
+                                        ? "bg-red-600/10 border-red-600 text-red-600"
+                                        : "bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700"
+                                    }`}
+                                  >
+                                    <span className="w-8 h-6 border border-zinc-300" style={{ backgroundColor: toColorCssValue(color.name) }} />
+                                    {/* {color.name} */}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-zinc-400 px-2 py-2">No matching color in backend list.</div>
+                          )}
+                        </div>
+
                         <div className="flex items-center gap-2">
                           <input
                             type="color"
-                            value={getHexColor(materialColorInput) || '#6b7280'}
+                            value={toColorPickerValue(materialColorInput)}
                             onChange={(e) => setMaterialColorInput(e.target.value)}
                             className="w-10 h-10 rounded-lg"
                           />
@@ -620,9 +791,10 @@ const Inventory = () => {
                               if (!val) return;
                               const resolved = await resolveOrCreateColor(val);
                               if (!resolved) return;
-                              if (!materialColors.includes(resolved)) {
+                              if (!materialColors.some((c) => colorKey(c) === colorKey(resolved))) {
                                 setMaterialColors([...materialColors, resolved]);
                               }
+                              upsertAvailableColor(resolved);
                               setMaterialColorInput("");
                             }}
                             className="px-3 py-2 bg-red-600 text-white rounded-xl text-sm"
@@ -633,7 +805,7 @@ const Inventory = () => {
                           <div className="flex flex-wrap gap-2 mt-3">
                             {materialColors.map((c, idx) => (
                               <span key={idx} className="flex items-center gap-2 px-2 py-1 rounded-lg bg-white dark:bg-gray-800 border">
-                                <span className="w-4 h-4 rounded-full" style={{ backgroundColor: getHexColor(c) }} />
+                                <span className="w-4 h-4 rounded-full" style={{ backgroundColor: toColorCssValue(c) }} />
                                 <span className="text-xs font-bold">{c}</span>
                                 <button
                                   onClick={() => setMaterialColors(materialColors.filter((m, i) => i !== idx))}
@@ -830,7 +1002,7 @@ const Inventory = () => {
                 <HiOutlineExclamationTriangle className="text-orange-500 shrink-0" size={20} />
                 <p className="text-[9px] font-black text-orange-600/80 uppercase leading-relaxed tracking-wider">Note: All stock modifications are logged with user timestamp for audit security.</p>
               </div>
-            </motion.div>
+            </Motion.div>
           </div>
         )}
       </AnimatePresence>
@@ -842,12 +1014,13 @@ const Inventory = () => {
           // created may be { id, name }
           const raw = created?.name || (created && created.data && created.data.name) || '';
           if (!raw) return;
-          const name = formatColorName(raw);
+          const name = toDisplayColorNameValue(raw);
+          upsertAvailableColor(name, created?.id || created?.data?.id || null);
 
           // If editing an existing material, add to its colors list
           if (selectedItem) {
             const existing = selectedItem.colors ? selectedItem.colors.map(c => c.name || c) : (selectedItem.color ? [selectedItem.color] : []);
-            if (!existing.includes(name)) {
+            if (!existing.some((c) => colorKey(c) === colorKey(name))) {
               setMaterialColors([...materialColors, name]);
               setSelectedItem({ ...selectedItem, colors: [...(selectedItem.colors || []), { name }] });
             }
@@ -855,13 +1028,14 @@ const Inventory = () => {
 
           // Also add to newMaterial when in Add Material modal
           if (showAddModal) {
-            if (!newMaterial.colors.includes(name)) {
+            if (!newMaterial.colors.some((c) => colorKey(c) === colorKey(name))) {
               setNewMaterial({ ...newMaterial, colors: [...newMaterial.colors, name] });
             }
           }
 
           // Refresh inventory so created colors appear in backend-driven lists
           fetchInventory();
+          fetchAvailableColors();
         }}
       />
 
@@ -869,13 +1043,13 @@ const Inventory = () => {
       <AnimatePresence>
         {showAddModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setShowAddModal(false)}
               className="absolute inset-0 bg-black/80 backdrop-blur-md"
             />
 
-            <motion.div
+            <Motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -902,32 +1076,48 @@ const Inventory = () => {
                   <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Colors *</label>
                   {/* Multi-Color Picker */}
                   <div className="mt-2 space-y-2">
-                    {/* Predefined Colors Grid */}
-                    <div className="grid grid-cols-5 gap-2">
-                      {getAvailableColors().slice(0, 15).map((color) => (
-                        <button
-                          key={color.name}
-                          type="button"
-                          onClick={() => {
-                            if (!newMaterial.colors.includes(color.name)) {
-                              setNewMaterial({ ...newMaterial, colors: [...newMaterial.colors, color.name] });
-                            }
-                          }}
-                          className={`w-10 h-10 rounded-xl border-2 transition-all hover:scale-110 ${
-                            newMaterial.colors.includes(color.name)
-                              ? 'border-red-600 ring-2 ring-red-600/30'
-                              : 'border-zinc-200 dark:border-zinc-700'
-                          }`}
-                          style={{ backgroundColor: color.hex }}
-                          title={color.name}
-                        />
-                      ))}
+                    <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                      Available Colors From Backend
                     </div>
+
+                    <div className="max-h-40 overflow-y-auto rounded-2xl border border-zinc-200 dark:border-zinc-700 p-2 bg-white dark:bg-zinc-900">
+                      {colorsLoading ? (
+                        <div className="text-xs text-zinc-400 px-2 py-3">Loading colors...</div>
+                      ) : addColorOptions.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {addColorOptions.map((color) => {
+                            const selected = newMaterial.colors.some((c) => colorKey(c) === colorKey(color.name));
+                            return (
+                              <button
+                                key={color.id || color.name}
+                                type="button"
+                                onClick={() => {
+                                  if (!selected) {
+                                    setNewMaterial({ ...newMaterial, colors: [...newMaterial.colors, color.name] });
+                                  }
+                                }}
+                                className={`flex items-center gap-2 rounded-lg border text-xs font-bold transition-all ${
+                                  selected
+                                    ? "bg-red-600/10 border-red-600 text-red-600"
+                                    : "bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700"
+                                }`}
+                              >
+                                <span className="w-10 h-6 border border-zinc-300" style={{ backgroundColor: toColorCssValue(color.name) }} />
+                                {/* {color.name} */}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-zinc-400 px-2 py-3">No matching backend color. Type a name or hex, then click Add to create it.</div>
+                      )}
+                    </div>
+
                     {/* Custom Color Input */}
                     <div className="flex items-center gap-2 mt-2">
                       <input
                         type="color"
-                        value={getHexColor(newMaterial.colorInput) || '#6b7280'}
+                        value={toColorPickerValue(newMaterial.colorInput)}
                         onChange={(e) => setNewMaterial({ ...newMaterial, colorInput: e.target.value })}
                         className="w-10 h-10 rounded-lg cursor-pointer border-2 border-zinc-200 dark:border-zinc-700"
                       />
@@ -951,9 +1141,10 @@ const Inventory = () => {
                           if (!val) return;
                           const resolved = await resolveOrCreateColor(val);
                           if (!resolved) return;
-                          if (!newMaterial.colors.includes(resolved)) {
+                          if (!newMaterial.colors.some((c) => colorKey(c) === colorKey(resolved))) {
                             setNewMaterial({ ...newMaterial, colors: [...newMaterial.colors, resolved], colorInput: "" });
                           }
+                          upsertAvailableColor(resolved);
                         }}
                       >
                         Add
@@ -964,7 +1155,7 @@ const Inventory = () => {
                       <div className="flex flex-wrap gap-2 mt-2">
                         {newMaterial.colors.map((color, idx) => (
                           <span key={idx} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-200 dark:bg-zinc-800 text-xs font-bold">
-                            <span style={{ backgroundColor: getHexColor(color) }} className="w-4 h-4 rounded-full border border-zinc-300 inline-block mr-1" />
+                            <span style={{ backgroundColor: toColorCssValue(color) }} className="w-4 h-4 rounded-full border border-zinc-300 inline-block mr-1" />
                             {color}
                             <button
                               type="button"
@@ -1126,7 +1317,7 @@ const Inventory = () => {
                   Create Material
                 </button>
               </form>
-            </motion.div>
+            </Motion.div>
           </div>
         )}
       </AnimatePresence>

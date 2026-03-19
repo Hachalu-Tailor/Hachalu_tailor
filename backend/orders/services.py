@@ -483,7 +483,6 @@ def mark_order_as_instore(*, order_id, requester=None) -> Order:
 def close_order(*, order_id, requester=None) -> Order:
     order = _resolve_order(order_id)
     
-    # Validation: Only an order waiting in store can be closed/collected
     if order.status != "IN_STORE":
         raise ValidationError(
             f"Order {order.order_code} cannot be closed. "

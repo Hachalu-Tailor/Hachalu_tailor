@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const ItemCard = ({ item, isActive, onClick }) => (
+const ItemCard = ({ item, isActive, onClick, primaryImage, nextImage, badges = [] }) => (
   <motion.div
     onClick={onClick}
     className={`relative group cursor-pointer flex gap-4 p-4 transition-all border-l-2 ${
@@ -10,19 +10,24 @@ const ItemCard = ({ item, isActive, onClick }) => (
       : 'bg-transparent border-transparent hover:bg-gray-50 dark:hover:bg-white/5'
     }`}
   >
-    <div className="w-20 h-24 overflow-hidden bg-gray-200 shrink-0">
+    <div className="relative w-20 h-24 overflow-hidden bg-gray-200 shrink-0">
       <img 
-        src={item.img} 
+        src={primaryImage || item.img} 
         className={`w-full h-full object-cover transition-all duration-700 ${isActive ? 'grayscale-0' : 'group-hover:grayscale-0'}`} 
         alt={item.name} 
       />
+      {nextImage && (
+        <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full overflow-hidden border-2 border-white shadow-lg">
+          <img src={nextImage} className="w-full h-full object-cover" alt={`${item.name} next preview`} />
+        </div>
+      )}
     </div>
     <div className="flex flex-col justify-center">
       <span className="text-[8px] text-red-600 font-bold uppercase tracking-widest">{item.category}</span>
       <h5 className={`font-black text-[11px] uppercase tracking-widest leading-tight ${ isActive ? 'text-red-600' : 'dark:text-white'}`}>
         {item.name}
       </h5>
-      <p className="text-[10px] text-gray-400 mt-1">{item.price}</p>
+      {/* <p className="text-[10px] text-gray-400 mt-1">{item.price}</p> */}
       {isActive && (
         <motion.div layoutId="play-bar" className="mt-2 h-0.5 bg-red-600 w-12" />
       )}

@@ -37,7 +37,6 @@ class Order(models.Model):
         ('IN_PROGRESS', 'Payment verified; Suit is being stitched'),
         ('COMPLETED', 'Suit is finished and ready for pickup'), 'HAS BEEN SEEWED AT THE FACTORY'
         ('SHIPPED'), 'ORDER HAS BEEN SHIPPED FROM FACTORY'
-        ('IN_STORE'), 'ORDER MATERIAL HAS NOW ARRIVED AND IS READY FOR USER TO TAKE'
         ('CLOSED', 'Customer has collected the suit'),
         ('REJECTED', 'Payment was invalid or order cancelled'),
         ('EXPIRED', 'Order expired due to inactivity'),
@@ -54,7 +53,6 @@ class Order(models.Model):
         ("COMPLETED", "Completed"),
         ("IN_STORE", "In_store"),
         ("CLOSED", "Closed"),
-        ("IN_STORE", "In_store"),
         ("REJECTED", "Rejected"),
         ("EXPIRED", "Expired"),
     ]

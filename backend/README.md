@@ -286,6 +286,9 @@ Body: None
 ##### Endpoint: POST /api/invetory/materials/create/
 
 Body
+# there are 2 fields for file uploads
+## suit_sample_image and material_image
+## look into this
 
 ```
 {

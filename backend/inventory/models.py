@@ -29,13 +29,13 @@ class Material(models.Model):
     category = models.CharField(max_length=200, null=True, blank=True)
     # field for cloth sample made 
     material_image = models.ImageField(
-        upload_to="media/materials/clothes/", 
+        upload_to="media/materials/clothes/",
         blank=True, 
         null=True
     )
     # Field for a sample suit made from this sample cloth
     suit_sample_image = models.ImageField(
-        upload_to="media/materials/suits/", 
+        upload_to="media/materials/suits/",
         blank=True, 
         null=True
     )

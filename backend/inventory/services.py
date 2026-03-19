@@ -99,7 +99,7 @@ def get_material(material_id: int) -> Material:
 
 @transaction.atomic
 def create_material_with_stock(
-    *, material_data: dict, quantity_meters: Decimal, requester
+    *, material_data: dict, quantity_meters: Decimal, requester, material_image=None, suit_sample_image=None
 ) -> Material:
     """Create material and initial stock in one atomic task.
 
@@ -134,7 +134,13 @@ def create_material_with_stock(
     if missing_colors:
         raise ValidationError(f"These colors do not exist: {', '.join(missing_colors)}")
 
-    material = Material.objects.create(**cleaned_data)
+    # Create the material with all data including images
+    material = Material.objects.create(
+        **cleaned_data,
+        material_image=material_image,
+        suit_sample_image=suit_sample_image
+    )
+    
     # Assign colors
     material.colors.set(colors_qs)
 

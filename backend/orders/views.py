@@ -24,6 +24,7 @@ from .services import (
     approve_order,
     create_order,
     expire_orders,
+    mark_order_as_instore,
     get_order_by_code,
     list_orders,
     order_status_update,
@@ -226,6 +227,11 @@ class OrderProcessingView(APIView):
                 value={"action": "approve"},
                 request_only=True,
             ),
+            OpenApiExample(
+                "Mark In-Store",
+                value={"action": "mark_instore"},
+                request_only=True,
+            ),
         ],
         description=(
             "Process an order: receive (set price/date + allow payment), "
@@ -266,6 +272,11 @@ class OrderProcessingView(APIView):
                     order_id=id,
                     reason=serializer.validated_data.get("reason"),
                     requester=request.user,
+                )
+            elif action == "mark_instore":
+                order = mark_order_as_instore(
+                    order_id=id, 
+                    requester=request.user
                 )
             else:
                 raise ValidationError("Unsupported processing action.")

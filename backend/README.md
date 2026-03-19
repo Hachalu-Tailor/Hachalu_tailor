@@ -663,6 +663,14 @@ body
     "action": "mark_instore"
 }
 ```
+e. close order  # newly added
+Body
+```
+{
+    "action": "close"
+}
+```
+
 
 ##### Response: 200
 

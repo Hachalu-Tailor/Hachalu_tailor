@@ -20,10 +20,10 @@ import {
 } from 'react-icons/hi2';
 import ItemCard from '../components/ItemCard';
 import { createOrder, getMaterials, getSuitTypes } from '../api/api';
-import { getAvailableColors, getHexColor, extractColorsFromMaterials, formatColorName, isLightColor } from '../utils/colors';
+import { getHexColor, isLightColor } from '../utils/colors';
 import { useParams, useNavigate } from 'react-router-dom';
 
-const Items = ({ isHomePage = false }) => {
+const Items = () => {
   const { category: urlCategory } = useParams();
   const navigate = useNavigate();
 
@@ -398,10 +398,6 @@ const Items = ({ isHomePage = false }) => {
                           className={`w-8 h-8 rounded-full shadow-inner ${isLight ? 'border border-gray-300' : ''}`}
                           style={{ backgroundColor: hexColor }}
                         />
-                        <div className="text-left">
-                          <p className={`text-[9px] font-black uppercase ${selectedColor === idx ? 'text-red-600' : 'text-gray-500'}`}>{clr.name}</p>
-                          {/* <p className="text-[7px] text-gray-400">{hexColor}</p> */}
-                        </div>
                       </div>
                     </button>
                   );

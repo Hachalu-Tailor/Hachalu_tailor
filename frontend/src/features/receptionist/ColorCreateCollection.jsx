@@ -2,7 +2,37 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HiOutlineXMark, HiOutlinePlus } from 'react-icons/hi2';
 import { createColor } from '../../api/api';
-import { getAvailableColors, formatColorName } from '../../utils/colors';
+
+const normalizeColorInputValue = (value) => {
+  if (!value) return '';
+  return value
+    .toString()
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+const normalizeHexValue = (value) => {
+  const raw = value.toString().trim().replace(/^#/, '').toLowerCase();
+  if (/^[0-9a-f]{3}$/i.test(raw)) {
+    return `#${raw.split('').map((c) => `${c}${c}`).join('').toUpperCase()}`;
+  }
+  if (/^[0-9a-f]{6}$/i.test(raw)) {
+    return `#${raw.toUpperCase()}`;
+  }
+  return '#6B7280';
+};
+
+const toDisplayColorNameValue = (value) => {
+  const normalized = normalizeColorInputValue(value);
+  if (!normalized) return '';
+  return normalized
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
 
 const ColorCreateCollection = ({ isOpen, onClose, onCreated }) => {
   const [name, setName] = useState('');
@@ -12,16 +42,11 @@ const ColorCreateCollection = ({ isOpen, onClose, onCreated }) => {
   const handleCreate = async () => {
     const trimmed = (name || '').trim();
 
-    // Derive a clean, human-friendly name
-    let finalName;
-    const match = getAvailableColors().find(c => c.hex.toLowerCase() === hex.toLowerCase());
-    if (trimmed) {
-      finalName = formatColorName(trimmed);
-    } else if (match) {
-      finalName = formatColorName(match.name);
-    } else {
-      finalName = `Color ${hex.toUpperCase()}`;
-    }
+    // Backend source of truth: create exactly what receptionist enters,
+    // or create a hex-based backend name from the picker.
+    const finalName = trimmed
+      ? toDisplayColorNameValue(trimmed)
+      : `${normalizeHexValue(hex)}`;
 
     try {
       setLoading(true);
@@ -44,7 +69,7 @@ const ColorCreateCollection = ({ isOpen, onClose, onCreated }) => {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-120 flex items-center justify-center p-4">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/70" />
 
         <motion.div initial={{ y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 16, opacity: 0 }} className="relative w-full max-w-md bg-white dark:bg-[#0b0b0b] rounded-2xl p-6 border border-zinc-200 dark:border-white/10 shadow-2xl">
@@ -61,12 +86,6 @@ const ColorCreateCollection = ({ isOpen, onClose, onCreated }) => {
                 <input type="color" value={hex} onChange={(e) => setHex(e.target.value)} className="w-12 h-12 rounded" />
                 <input type="text" value={hex} onChange={(e) => setHex(e.target.value)} className="flex-1 bg-zinc-100 dark:bg-zinc-900 rounded-xl px-3 py-2" />
               </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-zinc-500 uppercase">Name (optional)</label>
-              <input type="text" placeholder="e.g. Midnight Blue" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-xl px-3 py-2 mt-2" />
-              <p className="text-[10px] text-zinc-400 mt-1">If left blank, a friendly name will be generated from the picked color.</p>
             </div>
 
             <div className="flex items-center gap-2 mt-4">

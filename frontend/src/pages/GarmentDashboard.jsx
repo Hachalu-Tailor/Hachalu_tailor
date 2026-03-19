@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     HiOutlineDocumentText,
@@ -11,6 +11,8 @@ import {
     HiOutlineCalendar,
     HiOutlineExclamationCircle,
     HiOutlineScissors,
+    HiOutlineExclamationTriangle,
+    HiOutlineClock,
 } from 'react-icons/hi2';
 import {
     getGarmentOrdersInProgress,
@@ -20,6 +22,10 @@ import {
     getPayments
 } from '../api/api';
 import { getHexColor } from '../utils/colors';
+import { useCountdown } from '../hooks/useCountdown';
+import { UrgencyIndicator, CompactUrgency } from '../components/UrgencyIndicator';
+import { useToast } from '../components/Toast';
+import { formatDate } from '../utils/helpers';
 
 // Backend status configuration - ONLY use backend statuses (IN_PROGRESS, COMPLETED, SHIPPED)
 const BACKEND_STATUSES = {
@@ -68,6 +74,7 @@ const getStageIndexFromStatus = (status) => {
 };
 
 const GarmentDashboard = () => {
+    const toast = useToast();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -79,6 +86,8 @@ const GarmentDashboard = () => {
     const [showQuickLatest, setShowQuickLatest] = useState(false);
     const [fullImage, setFullImage] = useState(null);
     const [receiptByOrderCode, setReceiptByOrderCode] = useState({});
+    const [urgentOrders, setUrgentOrders] = useState([]);
+    const [alertedOrders, setAlertedOrders] = useState(new Set());
     const [filters, setFilters] = useState({
         suitType: 'all',
         material: 'all',
@@ -174,6 +183,38 @@ const GarmentDashboard = () => {
         return { text: `${diffDays} days`, isOverdue: false, daysLeft: diffDays };
     };
 
+    // Get urgent orders (orders with due_date within 2 days) - ONLY for IN_PROGRESS
+    const getUrgentOrders = (orderList) => {
+        const now = new Date();
+        const twoDaysFromNow = new Date();
+        twoDaysFromNow.setDate(twoDaysFromNow.getDate() + 2);
+        
+        return (orderList || []).filter(o => {
+            // Only include IN_PROGRESS orders - exclude COMPLETED and SHIPPED
+            if (o.status !== 'IN_PROGRESS') return false;
+            if (!o.due_date) return false;
+            const dueDate = new Date(o.due_date);
+            return dueDate >= now && dueDate <= twoDaysFromNow;
+        });
+    };
+
+    // Get countdown parts for live timer
+    const getCountdownParts = (dueDate) => {
+        if (!dueDate) return null;
+        const now = new Date();
+        const due = new Date(dueDate);
+        const diff = due - now;
+        
+        if (diff <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
+        
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        
+        return { days, hours, minutes, seconds };
+    };
+
     const loadOrders = async () => {
         setLoading(true);
         setError(null);
@@ -233,6 +274,14 @@ const GarmentDashboard = () => {
 
             setOrders(normalizedOrders);
             setReceiptByOrderCode(resolvedReceipts);
+            
+            // Check for urgent orders (due within 3 days)
+            const urgent = getUrgentOrders(normalizedOrders);
+            setUrgentOrders(urgent);
+            
+            // Check for critical orders (< 3 hours) and trigger alerts
+            checkCriticalOrders(normalizedOrders);
+            
             return normalizedOrders;
         } catch (error) {
             console.error('Error loading orders:', error);
@@ -248,6 +297,41 @@ const GarmentDashboard = () => {
             setLoading(false);
         }
     };
+
+    // Check for orders with less than 3 hours remaining and trigger toast alerts - ONLY for IN_PROGRESS
+    const checkCriticalOrders = useCallback((orderList) => {
+        if (!orderList || orderList.length === 0) return;
+        
+        const now = new Date();
+        const threeHoursMs = 3 * 60 * 60 * 1000;
+        
+        orderList.forEach(order => {
+            // Only check IN_PROGRESS orders - skip COMPLETED and SHIPPED
+            if (order.status !== 'IN_PROGRESS') return;
+            if (!order.due_date) return;
+            if (alertedOrders.has(order.order_code)) return;
+            
+            const dueDate = new Date(order.due_date);
+            const timeRemaining = dueDate - now;
+            
+            // If less than 3 hours remaining
+            if (timeRemaining > 0 && timeRemaining <= threeHoursMs) {
+                toast.warning(`⚠️ Order ${order.order_code} has less than 3 hours remaining!`, {
+                    duration: 8000,
+                });
+                setAlertedOrders(prev => new Set([...prev, order.order_code]));
+            }
+        });
+    }, [alertedOrders, toast]);
+
+    // Set up interval to check for critical orders every minute
+    useEffect(() => {
+        const interval = setInterval(() => {
+            checkCriticalOrders(orders);
+        }, 60000); // Check every minute
+        
+        return () => clearInterval(interval);
+    }, [orders, checkCriticalOrders]);
 
     const handleCompleteOrder = async (orderCode) => {
         try {
@@ -317,7 +401,7 @@ const GarmentDashboard = () => {
             if (activeTab === 'in_progress') return order.status === 'IN_PROGRESS';
             if (activeTab === 'completed') return order.status === 'COMPLETED';
             if (activeTab === 'shipped') return order.status === 'SHIPPED';
-            if (activeTab === 'overdue') return isOverdue(order.due_date) && order.status !== 'SHIPPED';
+            if (activeTab === 'overdue') return isOverdue(order.due_date) && order.status === 'IN_PROGRESS';
 
             return true;
         });
@@ -352,13 +436,13 @@ const GarmentDashboard = () => {
         return list;
     }, [orders, searchTerm, activeTab, filters]);
 
-    // Stats
+    // Stats - Only count IN_PROGRESS orders for overdue (not COMPLETED or SHIPPED)
     const stats = useMemo(() => {
         return {
             inProgress: orders.filter(o => o.status === 'IN_PROGRESS').length,
             completed: orders.filter(o => o.status === 'COMPLETED').length,
             shipped: orders.filter(o => o.status === 'SHIPPED').length,
-            overdue: orders.filter(o => isOverdue(o.due_date) && o.status !== 'SHIPPED').length,
+            overdue: orders.filter(o => isOverdue(o.due_date) && o.status === 'IN_PROGRESS').length,
             total: orders.length
         };
     }, [orders]);
@@ -420,7 +504,67 @@ const GarmentDashboard = () => {
                 </div>
             </div>
 
-      
+            {/* ALERT: Orders with 2 Days Left - Color Coded by Urgency */}
+            {urgentOrders.length > 0 && (
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                        <HiOutlineExclamationTriangle className="text-red-600 animate-pulse" size={24} />
+                        <p className="text-sm font-black uppercase tracking-widest text-red-600">
+                            ⚠️ {urgentOrders.length} Order{urgentOrders.length > 1 ? 's' : ''} - 2 Days Left!
+                        </p>
+                    </div>
+                    <div className="space-y-2">
+                        {urgentOrders.slice(0, 5).map((order) => {
+                            const countdown = getCountdownParts(order.due_date);
+                            const daysLeft = countdown?.days || 0;
+                            // Color code: red for ≤1 day, orange for 1-2 days
+                            const urgencyColor = daysLeft <= 1 ? 'red' : 'orange';
+                            const bgColor = urgencyColor === 'red' ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' : 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800';
+                            const textColor = urgencyColor === 'red' ? 'text-red-700 dark:text-red-300' : 'text-orange-700 dark:text-orange-300';
+                            const countdownBg = urgencyColor === 'red' ? 'bg-red-100 dark:bg-red-900/50' : 'bg-orange-100 dark:bg-orange-900/50';
+                            
+                            return (
+                                <div
+                                    key={order.id}
+                                    className={`${bgColor} border rounded-xl p-4`}
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div className="text-left">
+                                            <p className={`text-lg font-black uppercase ${textColor}`}>{order.order_code}</p>
+                                            <p className={`text-sm font-bold ${textColor} opacity-80`}>{order.customer_name || 'N/A'}</p>
+                                        </div>
+                                        {countdown && (
+                                            <div className={`${countdownBg} rounded-lg px-4 py-2`}>
+                                                <p className={`text-xl font-black ${textColor} tabular-nums`}>
+                                                    {countdown.days}d {String(countdown.hours).padStart(2, '0')}:{String(countdown.minutes).padStart(2, '0')}:{String(countdown.seconds).padStart(2, '0')}
+                                                </p>
+                                                <p className={`text-[8px] font-black uppercase ${textColor} opacity-70`}>remaining</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={() => setSelectedOrder(order)}
+                                        className={`mt-3 w-full py-2 ${urgencyColor === 'red' ? 'bg-red-600 hover:bg-red-700' : 'bg-orange-500 hover:bg-orange-600'} text-white text-xs font-black uppercase rounded-lg transition-colors`}
+                                    >
+                                        View Order
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {urgentOrders.length === 0 && (
+                <div className="bg-green-500 rounded-2xl p-4 shadow-lg shadow-green-500/30">
+                    <div className="flex items-center gap-2">
+                        <HiOutlineCheckCircle className="text-white" size={24} />
+                        <p className="text-sm font-black uppercase tracking-widest text-white">
+                            ✓ All Clear - No urgent orders
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* Filters & Search Bar - matches Admin & Reception */}
             <div className="bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-2xl p-4">
@@ -694,6 +838,12 @@ const GarmentDashboard = () => {
                                 const statusConfig = getStatusConfig(order.status);
                                 const stageIndex = getStageIndexFromStatus(order.status);
                                 const orderedImageUrl = getOrderImageUrl(order);
+                                // Only show urgency for IN_PROGRESS orders - not for COMPLETED or SHIPPED
+                                const isInProgress = order.status === 'IN_PROGRESS';
+                                // Check if order has 2 days left (only for IN_PROGRESS)
+                                const daysLeft = isInProgress && order.due_date ? Math.ceil((new Date(order.due_date) - new Date()) / (1000 * 60 * 60 * 24)) : null;
+                                const isTwoDaysLeft = isInProgress && daysLeft !== null && daysLeft >= 0 && daysLeft <= 2;
+                                const isOverdue = isInProgress && daysLeft !== null && daysLeft < 0;
 
                                 return (
                                     <motion.div
@@ -702,7 +852,7 @@ const GarmentDashboard = () => {
                                         animate={{ opacity: 1, y: 0 }}
                                         whileHover={{ y: -2 }}
                                         onClick={() => setSelectedOrder(order)}
-                                        className={`bg-white dark:bg-white/5 rounded-xl border-2 cursor-pointer transition-all hover:shadow-lg ${timeStatus.isOverdue ? 'border-red-300 dark:border-red-500/50 shadow-red-100 dark:shadow-red-500/10' : 'border-gray-100 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10'
+                                        className={`bg-white dark:bg-white/5 rounded-xl border-2 cursor-pointer transition-all hover:shadow-lg ${!isInProgress ? 'border-gray-100 dark:border-white/5' : isOverdue ? 'border-red-500 dark:border-red-500/50 shadow-red-200 dark:shadow-red-500/20' : isTwoDaysLeft ? 'border-orange-400 dark:border-orange-500/50 shadow-orange-100 dark:shadow-orange-500/10' : 'border-gray-100 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10'
                                             }`}
                                     >
                                         {/* Header with Status */}
@@ -813,19 +963,33 @@ const GarmentDashboard = () => {
                                                 </button>
                                             )}
 
-                                            {/* Due Date */}
-                                            <div className={`flex items-center justify-between pt-3 mt-1 border-t ${timeStatus.isOverdue ? 'border-red-200 dark:border-red-500/30' : 'border-gray-100 dark:border-white/5'
-                                                }`}>
-                                                <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
-                                                    <HiOutlineCalendar className="w-4 h-4 flex-shrink-0" />
-                                                    <span className="text-sm">{order.due_date || 'No date'}</span>
+                                            {/* Urgency Indicator with Live Countdown - Only for IN_PROGRESS */}
+                                            {isInProgress && (
+                                                <div className="pt-3 mt-1 border-t border-gray-100 dark:border-white/5">
+                                                    <UrgencyIndicator 
+                                                        dueDate={order.due_date}
+                                                        orderCode={order.order_code}
+                                                        showFullCountdown={isTwoDaysLeft || timeStatus.isOverdue}
+                                                        compact={false}
+                                                        size="sm"
+                                                    />
                                                 </div>
-                                                {timeStatus.isOverdue ? (
-                                                    <span className="text-xs font-semibold text-red-600">{timeStatus.text}</span>
-                                                ) : timeStatus.daysLeft <= 2 ? (
-                                                    <span className="text-xs font-semibold text-amber-600">{timeStatus.text}</span>
-                                                ) : null}
-                                            </div>
+                                            )}
+                                            {/* Show completed/shipped status with due date - visible but not urgent */}
+                                            {!isInProgress && (
+                                                <div className="pt-3 mt-1 border-t border-gray-100 dark:border-white/5">
+                                                    <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={`text-xs font-bold uppercase ${statusConfig.textColor}`}>
+                                                                {order.status === 'COMPLETED' ? '✓ Completed' : order.status === 'SHIPPED' ? '◉ Shipped' : order.status}
+                                                            </span>
+                                                        </div>
+                                                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                            Due: {order.due_date ? new Date(order.due_date).toLocaleDateString() : 'N/A'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </motion.div>
                                 );
@@ -853,6 +1017,8 @@ const GarmentDashboard = () => {
                                         const timeStatus = getTimeStatus(order.due_date);
                                         const statusConfig = getStatusConfig(order.status);
                                         const orderedImageUrl = getOrderImageUrl(order);
+                                        // Only show urgency for IN_PROGRESS orders
+                                        const isInProgress = order.status === 'IN_PROGRESS';
 
                                         return (
                                             <tr
@@ -922,9 +1088,18 @@ const GarmentDashboard = () => {
                                                     )}
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    <span className={`text-sm ${timeStatus.isOverdue ? 'text-red-600 font-medium' : 'text-gray-600 dark:text-gray-400'}`}>
-                                                        {order.due_date || '-'}
-                                                    </span>
+                                                    {isInProgress ? (
+                                                        <CompactUrgency dueDate={order.due_date} />
+                                                    ) : (
+                                                        <div className="flex flex-col gap-1">
+                                                            <span className={`px-2 py-1 rounded-lg text-xs font-bold ${statusConfig.badgeColor}`}>
+                                                                {order.status === 'COMPLETED' ? '✓ Done' : order.status === 'SHIPPED' ? '◉ Shipped' : order.status}
+                                                            </span>
+                                                            <span className="text-[10px] text-gray-400">
+                                                                {order.due_date ? new Date(order.due_date).toLocaleDateString() : 'N/A'}
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                 </td>
                                             </tr>
                                         );
@@ -972,7 +1147,7 @@ const GarmentDashboard = () => {
                                         <HiOutlineXMark className="w-5 h-5" />
                                     </button>
                                 </div>
-                                <div className="mt-4 flex items-center gap-3">
+                                <div className="mt-4 flex items-center gap-3 flex-wrap">
                                     {(() => {
                                         const statusConfig = getStatusConfig(selectedOrder.status);
                                         return (
@@ -981,12 +1156,18 @@ const GarmentDashboard = () => {
                                             </span>
                                         );
                                     })()}
-                                    {isOverdue(selectedOrder.due_date) && (
-                                        <span className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-red-100 text-red-700">
-                                            ⚠️ Overdue
-                                        </span>
-                                    )}
                                 </div>
+                                {/* Urgency Indicator with Live Countdown - Show for ALL orders */}
+                                {selectedOrder.due_date && (
+                                    <div className="mt-3">
+                                        <UrgencyIndicator 
+                                            dueDate={selectedOrder.due_date}
+                                            orderCode={selectedOrder.order_code}
+                                            showFullCountdown={true}
+                                            size="lg"
+                                        />
+                                    </div>
+                                )}
                             </div>
 
                             {/* Modal Body */}

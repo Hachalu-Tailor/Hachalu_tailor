@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_BASE_URL, STORAGE_KEYS } from '../utils/constants';
+import { getHexColor, setBackendColors } from '../utils/colors';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -169,13 +170,25 @@ export const getNotificationsSummary = (notifications) => {
 // INVENTORY ENDPOINTS
 // ============================================
 
-export const getMaterials = (params) => api.get('/invetory/materials/list/', { params });
+export const getMaterials = async (params) => {
+  const response = await api.get('/invetory/materials/list/', { params });
+  const payload = response?.data;
+  const materials = Array.isArray(payload) ? payload : payload?.results || [];
+  getColorsFromMaterials(materials);
+  return response;
+};
 
 export const createMaterial = (data) => api.post('/invetory/materials/create/', data);
 
 // Create a new color (collection) in inventory
 export const createColor = (data) => api.post('/invetory/colors/', data);
-export const getColors = (params) => api.get('/invetory/colors/', { params });
+export const getColors = async (params) => {
+  const response = await api.get('/invetory/colors/', { params });
+  const payload = response?.data;
+  const colorList = Array.isArray(payload) ? payload : payload?.results || [];
+  setBackendColors(colorList);
+  return response;
+};
 
 export const getMaterialDetail = (id) => api.get(`/invetory/materials/${id}/`);
 
@@ -199,7 +212,9 @@ export const getColorsFromMaterials = (materials) => {
       });
     }
   });
-  return Array.from(colorsMap.values());
+  const result = Array.from(colorsMap.values());
+  setBackendColors(result);
+  return result;
 };
 
 // ============================================

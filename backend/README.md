@@ -656,6 +656,13 @@ Body
 "action": "approve"
 }
 ```
+d. mark orders as in store  # this is the new addition
+body 
+```
+{
+    "action": "mark_instore"
+}
+```
 
 ##### Response: 200
 

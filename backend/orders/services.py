@@ -480,6 +480,36 @@ def mark_order_as_instore(*, order_id, requester=None) -> Order:
 
 
 @transaction.atomic
+def close_order(*, order_id, requester=None) -> Order:
+    order = _resolve_order(order_id)
+    
+    # Validation: Only an order waiting in store can be closed/collected
+    if order.status != "IN_STORE":
+        raise ValidationError(
+            f"Order {order.order_code} cannot be closed. "
+            f"It must be 'IN_STORE' first (Current: {order.status})."
+        )
+
+    order.status = "CLOSED"
+    order.save(update_fields=["status", "updated_at"])
+
+    # Audit Logging
+    AuditLog.objects.create(
+        actor=_normalize_actor(requester),
+        action="ORDER_CLOSED",
+        target_id=str(order.id),
+        identifier_used=str(order.id),
+        payload={
+            "order_id": str(order.id), 
+            "order_code": order.order_code,
+            "event": "Customer collected suit"
+        },
+    )
+
+    return order
+
+
+@transaction.atomic
 def reject_order(*, order_id, reason=None, requester=None) -> Order:
     order = _resolve_order(order_id)
     if order.status not in {"PENDING_APPROVAL", "AWAITING_PAYMENT", "INITIATED"}:

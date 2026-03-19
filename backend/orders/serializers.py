@@ -100,7 +100,7 @@ class CreateOrderSerializer(serializers.ModelSerializer):
 
 class OrderProcessingSerializer(serializers.Serializer):
     action = serializers.ChoiceField(
-        choices=["receive", "record_payment", "approve", "reject", "mark_instore"]
+        choices=["receive", "record_payment", "approve", "reject", "mark_instore", "close"]
     )
     total_price = serializers.DecimalField(
         max_digits=12, decimal_places=2, required=False

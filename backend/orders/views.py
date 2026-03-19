@@ -32,6 +32,7 @@ from .services import (
     record_payment_info,
     reject_order,
     update_order,
+    close_order
 )
 
 
@@ -275,6 +276,11 @@ class OrderProcessingView(APIView):
                 )
             elif action == "mark_instore":
                 order = mark_order_as_instore(
+                    order_id=id, 
+                    requester=request.user
+                )
+            elif action == "close":
+                order = close_order(
                     order_id=id, 
                     requester=request.user
                 )

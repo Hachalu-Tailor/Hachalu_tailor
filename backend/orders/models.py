@@ -53,7 +53,6 @@ class Order(models.Model):
         ("COMPLETED", "Completed"),
         ("IN_STORE", "In_store"),
         ("CLOSED", "Closed"),
-        ("IN_STORE", "In_store"),
         ("REJECTED", "Rejected"),
         ("EXPIRED", "Expired"),
     ]

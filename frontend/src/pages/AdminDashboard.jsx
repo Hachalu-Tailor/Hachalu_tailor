@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   HiOutlineBanknotes,
@@ -19,14 +19,16 @@ import {
   HiOutlineUser,
   HiOutlineMagnifyingGlass,
   HiOutlineArrowTrendingUp,
-  HiOutlineArrowTrendingDown
+  HiOutlineArrowTrendingDown,
+  HiOutlineXMark,
+  HiOutlineCalendar
 } from 'react-icons/hi2';
 import {
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon
 } from '@heroicons/react/24/outline';
-import api, { getOrders, listStaff, getPayments, getNotifications, getMaterials } from '../api/api';
-import { formatCurrency, formatDateTime, formatRelativeTime } from '../utils/helpers';
+import { getOrders, listStaff, getPayments, getMaterials } from '../api/api';
+import { formatRelativeTime } from '../utils/helpers';
 import { CURRENCY, ORDER_STATUS_LABELS } from '../utils/constants';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -36,17 +38,18 @@ const AdminDashboard = () => {
   const [orders, setOrders] = useState([]);
   const [staff, setStaff] = useState([]);
   const [payments, setPayments] = useState([]);
-  const [notifications, setNotifications] = useState([]);
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  // Urgent popup is intentionally Garment-only.
 
   useEffect(() => {
     fetchData();
     // Auto-refresh every 60 seconds
     const interval = setInterval(fetchData, 60000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Search functionality
@@ -88,18 +91,16 @@ const AdminDashboard = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [ordersRes, staffRes, paymentsRes, notificationsRes, inventoryRes] = await Promise.all([
+      const [ordersRes, staffRes, paymentsRes, inventoryRes] = await Promise.all([
         getOrders(),
         listStaff(),
         getPayments().catch(() => ({ data: [] })),
-        getNotifications().catch(() => ({ data: [] })),
         getMaterials().catch(() => ({ data: [] }))
       ]);
 
       setOrders(handlePaginatedResponse(ordersRes));
       setStaff(handlePaginatedResponse(staffRes));
       setPayments(handlePaginatedResponse(paymentsRes));
-      setNotifications(handlePaginatedResponse(notificationsRes).slice(0, 5));
       setInventory(handlePaginatedResponse(inventoryRes));
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -118,6 +119,7 @@ const AdminDashboard = () => {
   ).length;
 
   const completedOrders = orders.filter(o => o.status === 'COMPLETED').length;
+
   const pendingPayments = orders.filter(o => o.status === 'AWAITING_PAYMENT').length;
 
   // Payment stats
@@ -128,8 +130,6 @@ const AdminDashboard = () => {
     .reduce((sum, p) => sum + parseFloat(p.payment_amount || 0), 0);
 
   // Staff stats
-  const adminCount = staff.filter(s => s.role === 'ADMIN').length;
-  const receptionistCount = staff.filter(s => s.role === 'RECEPTIONIST').length;
   const activeStaff = staff.filter(s => s.is_active).length;
 
   // Low inventory items
@@ -161,28 +161,6 @@ const AdminDashboard = () => {
   const topCustomersList = Object.values(topCustomers)
     .sort((a, b) => b.total - a.total)
     .slice(0, 5);
-
-  // Calculate revenue trend (comparing this month vs last month)
-  const thisMonthRevenue = orders
-    .filter(o => {
-      const orderDate = new Date(o.created_at);
-      const now = new Date();
-      return orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear();
-    })
-    .reduce((sum, o) => sum + parseFloat(o.total_price || 0), 0);
-
-  const lastMonthRevenue = orders
-    .filter(o => {
-      const orderDate = new Date(o.created_at);
-      const now = new Date();
-      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1);
-      return orderDate.getMonth() === lastMonth.getMonth() && orderDate.getFullYear() === lastMonth.getFullYear();
-    })
-    .reduce((sum, o) => sum + parseFloat(o.total_price || 0), 0);
-
-  const revenueGrowth = lastMonthRevenue > 0
-    ? ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue * 100).toFixed(1)
-    : 0;
 
   const stats = [
     {
@@ -233,18 +211,6 @@ const AdminDashboard = () => {
     action: `Order ${order.order_code || order.id?.slice(0, 8)} - ${ORDER_STATUS_LABELS[order.status] || order.status}`,
     time: formatRelativeTime(order.created_at)
   }));
-
-  // Get status color
-  const getStatusColor = (status) => {
-    const colors = {
-      'INITIATED': 'bg-yellow-500/20 text-yellow-500',
-      'AWAITING_PAYMENT': 'bg-orange-500/20 text-orange-500',
-      'PENDING_APPROVAL': 'bg-yellow-500/20 text-yellow-500',
-      'IN_PROGRESS': 'bg-blue-500/20 text-blue-500',
-      'COMPLETED': 'bg-green-500/20 text-green-500',
-    };
-    return colors[status] || 'bg-gray-500/20 text-gray-500';
-  };
 
   if (loading) {
     return (
@@ -626,6 +592,8 @@ const AdminDashboard = () => {
           </div>
         </motion.div>
       </div>
+
+      {/* Urgent popup intentionally disabled here (Garment only). */}
 
     </div>
   );

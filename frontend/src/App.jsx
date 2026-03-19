@@ -22,7 +22,7 @@ import Profile from './pages/Profile';
 import Inventory from './features/receptionist/Inventory';
 import OrdersManagement from './features/receptionist/Orders';
 import Clients from './features/receptionist/Clients';
-import Announcement from './features/receptionist/Announcement';
+import Notifications from './components/Notifications';
 import PaymentManagement from './features/receptionist/PaymentManagement';
 import Messages from './features/receptionist/Messages';
 
@@ -69,7 +69,7 @@ function App() {
             <Route path="inventory" element={<Inventory />} />
             <Route path="orders" element={<OrdersManagement />} />
             <Route path="clients" element={<Clients />} />
-            <Route path="announcement" element={<Announcement />} />
+            <Route path="notifications" element={<Notifications userRole="receptionist" />} />
             <Route path="payments" element={<PaymentManagement />} />
             <Route path="messages" element={<Messages />} />
             <Route path="profile" element={<Profile />} />

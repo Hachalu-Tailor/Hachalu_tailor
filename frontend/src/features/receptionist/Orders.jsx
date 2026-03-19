@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import {
   HiOutlineCheck, HiOutlineEye, HiOutlineNoSymbol, HiOutlinePlus,
   HiOutlineShoppingBag, HiOutlineClock, HiOutlineXMark, HiOutlineArrowPath,
   HiOutlineClipboardDocumentCheck, HiOutlineBanknotes
 } from 'react-icons/hi2';
-import { getOrders, getSuitTypes, createOrder, processOrder, getMaterials, getMaterialDetail, getColorsFromMaterials, getPaymentByOrderId, updateReceptionOrderStatusByCode, updateOrder } from '../../api/api';
+import { getOrders, getSuitTypes, createOrder, processOrder, getMaterials, getMaterialDetail, getPaymentByOrderId } from '../../api/api';
 import { getHexColor } from '../../utils/colors';
+import { API_BASE_URL } from '../../utils/constants';
 
 const Orders = () => {
   const location = useLocation();
@@ -37,13 +38,50 @@ const Orders = () => {
   });
   const [createdOrder, setCreatedOrder] = useState(null);
 
-  // Helper to get absolute URL for images
+  const backendOrigin = useMemo(() => {
+    if (typeof API_BASE_URL === 'string' && API_BASE_URL.startsWith('http')) {
+      try {
+        return new URL(API_BASE_URL).origin;
+      } catch {
+        return 'http://127.0.0.1:8000';
+      }
+    }
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      return window.location.origin;
+    }
+    return 'http://127.0.0.1:8000';
+  }, []);
+
+  // Helper to get absolute URL for media files returned by backend.
   const getAbsoluteUrl = (url) => {
     if (!url) return '';
-    if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    // Remove leading slash if present
-    const path = url.startsWith('/') ? url.substring(1) : url;
-    return `http://127.0.0.1:8000/${path}`;
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+    const path = url.startsWith('/') ? url : `/${url}`;
+    return `${backendOrigin}${path}`;
+  };
+
+  const materialById = useMemo(
+    () => new Map((materials || []).map((m) => [Number(m.id), m])),
+    [materials]
+  );
+
+  const getOrderImages = (order) => {
+    const material = materialById.get(Number(order?.material));
+    const materialImage =
+      order?.material_image
+      || order?.image_url
+      || material?.material_image
+      || material?.image_url
+      || '';
+    const suitSampleImage =
+      order?.suit_sample_image
+      || material?.suit_sample_image
+      || '';
+
+    return {
+      materialImage: getAbsoluteUrl(materialImage),
+      suitSampleImage: getAbsoluteUrl(suitSampleImage),
+    };
   };
 
   useEffect(() => {
@@ -102,24 +140,6 @@ const Orders = () => {
     } catch (error) {
       console.error('Error fetching materials:', error);
     }
-  };
-
-  // Update colors when material is selected
-  const handleMaterialChange = (materialId) => {
-    const material = materials.find(m => m.id === parseInt(materialId));
-    // Handle both old format (color string) and new format (colors array)
-    let colors = [];
-    if (material?.colors && Array.isArray(material.colors)) {
-      colors = material.colors.map(c => typeof c === 'object' ? c.name : c);
-    } else if (material?.color) {
-      colors = [material.color];
-    }
-    setSelectedMaterialColors(colors);
-    setNewOrder({
-      ...newOrder,
-      material: materialId,
-      selected_color: colors.length > 0 ? colors[0] : ''
-    });
   };
 
   const handleCreateOrder = async (e) => {
@@ -202,33 +222,33 @@ const Orders = () => {
     setShowReceiveModal(true);
   };
 
-  const handleReceptionStatusUpdate = async (status) => {
-    if (!selectedOrder?.order_code) return;
+  const handleReceptionStatusUpdate = async (action) => {
+    if (!selectedOrder?.id) return;
+
+    const actionLabel = {
+      mark_instore: 'in store',
+      close: 'closed',
+    };
+
     try {
-      try {
-        await updateReceptionOrderStatusByCode(selectedOrder.order_code, status);
-      } catch {
-        await updateOrder(selectedOrder.id, { status });
-      }
+      await processOrder(selectedOrder.id, { action });
 
       setSelectedOrder(null);
       await fetchOrders();
     } catch (error) {
       console.error('Error updating receptionist status:', error);
-      alert(error.response?.data?.error || error.response?.data?.detail || `Failed to mark order as ${status}`);
+      alert(
+        error.response?.data?.error
+        || error.response?.data?.detail
+        || `Failed to update order status to ${actionLabel[action] || action}`
+      );
     }
   };
 
-  const pendingCount = orders.filter(o => ['INITIATED', 'AWAITING_PAYMENT', 'PENDING_APPROVAL'].includes(o.status)).length;
   const inProgressCount = orders.filter(o => o.status === 'IN_PROGRESS').length;
-  const fullyPaidCount = orders.filter(o => o.status === 'FULLY_PAID').length;
-  const rejectedCount = orders.filter(o => o.status === 'REJECTED').length;
-  const cancelledCount = orders.filter(o => o.status === 'CANCELLED').length;
   const instoreCount = orders.filter(o => o.status === 'IN_STORE').length;
   const shippedCount = orders.filter(o => o.status === 'SHIPPED').length;
-  // const completedCount = orders.filter(o => ['COMPLETED', 'SHIPPED', 'IN_STORE', 'CLOSED'].includes(o.status)).length;
   const completedCount = orders.filter(o => o.status === 'COMPLETED').length;
-  const closedCount = orders.filter(o => o.status === 'CLOSED').length;
 
   const getStatusLabel = (status) => {
     const labels = {
@@ -237,7 +257,7 @@ const Orders = () => {
       PENDING_APPROVAL: 'Pending Approval',
       IN_PROGRESS: 'In Progress',
       COMPLETED: 'Completed',
-      SHIPPED: 'Shipping',
+      SHIPPED: 'Shipped',
       IN_STORE: 'In Store',
       CLOSED: 'Closed',
       FULLY_PAID: 'Fully Paid',
@@ -256,6 +276,7 @@ const Orders = () => {
       'COMPLETED': 'bg-green-500/10 text-green-500',
       'SHIPPED': 'bg-purple-500/10 text-purple-500',
       'IN_STORE': 'bg-teal-500/10 text-teal-500',
+      'CLOSED': 'bg-indigo-500/10 text-indigo-500',
       'FULLY_PAID': 'bg-indigo-500/10 text-indigo-500',
       'REJECTED': 'bg-red-500/10 text-red-500',
       'CANCELLED': 'bg-red-500/10 text-red-500',
@@ -264,13 +285,21 @@ const Orders = () => {
   };
 
   const filteredOrders = useMemo(() => {
-    if (statusFilter === 'all') return orders;
-    if (statusFilter === 'initiated') return orders.filter(o => o.status === 'INITIATED');
-    if (statusFilter === 'pending_approval') return orders.filter(o => o.status === 'PENDING_APPROVAL');
-    if (statusFilter === 'in_progress') return orders.filter(o => o.status === 'IN_PROGRESS');
-    if (statusFilter === 'shipped') return orders.filter(o => o.status === 'SHIPPED');
-    if (statusFilter === 'in_store') return orders.filter(o => o.status === 'IN_STORE');
-    return orders;
+    let list = orders;
+
+    if (statusFilter === 'initiated') list = orders.filter(o => o.status === 'INITIATED');
+    if (statusFilter === 'pending_approval') list = orders.filter(o => o.status === 'PENDING_APPROVAL');
+    if (statusFilter === 'in_progress') list = orders.filter(o => o.status === 'IN_PROGRESS');
+    if (statusFilter === 'completed') list = orders.filter(o => o.status === 'COMPLETED');
+    if (statusFilter === 'shipped') list = orders.filter(o => o.status === 'SHIPPED');
+    if (statusFilter === 'in_store') list = orders.filter(o => o.status === 'IN_STORE');
+
+    // Show newest orders first using order creation timestamp.
+    return [...list].sort((a, b) => {
+      const bTime = Date.parse(b.created_at || '') || 0;
+      const aTime = Date.parse(a.created_at || '') || 0;
+      return bTime - aTime;
+    });
   }, [orders, statusFilter]);
 
   const statusFilters = [
@@ -278,6 +307,7 @@ const Orders = () => {
     { id: 'initiated', label: 'Initiated', count: orders.filter(o => o.status === 'INITIATED').length },
     { id: 'pending_approval', label: 'Pending Approval', count: orders.filter(o => o.status === 'PENDING_APPROVAL').length },
     { id: 'in_progress', label: 'In Progress', count: inProgressCount },
+    { id: 'completed', label: 'Completed', count: completedCount },
     { id: 'shipped', label: 'Shipped', count: shippedCount },
     { id: 'in_store', label: 'In Store', count: instoreCount },
   ];
@@ -294,7 +324,7 @@ const Orders = () => {
           setPayments(data);
           // console.log("Fetched payments data", data)
               // console.log("selected color image", selectedOrder)
-        } catch (err) {
+        } catch {
           setPayments([]);
         } finally {
           setPaymentLoading(false);
@@ -353,6 +383,9 @@ const Orders = () => {
         ) : filteredOrders.length > 0 ? (
           <div className="divide-y divide-gray-50 dark:divide-white/5">
             {filteredOrders.map((order) => (
+              (() => {
+                const { materialImage, suitSampleImage } = getOrderImages(order);
+                return (
               <div
                 key={order.id}
                 className="p-6 flex flex-col md:flex-row items-center justify-between gap-6 hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors cursor-pointer"
@@ -365,7 +398,8 @@ const Orders = () => {
                       const mat = matRes.data;
                       setSelectedOrder(prev => ({
                         ...prev,
-                        material_image: mat.image_url,
+                        material_image: mat.material_image || mat.image_url || prev?.material_image || prev?.image_url || '',
+                        suit_sample_image: mat.suit_sample_image || prev?.suit_sample_image || '',
                         material_colors: mat.colors || [],
                         material_hex: mat.colors?.[0] ? getHexColor(mat.colors[0].name) : null
                       }));
@@ -376,22 +410,37 @@ const Orders = () => {
                 }}
               >
                 <div className="flex items-center gap-6">
-                  <div className="h-16 w-16 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center">
-                    {order.image_url ? (
-                      <img
-                        src={order.image_url}
-                        alt="Order Material"
-                        className="w-full h-full object-cover"
-                        onClick={e => { e.stopPropagation(); setFullImage(order.image_url); }}
-                        style={{ cursor: 'pointer' }}
-                      />
-                    ) : (
-                      <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-zinc-300 dark:text-zinc-700">
-                        <rect width="48" height="48" rx="12" fill="currentColor" />
-                        <path d="M16 32L22 24L28 32H16Z" fill="#fff"/>
-                        <circle cx="20" cy="20" r="2" fill="#fff"/>
-                      </svg>
-                    )}
+                  <div className="flex items-center gap-2">
+                    <div className="h-16 w-16 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center">
+                      {materialImage ? (
+                        <img
+                          src={materialImage}
+                          alt="Order Material"
+                          className="w-full h-full object-cover"
+                          onClick={e => { e.stopPropagation(); setFullImage(materialImage); }}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      ) : (
+                        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-zinc-300 dark:text-zinc-700">
+                          <rect width="48" height="48" rx="12" fill="currentColor" />
+                          <path d="M16 32L22 24L28 32H16Z" fill="#fff"/>
+                          <circle cx="20" cy="20" r="2" fill="#fff"/>
+                        </svg>
+                      )}
+                    </div>
+                    <div className="h-16 w-16 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center">
+                      {suitSampleImage ? (
+                        <img
+                          src={suitSampleImage}
+                          alt="Suit Sample"
+                          className="w-full h-full object-cover"
+                          onClick={e => { e.stopPropagation(); setFullImage(suitSampleImage); }}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      ) : (
+                        <span className="text-[8px] font-bold uppercase text-zinc-400">No Suit</span>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <h5 className="text-sm font-black dark:text-white uppercase">{order.order_code}</h5>
@@ -399,12 +448,18 @@ const Orders = () => {
                       {order.customer_name} • {order.suit_type_name}
                     </p>
                     <p className="text-[10px] text-gray-500 mt-1">{order.customer_phone}</p>
+                    {order.created_at && (
+                      <p className="text-[10px] text-gray-500 mt-1">
+                        Ordered: {new Date(order.created_at).toLocaleString()}
+                      </p>
+                    )}
                     {/* Show color if available */}
                     {(order.selected_color_name || order.selected_color) && (
                       <p className="text-[10px] text-gray-500 mt-1">
                         Color: <span className="font-bold">{order.selected_color_name || order.selected_color}</span>
                       </p>
                     )}
+                    <p className="text-[9px] text-gray-400 mt-1 uppercase tracking-wider">Left: Material • Right: Suit Sample</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
@@ -414,6 +469,8 @@ const Orders = () => {
                   <span className="text-sm font-black dark:text-white">${order.total_price}</span>
                 </div>
               </div>
+                );
+              })()
             ))}
           </div>
         ) : (
@@ -428,12 +485,12 @@ const Orders = () => {
       <AnimatePresence>
         {selectedOrder && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setSelectedOrder(null)}
               className="absolute inset-0 bg-black/80 backdrop-blur-md"
             />
-            <motion.div
+            <Motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -518,6 +575,10 @@ const Orders = () => {
               </AnimatePresence>
 
               <div className="grid grid-cols-2 gap-4 mb-6">
+                {(() => {
+                  const { materialImage, suitSampleImage } = getOrderImages(selectedOrder);
+                  return (
+                    <>
                 <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4">
                   <p className="text-[9px] font-black text-zinc-400 uppercase">Suit Type Name</p>
                   <p className="text-sm font-bold dark:text-white">{selectedOrder.suit_type_name}</p>
@@ -527,6 +588,52 @@ const Orders = () => {
                   <p className="text-[9px] font-black text-zinc-400 uppercase">Material</p>
                   <p className="text-sm font-bold dark:text-white">{selectedOrder.material_name}</p>
                 </div>
+                <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4 col-span-2">
+                  <p className="text-[9px] font-black text-zinc-400 uppercase mb-2">Chosen Images</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-[8px] font-black uppercase text-zinc-500 mb-1">Material Sample</p>
+                      <div
+                        className="h-28 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700 bg-zinc-200/60 dark:bg-zinc-800/60 cursor-pointer"
+                        onClick={() => {
+                          if (materialImage) setFullImage(materialImage);
+                        }}
+                      >
+                        {materialImage ? (
+                          <img
+                            src={materialImage}
+                            alt="Material sample"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-zinc-400 uppercase">No image</div>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[8px] font-black uppercase text-zinc-500 mb-1">Suit Sample</p>
+                      <div
+                        className="h-28 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700 bg-zinc-200/60 dark:bg-zinc-800/60 cursor-pointer"
+                        onClick={() => {
+                          if (suitSampleImage) setFullImage(suitSampleImage);
+                        }}
+                      >
+                        {suitSampleImage ? (
+                          <img
+                            src={suitSampleImage}
+                            alt="Suit sample"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-zinc-400 uppercase">No image</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                </>
+                  );
+                })()}
                 {/* Selected Color - always show if color info exists */}
                 {(selectedOrder.selected_color_name || selectedOrder.selected_color) && (
                   <div className="bg-zinc-100 dark:bg-zinc-900 rounded-2xl p-4">
@@ -639,13 +746,7 @@ const Orders = () => {
                       disabled
                       className="flex-1 py-4 bg-purple-500/20 text-purple-700 dark:text-purple-300 rounded-2xl text-[10px] font-black uppercase tracking-widest cursor-not-allowed"
                     >
-                      Shipping
-                    </button>
-                    <button
-                      onClick={() => handleReceptionStatusUpdate('IN_STORE')}
-                      className="flex-1 py-4 bg-teal-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-700 transition-all"
-                    >
-                      Mark In Store
+                      Waiting For Shipment
                     </button>
                   </div>
                 )}
@@ -653,7 +754,7 @@ const Orders = () => {
                 {selectedOrder.status === 'SHIPPED' && (
                   <div className="flex gap-3 w-full">
                     <button
-                      onClick={() => handleReceptionStatusUpdate('IN_STORE')}
+                      onClick={() => handleReceptionStatusUpdate('mark_instore')}
                       className="flex-1 py-4 bg-teal-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-700 transition-all"
                     >
                       Mark In Store
@@ -664,7 +765,7 @@ const Orders = () => {
                 {selectedOrder.status === 'IN_STORE' && (
                   <div className="flex gap-3 w-full">
                     <button
-                      onClick={() => handleReceptionStatusUpdate('CLOSED')}
+                      onClick={() => handleReceptionStatusUpdate('close')}
                       className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all"
                     >
                       Mark Collected (Close)
@@ -684,7 +785,7 @@ const Orders = () => {
                   </div>
                 )}
               </div>
-            </motion.div>
+            </Motion.div>
           </div>
         )}
       </AnimatePresence>
@@ -693,12 +794,12 @@ const Orders = () => {
       <AnimatePresence>
         {showPaymentModal && selectedOrder && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setShowPaymentModal(false)}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
-            <motion.div
+            <Motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
@@ -759,7 +860,7 @@ const Orders = () => {
                   </div>
                 )}
               </div>
-            </motion.div>
+            </Motion.div>
           </div>
         )}
       </AnimatePresence>
@@ -777,12 +878,12 @@ const Orders = () => {
       <AnimatePresence>
         {showCreateModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => { setShowCreateModal(false); setCreatedOrder(null); }}
               className="absolute inset-0 bg-black/80 backdrop-blur-md"
             />
-            <motion.div
+            <Motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -907,7 +1008,7 @@ const Orders = () => {
                   </button>
                 </form>
               )}
-            </motion.div>
+            </Motion.div>
           </div>
         )}
       </AnimatePresence>
@@ -916,12 +1017,12 @@ const Orders = () => {
       <AnimatePresence>
         {showReceiveModal && selectedOrder && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setShowReceiveModal(false)}
               className="absolute inset-0 bg-black/80 backdrop-blur-md"
             />
-            <motion.div
+            <Motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -981,7 +1082,7 @@ const Orders = () => {
                   Confirm Receive
                 </button>
               </div>
-            </motion.div>
+            </Motion.div>
           </div>
         )}
       </AnimatePresence>

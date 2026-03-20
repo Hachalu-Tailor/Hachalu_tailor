@@ -150,15 +150,12 @@ export const getAuditLogDetail = (id) => api.get(`/accounts/admin/audit-logs/${i
 // NOTIFICATIONS ENDPOINTS
 // ============================================
 
+// Get notifications from backend - this is the ONLY notification endpoint available
 export const getNotifications = (params) => api.get('/accounts/user/notifications/', { params });
 
-export const markNotificationRead = (id) => api.patch(`/accounts/user/notifications/${id}/`, { read: true });
-
-export const markAllNotificationsRead = () => api.post('/accounts/user/notifications/mark-all-read/');
-
-// Mark notification read endpoint doesn't exist in backend - create a helper to update locally
+// Helper to get notifications summary - uses is_read to match backend field
 export const getNotificationsSummary = (notifications) => {
-  const unread = notifications.filter(n => !n.read).length;
+  const unread = notifications.filter(n => !n.is_read).length;
   return {
     total: notifications.length,
     unread,

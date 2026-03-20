@@ -10,14 +10,25 @@ import {
   HiOutlineBars3BottomLeft,
   HiOutlineChatBubbleLeftEllipsis,
   HiOutlineCheckBadge,
+  HiOutlineCheckCircle,
   HiOutlineArrowRightOnRectangle,
   HiOutlineShoppingBag,
   HiOutlineCurrencyDollar,
-  HiOutlineCube
+  HiOutlineCube,
+  HiOutlineUsers
 } from 'react-icons/hi2';
 import api from '../api/api';
 import { formatRelativeTime } from '../utils/helpers';
 import { useLanguage } from '../context/LanguageContext';
+
+const getRoleBasePath = (roleRaw) => {
+  const role = String(roleRaw || '').toLowerCase().trim();
+  if (role === 'admin') return '/admin';
+  if (role === 'garment') return '/garment';
+  // Stored role is typically "receptionist" but routes use "/reception"
+  if (role === 'receptionist' || role === 'reception') return '/reception';
+  return '/reception';
+};
 
 const DashboardLayout = () => {
   const { t } = useLanguage();
@@ -29,21 +40,26 @@ const DashboardLayout = () => {
   const [pendingCount, setPendingCount] = useState(0);
   const [completedOrders, setCompletedOrders] = useState([]);
   const [isLoadingCompleted, setIsLoadingCompleted] = useState(false);
+  // Track dismissed notification IDs to filter them out
+  const [dismissedIds, setDismissedIds] = useState(new Set());
 
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Fetch notifications
+  // Fetch notifications - filter out dismissed ones
   const fetchNotifications = useCallback(async () => {
     try {
       const response = await api.get('/accounts/user/notifications/', { params: { limit: 10 } });
-      const notifs = response.data?.results || response.data || [];
+      let notifs = response.data?.results || response.data || [];
+      // Filter out dismissed notifications
+      notifs = notifs.filter(n => !dismissedIds.has(n.id));
       setNotifications(notifs);
-      setPendingCount(notifs.filter(n => !n.read).length);
+      // Use is_read to match backend field name
+      setPendingCount(notifs.filter(n => !n.is_read).length);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     }
-  }, []);
+  }, [dismissedIds]);
 
   // Fetch completed orders for garment users
   const fetchCompletedOrders = useCallback(async () => {
@@ -60,7 +76,7 @@ const DashboardLayout = () => {
     }
   }, [userRole]);
 
-  // 1. Sync Role and Theme on Mount and location change
+  // 1. Sync Role and Theme on Mount only (not on every navigation)
   useEffect(() => {
     // Try to get role from multiple sources
     let storedRole = localStorage.getItem('user_role');
@@ -86,31 +102,28 @@ const DashboardLayout = () => {
     setDarkMode(prefersDark);
     localStorage.setItem('theme', prefersDark ? 'dark' : 'light');
 
-    // Fetch notifications
+    // Fetch notifications only on mount
     fetchNotifications();
 
     // Fetch completed orders for garment users
     if (storedRole?.toLowerCase() === 'garment') {
       fetchCompletedOrders();
     }
-  }, [location.pathname, location.search, fetchCompletedOrders, fetchNotifications]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array - only run once on mount
 
   // Fetch latest notifications only when user opens the notifications panel.
   useEffect(() => {
     if (showNotifications) {
       fetchNotifications();
     }
-  }, [showNotifications, fetchNotifications]);
+  }, [showNotifications]); // Removed fetchNotifications from dependency to prevent re-fetching
 
-  // Mark notification as read
-  const handleMarkAsRead = async (notifId) => {
-    try {
-      await api.patch(`/accounts/user/notifications/${notifId}/`, { read: true });
-      setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, read: true } : n));
-      setPendingCount(prev => Math.max(0, prev - 1));
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-    }
+  // Mark notification as complete - hide locally (frontend only)
+  const handleMarkAsRead = (notifId) => {
+    // Add to dismissed IDs so it won't show again even after refresh
+    setDismissedIds(prev => new Set([...prev, notifId]));
+    setPendingCount(prev => Math.max(0, prev - 1));
   };
 
   // 2. Dynamic Title Logic: Clean up the URL for the header
@@ -222,15 +235,53 @@ const DashboardLayout = () => {
                           notifications.slice(0, 5).map((notif, idx) => (
                             <div
                               key={notif.id || idx}
-                              onClick={() => !notif.read && handleMarkAsRead(notif.id)}
-                              className={`cursor-pointer ${!notif.read ? 'bg-red-50 dark:bg-red-900/10' : ''}`}
+                              className={`relative cursor-pointer rounded-xl transition-all ${!notif.is_read ? 'bg-red-50 dark:bg-red-900/10 border-l-4 border-red-500' : 'bg-gray-50 dark:bg-white/5'}`}
                             >
-                              <NotificationItem
-                                icon={getNotificationIcon(notif.type)}
-                                text={notif.message || notif.title || t('messages')}
-                                time={formatRelativeTime(notif.created_at)}
-                                isRead={notif.read}
-                              />
+                              {/* Mark as Read Button */}
+                              {!notif.is_read && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleMarkAsRead(notif.id);
+                                  }}
+                                  className="absolute top-2 right-2 z-10 p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                                  title="Mark as read"
+                                >
+                                  <HiOutlineCheckCircle size={14} />
+                                </button>
+                              )}
+                              
+                              <div
+                                onClick={() => {
+                                  // Mark as read when clicked
+                                  handleMarkAsRead(notif.id);
+                                  
+                                  // Navigate based on notification type + current role routing
+                                  const notifType = String(notif.notification_type || notif.type || '').toLowerCase().trim();
+                                  const basePath = getRoleBasePath(userRole);
+
+                                  if (notifType === 'order_created' || notifType === 'order_update' || notifType === 'order') {
+                                    navigate(userRole === 'garment' ? '/garment/orders' : '/reception/orders');
+                                  } else if (notifType === 'payment_submitted' || notifType === 'payment') {
+                                    navigate('/reception/payments');
+                                  } else if (notifType === 'inventory') {
+                                    navigate('/reception/inventory');
+                                  } else if (notifType === 'staff' || notifType === 'user' || notifType === 'staff_created') {
+                                    navigate('/admin/staff');
+                                  } else {
+                                    navigate(basePath);
+                                  }
+                                  setShowNotifications(false);
+                                }}
+                                className="p-3"
+                              >
+                                <NotificationItem
+                                  icon={getNotificationIcon(notif.notification_type || notif.type)}
+                                  text={notif.message || notif.title || t('messages')}
+                                  time={formatRelativeTime(notif.created_at)}
+                                  isRead={notif.is_read}
+                                />
+                              </div>
                             </div>
                           ))
                         ) : (
@@ -238,7 +289,18 @@ const DashboardLayout = () => {
                         )}
                       </div>
 
-                      <button className="w-full mt-6 py-3 bg-gray-50 dark:bg-white/5 rounded-2xl text-[8px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-400 hover:text-white hover:bg-red-600 transition-all">
+                      <button 
+                        onClick={() => {
+                          if (userRole === 'garment') {
+                            navigate('/garment/messages');
+                          } else {
+                            // Notifications page
+                            navigate('/reception/notifications');
+                          }
+                          setShowNotifications(false);
+                        }}
+                        className="w-full mt-6 py-3 bg-gray-50 dark:bg-white/5 rounded-2xl text-[8px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-400 hover:text-white hover:bg-red-600 transition-all"
+                      >
                         {t('view')}
                       </button>
                     </motion.div>
@@ -308,15 +370,30 @@ const NotificationItem = ({ icon, text, time, isRead }) => (
 
 /* --- HELPER: Get notification icon based on type --- */
 const getNotificationIcon = (type) => {
-  switch (type?.toLowerCase()) {
+  const normalizedType = type?.toLowerCase() || '';
+  switch (normalizedType) {
     case 'order':
+    case 'order_created':
+    case 'order_update':
+    case 'order_rejected':
+    case 'order_expired':
       return <HiOutlineShoppingBag />;
     case 'payment':
+    case 'payment_submitted':
+    case 'payment_approved':
+    case 'payment_rejected':
       return <HiOutlineCurrencyDollar />;
     case 'inventory':
+    case 'inventory_low':
+    case 'inventory_updated':
       return <HiOutlineCube />;
     case 'system':
+    case 'general':
       return <HiOutlineCheckBadge />;
+    case 'staff':
+    case 'staff_created':
+    case 'user':
+      return <HiOutlineUsers />;
     default:
       return <HiOutlineBell />;
   }

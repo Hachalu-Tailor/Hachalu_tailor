@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import {
     HiOutlineDocumentText,
@@ -11,16 +11,21 @@ import {
     HiOutlineCalendar,
     HiOutlineExclamationCircle,
     HiOutlineScissors,
+    HiOutlineExclamationTriangle,
+    HiOutlineClock,
 } from 'react-icons/hi2';
 import {
     getGarmentOrdersInProgress,
     getGarmentShippedOrders,
     getOrders,
     processGarmentOrder,
-    getPayments
+    getPayments,
+    getMaterials
 } from '../api/api';
 import { getHexColor } from '../utils/colors';
 import { API_BASE_URL } from '../utils/constants';
+import { UrgencyIndicator, CompactUrgency } from '../components/UrgencyIndicator';
+import { useToast } from '../components/Toast';
 
 // Backend status configuration - ONLY use backend statuses (IN_PROGRESS, COMPLETED, SHIPPED)
 const BACKEND_STATUSES = {
@@ -70,6 +75,7 @@ const getStageIndexFromStatus = (status) => {
 };
 
 const GarmentDashboard = () => {
+    const toast = useToast();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -81,6 +87,9 @@ const GarmentDashboard = () => {
     const [showQuickLatest, setShowQuickLatest] = useState(false);
     const [fullImage, setFullImage] = useState(null);
     const [receiptByOrderCode, setReceiptByOrderCode] = useState({});
+    const [materialById, setMaterialById] = useState({});
+    const [urgentOrders, setUrgentOrders] = useState([]);
+    const [alertedOrders, setAlertedOrders] = useState(new Set());
     const [filters, setFilters] = useState({
         suitType: 'all',
         material: 'all',
@@ -98,27 +107,50 @@ const GarmentDashboard = () => {
     };
 
     const backendOrigin = useMemo(() => {
-        if (typeof API_BASE_URL === 'string' && API_BASE_URL.startsWith('http')) {
+        if (typeof API_BASE_URL === 'string' && API_BASE_URL.startsWith('http') && typeof import.meta !== 'undefined' && import.meta.env?.PROD) {
             try {
                 return new URL(API_BASE_URL).origin;
             } catch {
                 return 'http://127.0.0.1:8000';
             }
         }
-        if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
-        return 'http://127.0.0.1:8000';
+
+        if (typeof window !== 'undefined' && window.location?.origin) {
+            // In development, use frontend origin and Vite /media proxy for LAN compatibility.
+            return window.location.origin;
+        }
+
+        return 'http://127.0.0.1:5173';
     }, []);
 
     const getAbsoluteUrl = (url) => {
         if (!url) return '';
-        if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+        if (url.startsWith('data:')) return url;
+
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+            try {
+                const parsed = new URL(url);
+                if (parsed.hostname === '127.0.0.1' || parsed.hostname === 'localhost') {
+                    return `${backendOrigin}${parsed.pathname}${parsed.search || ''}`;
+                }
+                return url;
+            } catch {
+                return url;
+            }
+        }
+
         const normalizedPath = url.startsWith('/') ? url : `/${url}`;
         return `${backendOrigin}${normalizedPath}`;
     };
 
     const getOrderImages = (order) => {
-        const materialImage = getAbsoluteUrl(order?.material_image || order?.image_url || '');
-        const suitSampleImage = getAbsoluteUrl(order?.suit_sample_image || '');
+        const materialData = materialById[Number(order?.material)] || {};
+        const materialImage = getAbsoluteUrl(
+            order?.material_image || order?.image_url || materialData?.material_image || materialData?.image_url || ''
+        );
+        const suitSampleImage = getAbsoluteUrl(
+            order?.suit_sample_image || materialData?.suit_sample_image || ''
+        );
         return { materialImage, suitSampleImage };
     };
 
@@ -191,16 +223,32 @@ const GarmentDashboard = () => {
         return { text: `${diffDays} days`, isOverdue: false, daysLeft: diffDays };
     };
 
+    // Get urgent orders (orders with due_date within 5 days) - ONLY for IN_PROGRESS
+    const getUrgentOrders = (orderList) => {
+        const now = new Date();
+        const fiveDaysFromNow = new Date();
+        fiveDaysFromNow.setDate(fiveDaysFromNow.getDate() + 5);
+        
+        return (orderList || []).filter(o => {
+            // Only include IN_PROGRESS orders - exclude COMPLETED and SHIPPED
+            if (o.status !== 'IN_PROGRESS') return false;
+            if (!o.due_date) return false;
+            const dueDate = new Date(o.due_date);
+            return dueDate >= now && dueDate <= fiveDaysFromNow;
+        });
+    };
+
     const loadOrders = async () => {
         setLoading(true);
         setError(null);
 
         try {
-            const [inProgressResponse, shippedResponse, processedOrders, paymentsResponse] = await Promise.all([
+            const [inProgressResponse, shippedResponse, processedOrders, paymentsResponse, materialsResponse] = await Promise.all([
                 getGarmentOrdersInProgress().catch(() => ({ data: [] })),
                 getGarmentShippedOrders().catch(() => ({ data: [] })),
                 fetchAllPages(getOrders, { processed_only: true }),
-                getPayments().catch(() => ({ data: [] }))
+                getPayments().catch(() => ({ data: [] })),
+                getMaterials().catch(() => ({ data: [] }))
             ]);
 
             const inProgressOrders = handlePaginatedResponse(inProgressResponse);
@@ -222,6 +270,7 @@ const GarmentDashboard = () => {
             });
 
             const paymentsData = handlePaginatedResponse(paymentsResponse);
+            const materialsData = handlePaginatedResponse(materialsResponse);
             const latestReceiptMap = {};
             paymentsData.forEach(payment => {
                 const orderCode = payment?.order_code;
@@ -248,8 +297,23 @@ const GarmentDashboard = () => {
                 status: normalizeStatus(order.status),
             }));
 
+            const materialLookup = {};
+            (materialsData || []).forEach((m) => {
+                if (!m?.id) return;
+                materialLookup[Number(m.id)] = m;
+            });
+
             setOrders(normalizedOrders);
+            setMaterialById(materialLookup);
             setReceiptByOrderCode(resolvedReceipts);
+            
+            // Check for urgent orders (due within 5 days)
+            const urgent = getUrgentOrders(normalizedOrders);
+            setUrgentOrders(urgent);
+            
+            // Check for critical orders (< 3 hours) and trigger alerts
+            checkCriticalOrders(normalizedOrders);
+            
             return normalizedOrders;
         } catch (error) {
             console.error('Error loading orders:', error);
@@ -260,11 +324,47 @@ const GarmentDashboard = () => {
             }
             setOrders([]);
             setReceiptByOrderCode({});
+            setMaterialById({});
             return [];
         } finally {
             setLoading(false);
         }
     };
+
+    // Check for orders with less than 3 hours remaining and trigger toast alerts - ONLY for IN_PROGRESS
+    const checkCriticalOrders = useCallback((orderList) => {
+        if (!orderList || orderList.length === 0) return;
+        
+        const now = new Date();
+        const threeHoursMs = 3 * 60 * 60 * 1000;
+        
+        orderList.forEach(order => {
+            // Only check IN_PROGRESS orders - skip COMPLETED and SHIPPED
+            if (order.status !== 'IN_PROGRESS') return;
+            if (!order.due_date) return;
+            if (alertedOrders.has(order.order_code)) return;
+            
+            const dueDate = new Date(order.due_date);
+            const timeRemaining = dueDate - now;
+            
+            // If less than 3 hours remaining
+            if (timeRemaining > 0 && timeRemaining <= threeHoursMs) {
+                toast.warning(`⚠️ Order ${order.order_code} has less than 3 hours remaining!`, {
+                    duration: 8000,
+                });
+                setAlertedOrders(prev => new Set([...prev, order.order_code]));
+            }
+        });
+    }, [alertedOrders, toast]);
+
+    // Set up interval to check for critical orders every minute
+    useEffect(() => {
+        const interval = setInterval(() => {
+            checkCriticalOrders(orders);
+        }, 60000); // Check every minute
+        
+        return () => clearInterval(interval);
+    }, [orders, checkCriticalOrders]);
 
     const handleCompleteOrder = async (orderCode) => {
         try {
@@ -280,12 +380,12 @@ const GarmentDashboard = () => {
                 return prev.map((order, i) => (i === index ? { ...order, ...updatedOrder } : order));
             });
 
-            const updatedOrders = await loadOrders();
-            const refreshedOrder = updatedOrders.find(o => o.order_code === orderCode);
-            setSelectedOrder(refreshedOrder || updatedOrder || null);
+            await loadOrders();
+            setSelectedOrder(null);
             setActiveTab('completed');
+            toast.success(`Order ${orderCode} completed successfully.`, { duration: 3500 });
         } catch {
-            alert('Failed to complete order.');
+            toast.error('Failed to complete order. Please try again.');
         }
     };
 
@@ -303,12 +403,12 @@ const GarmentDashboard = () => {
                 return prev.map((order, i) => (i === index ? { ...order, ...updatedOrder } : order));
             });
 
-            const updatedOrders = await loadOrders();
-            const refreshedOrder = updatedOrders.find(o => o.order_code === orderCode);
-            setSelectedOrder(refreshedOrder || updatedOrder || null);
+            await loadOrders();
+            setSelectedOrder(null);
             setActiveTab('shipped');
+            toast.success(`Order ${orderCode} shipped successfully.`, { duration: 3500 });
         } catch {
-            alert('Failed to ship order.');
+            toast.error('Failed to ship order. Please try again.');
         }
     };
 
@@ -334,7 +434,12 @@ const GarmentDashboard = () => {
             if (activeTab === 'in_progress') return order.status === 'IN_PROGRESS';
             if (activeTab === 'completed') return order.status === 'COMPLETED';
             if (activeTab === 'shipped') return order.status === 'SHIPPED';
-            if (activeTab === 'overdue') return isOverdue(order.due_date) && order.status !== 'SHIPPED';
+            if (activeTab === 'urgent') {
+                if (order.status !== 'IN_PROGRESS' || !order.due_date) return false;
+                const ts = getTimeStatus(order.due_date);
+                return !ts.isOverdue && ts.daysLeft !== null && ts.daysLeft <= 5;
+            }
+            if (activeTab === 'overdue') return isOverdue(order.due_date) && order.status === 'IN_PROGRESS';
 
             return true;
         });
@@ -351,12 +456,37 @@ const GarmentDashboard = () => {
         }
 
         // Sort
-        if (filters.sortBy === 'due_date') {
+        if (filters.sortBy === 'urgent') {
+            list.sort((a, b) => {
+                const getUrgencyRank = (order) => {
+                    if (order.status !== 'IN_PROGRESS') return 4;
+                    if (!order.due_date) return 3;
+                    const ts = getTimeStatus(order.due_date);
+                    if (ts.isOverdue) return 0;
+                    if (ts.daysLeft !== null && ts.daysLeft <= 5) return 1;
+                    return 2;
+                };
+
+                const rankDiff = getUrgencyRank(a) - getUrgencyRank(b);
+                if (rankDiff !== 0) return rankDiff;
+
+                if (a.due_date && b.due_date) {
+                    return new Date(a.due_date) - new Date(b.due_date);
+                }
+
+                if (!a.due_date && b.due_date) return 1;
+                if (a.due_date && !b.due_date) return -1;
+
+                return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+            });
+        } else if (filters.sortBy === 'due_date') {
             list.sort((a, b) => {
                 if (!a.due_date) return 1;
                 if (!b.due_date) return -1;
                 return new Date(a.due_date) - new Date(b.due_date);
             });
+        } else if (filters.sortBy === 'created_date') {
+            list.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
         } else if (filters.sortBy === 'customer') {
             list.sort((a, b) => (a.customer_name || '').localeCompare(b.customer_name || ''));
         } else if (filters.sortBy === 'status') {
@@ -369,13 +499,13 @@ const GarmentDashboard = () => {
         return list;
     }, [orders, searchTerm, activeTab, filters]);
 
-    // Stats
+    // Stats - Only count IN_PROGRESS orders for overdue (not COMPLETED or SHIPPED)
     const stats = useMemo(() => {
         return {
             inProgress: orders.filter(o => o.status === 'IN_PROGRESS').length,
             completed: orders.filter(o => o.status === 'COMPLETED').length,
             shipped: orders.filter(o => o.status === 'SHIPPED').length,
-            overdue: orders.filter(o => isOverdue(o.due_date) && o.status !== 'SHIPPED').length,
+            overdue: orders.filter(o => isOverdue(o.due_date) && o.status === 'IN_PROGRESS').length,
             total: orders.length
         };
     }, [orders]);
@@ -386,7 +516,8 @@ const GarmentDashboard = () => {
         { id: 'in_progress', label: 'In Progress', count: stats.inProgress, color: 'blue' },
         { id: 'completed', label: 'Completed', count: stats.completed, color: 'green' },
         { id: 'shipped', label: 'Shipped', count: stats.shipped, color: 'purple' },
-        { id: 'overdue', label: 'Overdue', count: stats.overdue, color: 'red' }
+        { id: 'overdue', label: 'Overdue', count: stats.overdue, color: 'red' },
+        { id: 'urgent', label: 'Urgent', count: urgentOrders.length, color: 'orange' },
     ];
 
     // Only use backend status config (IN_PROGRESS, COMPLETED, SHIPPED)
@@ -419,6 +550,17 @@ const GarmentDashboard = () => {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                        {/* Search */}
+                    <div className="relative flex-1 md:w-48">
+                        <HiOutlineMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 w-4 h-4" />
+                        <input
+                                type="text"
+                                placeholder="Search..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-red-500/50 focus:border-red-500 outline-none placeholder:text-gray-500"
+                            />
+                        </div>
                     <button
                         onClick={() => setShowQuickLatest(prev => !prev)}
                         className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${showQuickLatest
@@ -437,10 +579,35 @@ const GarmentDashboard = () => {
                 </div>
             </div>
 
-      
+            {/* Compact urgency cue: button-driven urgent list */}
+            <div className={`rounded-2xl border px-4 py-3 ${urgentOrders.length > 0 ? 'bg-orange-50/80 dark:bg-orange-900/20 border-orange-200 dark:border-orange-700/40' : 'bg-green-50/80 dark:bg-emerald-900/20 border-green-200 dark:border-emerald-700/40'}`}>
+                <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                        {urgentOrders.length > 0 ? (
+                            <HiOutlineExclamationTriangle className="text-orange-600 dark:text-orange-300 animate-pulse" size={20} />
+                        ) : (
+                            <HiOutlineCheckCircle className="text-emerald-600 dark:text-emerald-300" size={20} />
+                        )}
+                        <p className={`text-[11px] font-black uppercase tracking-wider ${urgentOrders.length > 0 ? 'text-orange-700 dark:text-orange-200' : 'text-emerald-700 dark:text-emerald-200'}`}>
+                            {urgentOrders.length > 0
+                                ? `${urgentOrders.length} in-progress order${urgentOrders.length > 1 ? 's' : ''} due in less than 5 days`
+                                : 'No urgent in-progress orders (5-day window)'}
+                        </p>
+                    </div>
+                    {urgentOrders.length > 0 && (
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('urgent')}
+                            className="text-[10px] font-black uppercase px-3 py-1.5 rounded-lg bg-orange-600 text-white hover:bg-orange-700 transition-colors"
+                        >
+                            Show Urgent List
+                        </button>
+                    )}
+                </div>
+            </div>
 
             {/* Filters & Search Bar - matches Admin & Reception */}
-            <div className="bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-2xl p-4">
+            <div className="sticky top-0 z-20 bg-white/95 dark:bg-[#0c0c0c]/95 backdrop-blur-md border border-gray-100 dark:border-white/5 rounded-2xl p-3 md:p-4">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                     {/* Tabs */}
                     <div className="w-full md:w-auto flex flex-wrap items-center gap-1 pb-1 md:pb-0">
@@ -448,7 +615,7 @@ const GarmentDashboard = () => {
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] md:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap transition-colors ${activeTab === tab.id
+                                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[7px] md:text-[8px] font-bold uppercase tracking-wider whitespace-nowrap transition-colors ${activeTab === tab.id
                                     ? 'bg-red-600 text-white'
                                     : 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white'
                                     }`}
@@ -463,17 +630,17 @@ const GarmentDashboard = () => {
                     </div>
 
                     <div className="flex items-center gap-2 w-full md:w-auto">
-                        {/* Search */}
-                        <div className="relative flex-1 md:w-48">
-                            <HiOutlineMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 w-4 h-4" />
-                            <input
-                                type="text"
-                                placeholder="Search..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-red-500/50 focus:border-red-500 outline-none placeholder:text-gray-500"
-                            />
-                        </div>
+                        {/* Sort - always visible */}
+                        <select
+                            value={filters.sortBy}
+                            onChange={(e) => setFilters(f => ({ ...f, sortBy: e.target.value }))}
+                            className="px-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 text-xs font-bold bg-white dark:bg-white/5 text-gray-700 dark:text-gray-200 min-w-[150px]"
+                            title="Sort orders"
+                        >
+                            <option value="urgent">Urgent</option>
+                            <option value="due_date">Due Date</option>
+                            <option value="created_date">Created Date</option>
+                        </select>
 
                         {/* Filter Toggle */}
                         <button
@@ -545,11 +712,11 @@ const GarmentDashboard = () => {
                                 <select
                                     value={filters.sortBy}
                                     onChange={(e) => setFilters(f => ({ ...f, sortBy: e.target.value }))}
-                                    className="px-3 py-2 rounded-xl border border-gray-100 dark:border-white/10 text-sm bg-white dark:bg-white/5 dark:text-white"
+                                    className="py-2 rounded-xl border border-gray-100 dark:border-white/10 text-sm bg-white dark:bg-white/5 dark:text-white"
                                 >
-                                    <option value="due_date">Sort by Due Date</option>
-                                    <option value="customer">Sort by Customer</option>
-                                    <option value="status">Sort by Status</option>
+                                    <option value="urgent">Urgent</option>
+                                    <option value="due_date">Due Date</option>
+                                    <option value="created_date">Created Date</option>
                                 </select>
                             </div>
                         </Motion.div>
@@ -711,6 +878,10 @@ const GarmentDashboard = () => {
                                 const statusConfig = getStatusConfig(order.status);
                                 const stageIndex = getStageIndexFromStatus(order.status);
                                 const { materialImage, suitSampleImage } = getOrderImages(order);
+                                const isInProgress = order.status === 'IN_PROGRESS';
+                                const isOverdueOrder = timeStatus.isOverdue;
+                                const isFiveDaysLeft = !timeStatus.isOverdue && timeStatus.daysLeft !== null && timeStatus.daysLeft <= 5;
+                                const isTwoDaysLeft = !timeStatus.isOverdue && timeStatus.daysLeft !== null && timeStatus.daysLeft <= 2;
 
                                 return (
                                     <Motion.div
@@ -719,7 +890,7 @@ const GarmentDashboard = () => {
                                         animate={{ opacity: 1, y: 0 }}
                                         whileHover={{ y: -2 }}
                                         onClick={() => setSelectedOrder(order)}
-                                        className={`bg-white dark:bg-white/5 rounded-xl border-2 cursor-pointer transition-all hover:shadow-lg ${timeStatus.isOverdue ? 'border-red-300 dark:border-red-500/50 shadow-red-100 dark:shadow-red-500/10' : 'border-gray-100 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10'
+                                        className={`bg-white dark:bg-white/5 rounded-xl border-2 cursor-pointer transition-all hover:shadow-lg ${!isInProgress ? 'border-gray-100 dark:border-white/5' : isOverdueOrder ? 'border-red-500 dark:border-red-500/50 shadow-red-200 dark:shadow-red-500/20' : isTwoDaysLeft ? 'border-orange-400 dark:border-orange-500/50 shadow-orange-100 dark:shadow-orange-500/10' : 'border-gray-100 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10'
                                             }`}
                                     >
                                         {/* Header with Status */}
@@ -748,6 +919,12 @@ const GarmentDashboard = () => {
                                                         {statusConfig.label}
                                                     </span>
                                                 </div>
+                                                {isInProgress && isFiveDaysLeft && (
+                                                    <div className={`mb-2 inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-black uppercase ${isTwoDaysLeft ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-200'}`}>
+                                                        <HiOutlineClock size={12} />
+                                                        Urgent: {timeStatus.daysLeft} day{timeStatus.daysLeft === 1 ? '' : 's'} left
+                                                    </div>
+                                                )}
                                                 <div className="flex h-2 rounded-full overflow-hidden bg-gray-100 dark:bg-white/10">
                                                     {BACKEND_STAGE_BARS.map((stage, idx) => (
                                                         <div
@@ -856,19 +1033,33 @@ const GarmentDashboard = () => {
                                                 </button>
                                             )}
 
-                                            {/* Due Date */}
-                                            <div className={`flex items-center justify-between pt-3 mt-1 border-t ${timeStatus.isOverdue ? 'border-red-200 dark:border-red-500/30' : 'border-gray-100 dark:border-white/5'
-                                                }`}>
-                                                <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
-                                                    <HiOutlineCalendar className="w-4 h-4 flex-shrink-0" />
-                                                    <span className="text-sm">{order.due_date || 'No date'}</span>
+                                            {/* Urgency Indicator with Live Countdown - Only for IN_PROGRESS */}
+                                            {isInProgress && (
+                                                <div className="pt-3 mt-1 border-t border-gray-100 dark:border-white/5">
+                                                    <UrgencyIndicator 
+                                                        dueDate={order.due_date}
+                                                        orderCode={order.order_code}
+                                                        showFullCountdown={isTwoDaysLeft || timeStatus.isOverdue}
+                                                        compact={false}
+                                                        size="sm"
+                                                    />
                                                 </div>
-                                                {timeStatus.isOverdue ? (
-                                                    <span className="text-xs font-semibold text-red-600">{timeStatus.text}</span>
-                                                ) : timeStatus.daysLeft <= 2 ? (
-                                                    <span className="text-xs font-semibold text-amber-600">{timeStatus.text}</span>
-                                                ) : null}
-                                            </div>
+                                            )}
+                                            {/* Show completed/shipped status with due date - visible but not urgent */}
+                                            {!isInProgress && (
+                                                <div className="pt-3 mt-1 border-t border-gray-100 dark:border-white/5">
+                                                    <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={`text-xs font-bold uppercase ${statusConfig.textColor}`}>
+                                                                {order.status === 'COMPLETED' ? '✓ Completed' : order.status === 'SHIPPED' ? '◉ Shipped' : order.status}
+                                                            </span>
+                                                        </div>
+                                                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                            Due: {order.due_date ? new Date(order.due_date).toLocaleDateString() : 'N/A'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </Motion.div>
                                 );
@@ -877,124 +1068,232 @@ const GarmentDashboard = () => {
                     ) : (
                         /* List View */
                         <div className="bg-white dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/5 overflow-hidden shadow-sm">
-                            <table className="w-full">
-                                <thead className="bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-white/10">
-                                    <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Order</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Customer</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Status</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Suit</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Color</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Qty</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Material Img</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Suit Img</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Receipt</th>
-                                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Due</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100 dark:divide-white/5">
-                                    {filteredOrders.map((order) => {
-                                        const timeStatus = getTimeStatus(order.due_date);
-                                        const statusConfig = getStatusConfig(order.status);
-                                        const { materialImage, suitSampleImage } = getOrderImages(order);
+                            {/* Mobile list cards */}
+                            <div className="md:hidden divide-y divide-gray-100 dark:divide-white/10">
+                                {filteredOrders.map((order) => {
+                                    const statusConfig = getStatusConfig(order.status);
+                                    const { materialImage, suitSampleImage } = getOrderImages(order);
+                                    const isInProgress = order.status === 'IN_PROGRESS';
+                                    const timeStatus = getTimeStatus(order.due_date);
+                                    const isFiveDaysLeft = isInProgress && !timeStatus.isOverdue && timeStatus.daysLeft !== null && timeStatus.daysLeft <= 5;
 
-                                        return (
-                                            <tr
-                                                key={order.id}
-                                                onClick={() => setSelectedOrder(order)}
-                                                className="cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-                                            >
-                                                <td className="px-4 py-3">
-                                                    <span className="font-semibold text-gray-900 dark:text-white">{order.order_code}</span>
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{order.customer_name || 'Unknown'}</td>
-                                                <td className="px-4 py-3">
-                                                    <span className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${statusConfig.bgColor} ${statusConfig.textColor}`}>
-                                                        {statusConfig.label}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{order.suit_type_name || 'N/A'}</td>
-                                                <td className="px-4 py-3">
-                                                    <div className="flex items-center gap-2">
-                                                        <div
-                                                            className="w-5 h-5 rounded-md flex-shrink-0 border border-gray-200 dark:border-white/10"
-                                                            style={{ backgroundColor: getHexColor(order.selected_color) }}
-                                                            title={order.selected_color || '-'}
-                                                        />
-                                                        <span className="text-sm text-gray-600 dark:text-gray-400">{order.selected_color || '-'}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-4 py-3 text-sm font-medium dark:text-white">{order.quantity}</td>
-                                                <td className="px-4 py-3">
+                                    return (
+                                        <button
+                                            key={order.id}
+                                            type="button"
+                                            onClick={() => setSelectedOrder(order)}
+                                            className="w-full text-left p-3 space-y-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                                        >
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="min-w-0">
+                                                    <p className="font-bold text-gray-900 dark:text-white truncate">{order.order_code}</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{order.customer_name || 'Unknown'}</p>
+                                                </div>
+                                                <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${statusConfig.bgColor} ${statusConfig.textColor}`}>
+                                                    {statusConfig.label}
+                                                </span>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-2 text-xs">
+                                                <div className="rounded-lg border border-gray-200 dark:border-white/10 p-2">
+                                                    <p className="text-gray-400 uppercase font-bold text-[10px]">Suit</p>
+                                                    <p className="text-gray-700 dark:text-gray-200 truncate">{order.suit_type_name || 'N/A'}</p>
+                                                </div>
+                                                <div className="rounded-lg border border-gray-200 dark:border-white/10 p-2">
+                                                    <p className="text-gray-400 uppercase font-bold text-[10px]">Qty</p>
+                                                    <p className="text-gray-700 dark:text-gray-200">{order.quantity}</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <div
+                                                        className="w-5 h-5 rounded-md border border-gray-200 dark:border-white/10"
+                                                        style={{ backgroundColor: getHexColor(order.selected_color) }}
+                                                    />
+                                                    <span className="text-xs text-gray-600 dark:text-gray-300 truncate">{order.selected_color || '-'}</span>
+                                                </div>
+                                                <div className="text-xs">
+                                                    {isInProgress ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <CompactUrgency dueDate={order.due_date} />
+                                                            {isFiveDaysLeft && (
+                                                                <span className="text-[10px] font-black uppercase text-orange-600 dark:text-orange-300">Urgent {'<='}5d</span>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-gray-500 dark:text-gray-400">
+                                                            {order.due_date ? new Date(order.due_date).toLocaleDateString() : 'N/A'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-3 gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (materialImage) setFullImage(materialImage);
+                                                    }}
+                                                    className="rounded-lg overflow-hidden border border-gray-200 dark:border-white/10"
+                                                >
                                                     {materialImage ? (
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setFullImage(materialImage);
-                                                            }}
-                                                            className="rounded-lg overflow-hidden border border-gray-200 dark:border-white/10"
-                                                        >
-                                                            <img
-                                                                src={materialImage}
-                                                                alt={`Material ${order.order_code}`}
-                                                                className="w-16 h-10 object-cover"
-                                                            />
-                                                        </button>
+                                                        <img src={materialImage} alt={`Material ${order.order_code}`} className="w-full h-12 object-cover" />
                                                     ) : (
-                                                        <span className="text-xs text-gray-400">Not attached</span>
+                                                        <div className="w-full h-12 flex items-center justify-center text-[10px] text-gray-400">No mat</div>
                                                     )}
-                                                </td>
-                                                <td className="px-4 py-3">
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (suitSampleImage) setFullImage(suitSampleImage);
+                                                    }}
+                                                    className="rounded-lg overflow-hidden border border-gray-200 dark:border-white/10"
+                                                >
                                                     {suitSampleImage ? (
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setFullImage(suitSampleImage);
-                                                            }}
-                                                            className="rounded-lg overflow-hidden border border-gray-200 dark:border-white/10"
-                                                        >
-                                                            <img
-                                                                src={suitSampleImage}
-                                                                alt={`Suit ${order.order_code}`}
-                                                                className="w-16 h-10 object-cover"
-                                                            />
-                                                        </button>
+                                                        <img src={suitSampleImage} alt={`Suit ${order.order_code}`} className="w-full h-12 object-cover" />
                                                     ) : (
-                                                        <span className="text-xs text-gray-400">Not attached</span>
+                                                        <div className="w-full h-12 flex items-center justify-center text-[10px] text-gray-400">No suit</div>
                                                     )}
-                                                </td>
-                                                <td className="px-4 py-3">
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (receiptByOrderCode[order.order_code]) setFullImage(receiptByOrderCode[order.order_code]);
+                                                    }}
+                                                    className="rounded-lg overflow-hidden border border-gray-200 dark:border-white/10"
+                                                >
                                                     {receiptByOrderCode[order.order_code] ? (
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setFullImage(receiptByOrderCode[order.order_code]);
-                                                            }}
-                                                            className="rounded-lg overflow-hidden border border-gray-200 dark:border-white/10"
-                                                        >
-                                                            <img
-                                                                src={receiptByOrderCode[order.order_code]}
-                                                                alt={`Receipt ${order.order_code}`}
-                                                                className="w-16 h-10 object-cover"
-                                                            />
-                                                        </button>
+                                                        <img src={receiptByOrderCode[order.order_code]} alt={`Receipt ${order.order_code}`} className="w-full h-12 object-cover" />
                                                     ) : (
-                                                        <span className="text-xs text-gray-400">-</span>
+                                                        <div className="w-full h-12 flex items-center justify-center text-[10px] text-gray-400">No receipt</div>
                                                     )}
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <span className={`text-sm ${timeStatus.isOverdue ? 'text-red-600 font-medium' : 'text-gray-600 dark:text-gray-400'}`}>
-                                                        {order.due_date || '-'}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                                                </button>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Desktop/tablet table with horizontal scroll safety */}
+                            <div className="hidden md:block overflow-x-auto">
+                                <table className="w-full min-w-[980px]">
+                                    <thead className="bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-white/10">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Order</th>
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Customer</th>
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Suit</th>
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Color</th>
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Qty</th>
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Material Img</th>
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Suit Img</th>
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Due</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100 dark:divide-white/5">
+                                        {filteredOrders.map((order) => {
+                                            const statusConfig = getStatusConfig(order.status);
+                                            const { materialImage, suitSampleImage } = getOrderImages(order);
+                                            const isInProgress = order.status === 'IN_PROGRESS';
+                                            const timeStatus = getTimeStatus(order.due_date);
+                                            const isFiveDaysLeft = isInProgress && !timeStatus.isOverdue && timeStatus.daysLeft !== null && timeStatus.daysLeft <= 5;
+
+                                            return (
+                                                <tr
+                                                    key={order.id}
+                                                    onClick={() => setSelectedOrder(order)}
+                                                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                                                >
+                                                    <td className="px-4 py-3">
+                                                        <span className="font-semibold text-gray-900 dark:text-white">{order.order_code}</span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{order.customer_name || 'Unknown'}</td>
+                                                    <td className="px-4 py-3">
+                                                        <span className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${statusConfig.bgColor} ${statusConfig.textColor}`}>
+                                                            {statusConfig.label}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{order.suit_type_name || 'N/A'}</td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <div
+                                                                className="w-5 h-5 rounded-md flex-shrink-0 border border-gray-200 dark:border-white/10"
+                                                                style={{ backgroundColor: getHexColor(order.selected_color) }}
+                                                                title={order.selected_color || '-'}
+                                                            />
+                                                            <span className="text-sm text-gray-600 dark:text-gray-400">{order.selected_color || '-'}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm font-medium dark:text-white">{order.quantity}</td>
+                                                    <td className="px-4 py-3">
+                                                        {materialImage ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setFullImage(materialImage);
+                                                                }}
+                                                                className="rounded-lg overflow-hidden border border-gray-200 dark:border-white/10"
+                                                            >
+                                                                <img
+                                                                    src={materialImage}
+                                                                    alt={`Material ${order.order_code}`}
+                                                                    className="w-16 h-10 object-cover"
+                                                                />
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-xs text-gray-400">Not attached</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        {suitSampleImage ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setFullImage(suitSampleImage);
+                                                                }}
+                                                                className="rounded-lg overflow-hidden border border-gray-200 dark:border-white/10"
+                                                            >
+                                                                <img
+                                                                    src={suitSampleImage}
+                                                                    alt={`Suit ${order.order_code}`}
+                                                                    className="w-16 h-10 object-cover"
+                                                                />
+                                                            </button>
+                                                        ) : (
+                                                            <span className="text-xs text-gray-400">Not attached</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        {isInProgress ? (
+                                                            <div className="flex flex-col gap-1">
+                                                                <CompactUrgency dueDate={order.due_date} />
+                                                                {isFiveDaysLeft && (
+                                                                    <span className="text-[10px] font-black uppercase text-orange-600 dark:text-orange-300">Urgent {'<='}5d</span>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex flex-col gap-1">
+                                                                <span className={`px-2 py-1 rounded-lg text-xs font-bold ${statusConfig.badgeColor}`}>
+                                                                    {order.status === 'COMPLETED' ? '✓ Done' : order.status === 'SHIPPED' ? '◉ Shipped' : order.status}
+                                                                </span>
+                                                                <span className="text-[10px] text-gray-400">
+                                                                    {order.due_date ? new Date(order.due_date).toLocaleDateString() : 'N/A'}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     )}
             </div>
@@ -1014,47 +1313,54 @@ const GarmentDashboard = () => {
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.9, opacity: 0 }}
-                            className="relative w-full max-w-2xl bg-white dark:bg-[#0c0c0c] rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto border border-gray-100 dark:border-white/10"
+                            className="relative w-full max-w-xl bg-white dark:bg-zinc-950 rounded-2xl shadow-2xl h-[82vh] overflow-hidden border border-gray-200/80 dark:border-zinc-700/60 flex flex-col"
                         >
-                            {/* Modal Header - matches Admin/Reception red accent */}
-                            <div className="bg-red-600 p-6 sticky top-0">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <h2 className="text-2xl font-bold text-white">{selectedOrder.order_code}</h2>
-                                        <p className="text-red-100 flex items-center gap-2 mt-1">
-                                            <HiOutlineUser className="w-4 h-4" />
-                                            {selectedOrder.customer_name || 'Unknown'}
-                                            {selectedOrder.customer_phone && (
-                                                <span className="text-red-200">• {selectedOrder.customer_phone}</span>
-                                            )}
-                                        </p>
+                            <div className="overflow-y-auto flex-1 min-h-0 bg-white dark:bg-zinc-950">
+                                {/* Modal Header - compact and scrolls with content */}
+                                <div className="bg-gradient-to-r from-red-600 via-rose-600 to-red-700 dark:from-red-800 dark:via-rose-800 dark:to-red-900 p-3 md:p-4">
+                                    <div className="flex justify-between items-start gap-3">
+                                        <div className="min-w-0">
+                                            <h2 className="text-lg md:text-xl font-bold text-white truncate">{selectedOrder.order_code}</h2>
+                                            <p className="text-red-100 text-xs md:text-sm flex items-center gap-2 mt-0.5 flex-wrap">
+                                                <HiOutlineUser className="w-4 h-4" />
+                                                <span className="truncate">{selectedOrder.customer_name || 'Unknown'}</span>
+                                                {selectedOrder.customer_phone && (
+                                                    <span className="text-red-200">• {selectedOrder.customer_phone}</span>
+                                                )}
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => setSelectedOrder(null)}
+                                            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white shrink-0"
+                                        >
+                                            <HiOutlineXMark className="w-5 h-5" />
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => setSelectedOrder(null)}
-                                        className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white"
-                                    >
-                                        <HiOutlineXMark className="w-5 h-5" />
-                                    </button>
-                                </div>
-                                <div className="mt-4 flex items-center gap-3">
-                                    {(() => {
-                                        const statusConfig = getStatusConfig(selectedOrder.status);
-                                        return (
-                                            <span className={`px-3 py-1.5 rounded-lg text-sm font-bold uppercase tracking-wider ${statusConfig.bgColor} ${statusConfig.textColor}`}>
-                                                {statusConfig.label}
-                                            </span>
-                                        );
-                                    })()}
-                                    {isOverdue(selectedOrder.due_date) && (
-                                        <span className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-red-100 text-red-700">
-                                            ⚠️ Overdue
-                                        </span>
+                                    <div className="mt-2 flex items-center gap-2 flex-wrap">
+                                        {(() => {
+                                            const statusConfig = getStatusConfig(selectedOrder.status);
+                                            return (
+                                                <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${statusConfig.bgColor} ${statusConfig.textColor}`}>
+                                                    {statusConfig.label}
+                                                </span>
+                                            );
+                                        })()}
+                                    </div>
+                                    {/* Urgency Indicator with Live Countdown - Show for ALL orders */}
+                                    {selectedOrder.due_date && (
+                                        <div className="mt-2 border-t border-red-500/30 pt-2">
+                                            <UrgencyIndicator 
+                                                dueDate={selectedOrder.due_date}
+                                                orderCode={selectedOrder.order_code}
+                                                showFullCountdown={true}
+                                                size="lg"
+                                            />
+                                        </div>
                                     )}
                                 </div>
-                            </div>
 
-                            {/* Modal Body */}
-                            <div className="p-6 space-y-6">
+                                {/* Modal Body */}
+                                <div className="p-4 md:p-5 space-y-4 pb-8">
                                 {/* Backend status progress - IN_PROGRESS, COMPLETED, SHIPPED only */}
                                 <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4">
                                     <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Order Status</p>
@@ -1238,6 +1544,7 @@ const GarmentDashboard = () => {
                                         </div>
                                     )}
                                 </div>
+                            </div>
                             </div>
                         </Motion.div>
                     </div>

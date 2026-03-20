@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   HiOutlineShoppingBag, HiOutlineCube, HiOutlineUserGroup,
@@ -8,7 +8,8 @@ import {
   HiOutlineExclamationTriangle, HiOutlineCalendar,
   HiOutlineClipboardDocumentList, HiOutlineBell,
   HiOutlineArrowPath, HiOutlineTruck, HiOutlineChatBubbleLeftRight,
-  HiOutlineSwatch, HiOutlineMagnifyingGlass, HiOutlineMegaphone
+  HiOutlineSwatch, HiOutlineMagnifyingGlass, HiOutlineMegaphone,
+  HiOutlineXMark
 } from 'react-icons/hi2';
 import { getOrders, getMaterials, getPayments } from '../api/api';
 import { useAuth } from '../hooks/useAuth';
@@ -27,7 +28,7 @@ const ReceptionDashboard = () => {
   const [materials, setMaterials] = useState([]);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState('today'); // today, week, month
+  const [timeRange, setTimeRange] = useState('2days'); // today, 2days, week, month
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -37,13 +38,16 @@ const ReceptionDashboard = () => {
     return () => clearInterval(interval);
   }, [timeRange]);
 
-  // Filter orders by time range (today, week, month)
+  // Filter orders by time range (today, 2days, week, month)
   const filterOrdersByTimeRange = (orderList) => {
     if (!orderList || !orderList.length) return orderList || [];
     const now = new Date();
     let startDate;
     if (timeRange === 'today') {
       startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    } else if (timeRange === '2days') {
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - 2);
     } else if (timeRange === 'week') {
       startDate = new Date(now);
       startDate.setDate(startDate.getDate() - 7);
@@ -84,7 +88,8 @@ const ReceptionDashboard = () => {
         getMaterials(),
         getPayments().catch(() => ({ data: [] }))
       ]);
-      setOrders(handlePaginatedResponse(ordersRes));
+      const ordersData = handlePaginatedResponse(ordersRes);
+      setOrders(ordersData);
       setMaterials(handlePaginatedResponse(materialsRes));
       setPayments(handlePaginatedResponse(paymentsRes));
     } catch (error) {
@@ -350,7 +355,7 @@ const ReceptionDashboard = () => {
           </div>
           {/* Time Range Filter */}
           <div className="flex bg-gray-100 dark:bg-white/5 p-1 rounded-lg border border-gray-200 dark:border-white/10">
-            {['today', 'week', 'month'].map((range) => (
+            {['today', '2days', 'week', 'month'].map((range) => (
               <button
                 key={range}
                 onClick={() => setTimeRange(range)}
@@ -359,7 +364,7 @@ const ReceptionDashboard = () => {
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-white/10'
                   }`}
               >
-                {range}
+                {range === '2days' ? '2 Days' : range}
               </button>
             ))}
           </div>
@@ -728,6 +733,8 @@ const ReceptionDashboard = () => {
           ))}
         </div>
       </motion.div>
+
+      {/* Urgent popup intentionally disabled here (Garment only). */}
     </div>
   );
 };

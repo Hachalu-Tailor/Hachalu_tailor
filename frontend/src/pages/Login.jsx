@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -10,7 +10,6 @@ import {
   HiOutlineEyeSlash,
   HiOutlineExclamationTriangle
 } from 'react-icons/hi2';
-import LanguageSwitcher from '../components/LanguageSwitcher';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -66,11 +65,6 @@ const Login = () => {
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden font-sans">
 
-      {/* Language Switcher - Top Right */}
-      <div className="absolute top-4 right-4 z-20">
-        <LanguageSwitcher />
-      </div>
-
       {/* 1. CINEMATIC BACKGROUND IMAGE */}
       <div className="absolute inset-0 z-0">
         <img
@@ -100,20 +94,6 @@ const Login = () => {
               Authorized Access
             </p>
           </div>
-
-          {/* ROLE SELECTOR */}
-          {/* <div className="flex bg-white/5 p-1 mb-8 rounded-full border border-white/10">
-            {['admin', 'receptionist'].map((r) => (
-              <button 
-                key={r}
-                type="button"
-                onClick={() => setRole(r)}
-                className={`flex-1 py-2 text-[9px] font-black uppercase tracking-widest transition-all rounded-full ${role === r ? 'bg-red-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
-              >
-                {r === 'admin' ? 'Admin' : 'Staff'}
-              </button>
-            ))}
-          </div> */}
 
           {/* ERROR DISPLAY */}
           <AnimatePresence>

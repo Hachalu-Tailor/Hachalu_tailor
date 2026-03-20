@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import {
   HiOutlineXMark,
@@ -62,12 +62,34 @@ const Items = () => {
 
   const fallbackImage = 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?q=80&w=1480';
 
-  const getAbsoluteUrl = (url) => {
+  const backendMediaOrigin = useMemo(() => {
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      // Use frontend origin in development so /media is served via Vite proxy on all devices.
+      return window.location.origin;
+    }
+    return 'http://127.0.0.1:5173';
+  }, []);
+
+  const getAbsoluteUrl = useCallback((url) => {
     if (!url) return '';
-    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
-    const path = url.startsWith('/') ? url.substring(1) : url;
-    return `http://127.0.0.1:8000/${path}`;
-  };
+
+    if (url.startsWith('data:')) return url;
+
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      try {
+        const parsed = new URL(url);
+        if (parsed.hostname === '127.0.0.1' || parsed.hostname === 'localhost') {
+          return `${backendMediaOrigin}${parsed.pathname}${parsed.search || ''}`;
+        }
+        return url;
+      } catch {
+        return url;
+      }
+    }
+
+    const normalizedPath = url.startsWith('/') ? url : `/${url}`;
+    return `${backendMediaOrigin}${normalizedPath}`;
+  }, [backendMediaOrigin]);
 
   const getItemMedia = (item) => {
     if (!item) return [{ src: fallbackImage, label: 'Preview' }];
@@ -185,7 +207,7 @@ const Items = () => {
       }
     };
     fetchSuitTypes();
-  }, []);
+  }, [getAbsoluteUrl]);
 
   const filteredProducts = filter === 'All'
     ? materials
@@ -198,12 +220,6 @@ const Items = () => {
   const nextActiveMediaSrc = activeMedia.length > 1
     ? activeMedia[(activeMediaSafeIdx + 1) % activeMedia.length]?.src
     : null;
-  const nextActiveMediaLabel = activeMedia.length > 1
-    ? activeMedia[(activeMediaSafeIdx + 1) % activeMedia.length]?.label
-    : null;
-  const activeHasMaterialBadge = activeMedia.some((m) => m.label === 'Material Sample');
-  const activeHasSuitBadge = activeMedia.some((m) => m.label === 'Suit Sample');
-
   useEffect(() => {
     setActiveMediaIdx(0);
   }, [activeItem?.id]);
@@ -591,16 +607,7 @@ const Items = () => {
                           </>
                         )}
                         <div className="absolute bottom-2 left-2 flex items-center gap-2">
-                          <span className="text-[8px] bg-black/60 text-white px-2 py-1 rounded-full font-black uppercase tracking-widest">
-                            {selectedItemMedia[selectedMediaSafeIdx]?.label || 'Preview'}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setFullView({ media: selectedItemMedia, index: selectedMediaSafeIdx, title: selectedItem?.name || 'Preview' })}
-                            className="text-[8px] bg-black/60 text-white px-2 py-1 rounded-full font-black uppercase tracking-widest"
-                          >
-                            Full Image
-                          </button>
+
                         </div>
                         {selectedItemMedia.length > 1 && (
                           <div className="absolute bottom-2 right-2">

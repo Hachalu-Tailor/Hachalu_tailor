@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useMemo } from 'react';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import {
-  HiOutlineUserPlus, HiOutlineTrash, HiOutlineEnvelope,
+  HiOutlineUserPlus, HiOutlineTrash,
   HiOutlinePhone, HiOutlineShieldCheck, HiOutlineXMark,
-  HiOutlineClipboardDocumentCheck, HiOutlineMagnifyingGlass,
-  HiOutlineIdentification, HiOutlineEllipsisVertical,
+  HiOutlineMagnifyingGlass,
+  HiOutlineEllipsisVertical,
   HiOutlineEnvelopeOpen, HiOutlineChatBubbleBottomCenterText,
-  HiOutlineBriefcase, HiOutlineFingerPrint, HiOutlineCalendarDays, HiOutlineChevronDown,
+  HiOutlineFingerPrint, HiOutlineChevronDown,
   HiOutlineSignal
 } from 'react-icons/hi2';
 import { listStaff, addStaff, deleteStaff } from '../../api/api';
@@ -38,7 +38,7 @@ const StaffManagement = () => {
         staffData = staffData.results || staffData.data || staffData.items || [];
       }
       setStaff(staffData || []);
-    } catch (err) {
+    } catch {
       console.error("Failed to load staff");
     } finally {
       setLoading(false);
@@ -107,86 +107,118 @@ const StaffManagement = () => {
     }
   };
 
-  const filteredStaff = staff.filter(s =>
-    s.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredStaff = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return staff;
+    return staff.filter((s) =>
+      (s?.full_name || '').toLowerCase().includes(q)
+      || (s?.email || '').toLowerCase().includes(q)
+      || (s?.phone_number || '').toLowerCase().includes(q)
+      || (s?.role || '').toLowerCase().includes(q)
+    );
+  }, [staff, searchTerm]);
+
+  const roleSummary = useMemo(() => {
+    return staff.reduce((acc, s) => {
+      const role = s?.role || 'UNKNOWN';
+      acc[role] = (acc[role] || 0) + 1;
+      return acc;
+    }, {});
+  }, [staff]);
+
+  const getRoleBadgeClass = (role) => {
+    if (role === 'ADMIN') return 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300';
+    if (role === 'GARMENT') return 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300';
+    if (role === 'RECEPTIONIST') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300';
+    return 'bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300';
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#050505] p-4 md:p-8 lg:p-12 transition-colors duration-500">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#050505] p-3 md:p-5 transition-colors duration-500">
 
       {/* --- HUD HEADER --- */}
-      <div className="max-w-7xl mx-auto mb-10">
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-white dark:bg-[#0a0a0a] p-8 rounded-[3rem] border border-gray-100 dark:border-white/5 shadow-2xl shadow-black/5">
+      <div className="max-w-7xl mx-auto mb-4">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white dark:bg-[#0a0a0a] p-5 md:p-6 rounded-3xl border border-gray-100 dark:border-white/10 shadow-xl shadow-black/5">
           <div>
-            <h1 className="text-3xl font-black dark:text-white tracking-tighter uppercase italic flex items-center gap-3">
-              Personnel <span className="text-red-600">Terminal</span>
+            <h1 className="text-2xl md:text-3xl font-black text-gray-900 dark:text-white tracking-tight uppercase italic flex items-center gap-2">
+              Staff <span className="text-red-600">Management</span>
             </h1>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.4em] mt-1 flex items-center gap-2">
-              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" /> Active System Nodes
-            </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
-            <div className="relative flex-1 lg:min-w-[350px]">
-              <HiOutlineMagnifyingGlass className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+            <div className="relative flex-1 lg:min-w-[300px]">
+              <HiOutlineMagnifyingGlass className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
               <input
                 type="text"
-                placeholder="SEARCH STAFF IDENTITY..."
+                placeholder="Search name, email, phone, role"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-gray-100 dark:bg-white/5 border border-transparent focus:border-red-600/30 rounded-2xl py-4 pl-14 pr-6 text-[10px] font-black uppercase tracking-widest outline-none transition-all dark:text-white"
+                className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 focus:border-red-600/40 rounded-xl py-3 pl-11 pr-4 text-xs font-semibold outline-none transition-all text-gray-800 dark:text-white placeholder:text-gray-400"
               />
             </div>
             <button
               onClick={() => { setCreatedUser(null); setShowAddModal(true); }}
-              className="bg-red-600 text-white px-8 py-4 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] hover:bg-black transition-all shadow-xl shadow-red-600/30 flex items-center gap-3"
+              className="bg-red-600 text-white px-5 py-3 rounded-xl text-[11px] font-black uppercase tracking-[0.15em] hover:bg-red-700 transition-all shadow-lg shadow-red-600/25 flex items-center gap-2"
             >
-              <HiOutlineUserPlus size={20} /> Authorize New
+              <HiOutlineUserPlus size={18} /> Add Staff
             </button>
           </div>
+        </div>
+
+        <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
+          <SummaryTile label="Total" value={staff.length} tone="slate" />
+          <SummaryTile label="Admin" value={roleSummary.ADMIN || 0} tone="red" />
+          <SummaryTile label="Reception" value={roleSummary.RECEPTIONIST || 0} tone="emerald" />
+          <SummaryTile label="Garment" value={roleSummary.GARMENT || 0} tone="blue" />
         </div>
       </div>
 
       {/* --- STAFF LISTING --- */}
-      <div className="max-w-7xl mx-auto bg-white dark:bg-[#0a0a0a] rounded-[3rem] border border-gray-100 dark:border-white/5 shadow-xl overflow-hidden">
+      <div className="max-w-7xl mx-auto bg-white dark:bg-[#0a0a0a] rounded-3xl border border-gray-100 dark:border-white/10 shadow-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-gray-50 dark:bg-white/5 text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">
-                <th className="px-10 py-7">Member Profile</th>
-                <th className="px-10 py-7 hidden md:table-cell">Privilege</th>
-                <th className="px-10 py-7 text-right">Operation</th>
+              <tr className="bg-gray-50 dark:bg-white/5 text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-[0.2em]">
+                <th className="px-5 md:px-6 py-4">Member</th>
+                <th className="px-5 md:px-6 py-4 hidden md:table-cell">Role</th>
+                <th className="px-5 md:px-6 py-4 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-white/5">
+              {loading && (
+                <tr>
+                  <td colSpan={3} className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">Loading staff...</td>
+                </tr>
+              )}
+              {!loading && filteredStaff.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">No staff found for this search.</td>
+                </tr>
+              )}
               {filteredStaff.map((person) => (
                 <tr
                   key={person.id}
                   onClick={() => setSelectedStaff(person)}
-                  className="group cursor-pointer hover:bg-red-600/5 transition-all"
+                  className="group cursor-pointer hover:bg-red-600/5 transition-colors"
                 >
-                  <td className="px-10 py-6">
-                    <div className="flex items-center gap-5">
-                      <div className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-white/10 flex items-center justify-center font-black text-red-600 italic group-hover:scale-110 transition-transform">
-                        {person.full_name.charAt(0)}
+                  <td className="px-5 md:px-6 py-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-white/10 flex items-center justify-center font-black text-red-600 italic group-hover:scale-105 transition-transform">
+                        {(person.full_name || '?').charAt(0)}
                       </div>
                       <div>
-                        <p className="text-sm font-black dark:text-white uppercase tracking-tight">{person.full_name}</p>
-                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{person.email}</p>
+                        <p className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tight">{person.full_name}</p>
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400 font-semibold">{person.email}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-10 py-6 hidden md:table-cell">
-                    <span className={`px-4 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest ${person.role === 'ADMIN' ? 'bg-red-600/10 text-red-600' :
-                      person.role === 'GARMENT' ? 'bg-blue-600/10 text-blue-600' :
-                        'bg-gray-100 dark:bg-white/5 text-gray-400'
-                      }`}>
+                  <td className="px-5 md:px-6 py-4 hidden md:table-cell">
+                    <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wide ${getRoleBadgeClass(person.role)}`}>
                       {person.role}
                     </span>
                   </td>
-                  <td className="px-10 py-6 text-right">
-                    <div className="flex items-center justify-end gap-2 text-[9px] font-black text-red-600 opacity-0 group-hover:opacity-100 transition-opacity uppercase italic tracking-widest">
+                  <td className="px-5 md:px-6 py-4 text-right">
+                    <div className="flex items-center justify-end gap-2 text-[10px] font-black text-red-600 opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-wide">
                       View Profile <HiOutlineEllipsisVertical size={18} />
                     </div>
                   </td>
@@ -201,30 +233,30 @@ const StaffManagement = () => {
       <AnimatePresence>
         {selectedStaff && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 md:p-8">
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setSelectedStaff(null)}
               className="absolute inset-0 bg-black/80 backdrop-blur-md"
             />
 
-            <motion.div
+            <Motion.div
               initial={{ scale: 0.9, y: 40, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.9, y: 40, opacity: 0 }}
-              className="relative w-full max-w-2xl bg-white dark:bg-[#0c0c0c] rounded-[4rem] shadow-[0_0_80px_rgba(0,0,0,0.5)] overflow-hidden border dark:border-white/10"
+              className="relative w-full max-w-2xl bg-white dark:bg-[#0c0c0c] rounded-3xl shadow-[0_0_60px_rgba(0,0,0,0.35)] overflow-hidden border border-gray-200 dark:border-white/10"
             >
-              <div className="p-10 md:p-14 text-center">
+              <div className="p-6 md:p-8 text-center">
                 {/* Close Button */}
-                <button onClick={() => setSelectedStaff(null)} className="absolute top-8 right-8 p-3 bg-gray-100 dark:bg-white/5 rounded-full text-gray-400 hover:text-red-600 transition-all">
-                  <HiOutlineXMark size={24} />
+                <button onClick={() => setSelectedStaff(null)} className="absolute top-4 right-4 p-2 bg-gray-100 dark:bg-white/5 rounded-full text-gray-400 hover:text-red-600 transition-all">
+                  <HiOutlineXMark size={20} />
                 </button>
 
-                <div className="mb-10">
-                  <div className="w-28 h-28 rounded-[2.5rem] bg-gradient-to-br from-red-600 to-red-900 mx-auto mb-6 flex items-center justify-center text-white text-5xl font-black italic shadow-2xl shadow-red-600/40">
-                    {selectedStaff.full_name.charAt(0)}
+                <div className="mb-6">
+                  <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-red-600 to-red-900 mx-auto mb-4 flex items-center justify-center text-white text-4xl font-black italic shadow-xl shadow-red-600/40">
+                    {(selectedStaff.full_name || '?').charAt(0)}
                   </div>
-                  <h2 className="text-3xl font-black dark:text-white uppercase italic tracking-tighter">{selectedStaff.full_name}</h2>
-                  <p className="text-[11px] font-black text-red-600 uppercase tracking-[0.4em] mt-2">{selectedStaff.role} Access Protocol</p>
+                  <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase italic tracking-tight">{selectedStaff.full_name}</h2>
+                  <p className="text-[10px] font-black text-red-600 uppercase tracking-[0.2em] mt-1">{selectedStaff.role} Access</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
@@ -234,8 +266,8 @@ const StaffManagement = () => {
                   <DetailCard icon={<HiOutlineSignal />} label="Signal Status" value="ENCRYPTED" />
                 </div>
 
-                <div className="mt-12 flex flex-col md:flex-row gap-4">
-                  <button className="flex-1 py-5 bg-black dark:bg-white text-white dark:text-black rounded-3xl text-[11px] font-black uppercase tracking-widest hover:bg-red-600 dark:hover:bg-red-600 dark:hover:text-white transition-all flex items-center justify-center gap-3">
+                <div className="mt-8 flex flex-col md:flex-row gap-3">
+                  <button className="flex-1 py-4 bg-black dark:bg-white text-white dark:text-black rounded-2xl text-[11px] font-black uppercase tracking-wider hover:bg-red-600 dark:hover:bg-red-600 dark:hover:text-white transition-all flex items-center justify-center gap-2">
                     <HiOutlineChatBubbleBottomCenterText size={20} /> Establish Comms
                   </button>
                   <button
@@ -247,13 +279,13 @@ const StaffManagement = () => {
                         });
                       }
                     }}
-                    className="flex-1 py-5 text-red-600 border-2 border-dashed border-red-600/20 rounded-3xl text-[11px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white hover:border-solid transition-all flex items-center justify-center gap-3"
+                    className="flex-1 py-4 text-red-600 border-2 border-dashed border-red-600/30 rounded-2xl text-[11px] font-black uppercase tracking-wider hover:bg-red-600 hover:text-white hover:border-solid transition-all flex items-center justify-center gap-2"
                   >
                     <HiOutlineTrash size={20} /> Revoke Node
                   </button>
                 </div>
               </div>
-            </motion.div>
+            </Motion.div>
           </div>
         )}
       </AnimatePresence>
@@ -263,22 +295,22 @@ const StaffManagement = () => {
         {showAddModal && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
             {/* Backdrop & Content for Add Modal - Keeping your logic here */}
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => { if (!loading) setShowAddModal(false); }}
-              className="absolute inset-0 bg-black/95 backdrop-blur-xl"
+              className="absolute inset-0 bg-black/85 backdrop-blur-md"
             />
-            <motion.div
+            <Motion.div
               initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-              className="relative w-full max-w-xl bg-white dark:bg-[#080808] rounded-[4rem] p-10 md:p-14 border dark:border-white/10"
+              className="relative w-full max-w-xl bg-white dark:bg-[#080808] rounded-3xl p-6 md:p-8 border border-gray-200 dark:border-white/10"
             >
               {!createdUser ? (
-                <form onSubmit={handleCreate} className="space-y-8">
+                <form onSubmit={handleCreate} className="space-y-6">
                   <div className="text-center md:text-left">
-                    <h2 className="text-3xl font-black dark:text-white uppercase italic tracking-tighter">Authorize <span className="text-red-600">Personnel</span></h2>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2">Generate new security credentials</p>
+                    <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase italic tracking-tight">Add <span className="text-red-600">Staff</span></h2>
+                    <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-1">Generate temporary credentials</p>
                   </div>
-                  <div className="space-y-5">
+                  <div className="space-y-4">
                     <Input label="Full Identity" type="text" placeholder="RECEP NAME" value={formData.full_name} onChange={(v) => setFormData({ ...formData, full_name: v })} />
                     <Input label="System Node Email" type="email" placeholder="STAFF@SYSTEM.COM" value={formData.email} onChange={(v) => setFormData({ ...formData, email: v })} />
                     <Input label="Terminal Phone" type="text" placeholder="+251..." value={formData.phone_number} onChange={(v) => setFormData({ ...formData, phone_number: v })} />
@@ -290,7 +322,7 @@ const StaffManagement = () => {
                         <select
                           value={formData.role}
                           onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                          className="w-full bg-gray-100 dark:bg-white/5 border-none p-5 rounded-none text-xs font-bold tracking-widest outline-none appearance-none cursor-pointer focus:ring-1 focus:ring-[#BA181B] uppercase"
+                          className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-4 rounded-xl text-xs font-bold tracking-wide outline-none appearance-none cursor-pointer focus:ring-1 focus:ring-[#BA181B] uppercase text-gray-800 dark:text-white"
                         >
                           <option value="RECEPTIONIST">Receptionist (Standard)</option>
                           <option value="GARMENT">Garment (Tailor)</option>
@@ -300,7 +332,7 @@ const StaffManagement = () => {
                       </div>
                     </div>
                   </div>
-                  <button disabled={loading} className="w-full py-6 bg-red-600 text-white rounded-3xl text-[12px] font-black uppercase tracking-[0.3em] shadow-xl hover:bg-black transition-all">
+                  <button disabled={loading} className="w-full py-4 bg-red-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-lg hover:bg-red-700 transition-all">
                     {loading ? 'SYNCING...' : 'INITIATE AUTHORIZATION'}
                   </button>
                 </form>
@@ -312,10 +344,10 @@ const StaffManagement = () => {
                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">One-Time Security Token</p>
                     <span className="text-4xl font-mono font-black text-red-600 tracking-widest select-all">{createdUser.temporary_password}</span>
                   </div>
-                  <button onClick={() => { setShowAddModal(false); setCreatedUser(null); }} className="w-full py-5 bg-black dark:bg-white text-white dark:text-black rounded-3xl text-[11px] font-black uppercase tracking-widest">CLOSE TERMINAL</button>
+                  <button onClick={() => { setShowAddModal(false); setCreatedUser(null); }} className="w-full py-4 bg-black dark:bg-white text-white dark:text-black rounded-2xl text-[11px] font-black uppercase tracking-wider">CLOSE TERMINAL</button>
                 </div>
               )}
-            </motion.div>
+            </Motion.div>
           </div>
         )}
       </AnimatePresence>
@@ -326,12 +358,12 @@ const StaffManagement = () => {
 /* --- MINI COMPONENTS --- */
 
 const DetailCard = ({ icon, label, value }) => (
-  <div className="p-6 bg-gray-50 dark:bg-white/5 rounded-3xl border border-transparent hover:border-red-600/10 transition-all">
+  <div className="p-4 bg-gray-50 dark:bg-white/5 rounded-2xl border border-transparent hover:border-red-600/10 transition-all">
     <div className="flex items-center gap-4">
       <div className="text-red-600 opacity-60">{React.cloneElement(icon, { size: 22 })}</div>
       <div>
         <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">{label}</p>
-        <p className="text-[11px] font-bold dark:text-white uppercase truncate">{value}</p>
+        <p className="text-[11px] font-bold text-gray-800 dark:text-white uppercase truncate">{value}</p>
       </div>
     </div>
   </div>
@@ -339,13 +371,29 @@ const DetailCard = ({ icon, label, value }) => (
 
 const Input = ({ label, type, placeholder, value, onChange }) => (
   <div className="space-y-2">
-    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4">{label}</label>
+    <label className="text-[9px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest ml-2">{label}</label>
     <input
       required type={type} placeholder={placeholder} value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-gray-50 dark:bg-black border border-transparent focus:border-red-600 p-5 rounded-2xl text-[11px] font-bold tracking-widest outline-none dark:text-white transition-all"
+      className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-white/10 focus:border-red-600 p-4 rounded-xl text-[11px] font-bold tracking-wide outline-none text-gray-800 dark:text-white transition-all"
     />
   </div>
 );
+
+const SummaryTile = ({ label, value, tone }) => {
+  const toneClass = {
+    slate: 'bg-white border-gray-200 text-gray-800 dark:bg-white/5 dark:border-white/10 dark:text-gray-100',
+    red: 'bg-red-50 border-red-200 text-red-700 dark:bg-red-500/10 dark:border-red-500/20 dark:text-red-300',
+    emerald: 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-300',
+    blue: 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-500/10 dark:border-blue-500/20 dark:text-blue-300',
+  };
+
+  return (
+    <div className={`rounded-xl border px-3 py-2 ${toneClass[tone] || toneClass.slate}`}>
+      <p className="text-[9px] font-black uppercase tracking-wide opacity-80">{label}</p>
+      <p className="text-xl font-black leading-tight">{value}</p>
+    </div>
+  );
+};
 
 export default StaffManagement;

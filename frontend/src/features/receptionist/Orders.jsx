@@ -46,9 +46,8 @@ const Orders = () => {
         return 'http://127.0.0.1:8000';
       }
     }
-    if (typeof window !== 'undefined' && window.location?.origin) {
-      return window.location.origin;
-    }
+    if (import.meta.env.DEV) return 'http://127.0.0.1:8000';
+    if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
     return 'http://127.0.0.1:8000';
   }, []);
 
@@ -82,6 +81,26 @@ const Orders = () => {
       materialImage: getAbsoluteUrl(materialImage),
       suitSampleImage: getAbsoluteUrl(suitSampleImage),
     };
+  };
+
+  const getPaymentReceiptUrl = (payment) => {
+    if (!payment) return '';
+
+    const rawReceipt =
+      payment.receipt_screenshot
+      || payment.receipt_image
+      || payment.screenshot
+      || payment.image_url
+      || payment.receipt
+      || payment.receipt_url
+      || '';
+
+    if (!rawReceipt) return '';
+    if (typeof rawReceipt === 'string') return getAbsoluteUrl(rawReceipt);
+    if (typeof rawReceipt === 'object') {
+      return getAbsoluteUrl(rawReceipt.url || rawReceipt.path || rawReceipt.src || '');
+    }
+    return '';
   };
 
   useEffect(() => {
@@ -214,12 +233,52 @@ const Orders = () => {
   };
 
   const handleReceiveClick = () => {
+    const defaultDue = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+    const dd = String(defaultDue.getDate()).padStart(2, '0');
+    const mm = String(defaultDue.getMonth() + 1).padStart(2, '0');
+    const yyyy = defaultDue.getFullYear();
+
     setReceiveData({
       total_price: selectedOrder?.total_price || '',
       expected_price: selectedOrder?.expected_price || '',
-      due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      due_date: `${dd}-${mm}-${yyyy}`
     });
     setShowReceiveModal(true);
+  };
+
+  const handleConfirmReceive = () => {
+    const totalPrice = parseFloat(receiveData.total_price) || 0;
+    const expectedPrice = parseFloat(receiveData.expected_price) || 0;
+    const rawDate = (receiveData.due_date || '').trim();
+    const match = rawDate.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+
+    if (!totalPrice || !rawDate) {
+      return;
+    }
+
+    if (!match) {
+      alert('Assign date must be in DD-MM-YYYY format.');
+      return;
+    }
+
+    const [, day, month, year] = match;
+    const normalizedDate = `${year}-${month}-${day}`;
+    const parsed = new Date(normalizedDate);
+    if (Number.isNaN(parsed.getTime())) {
+      alert('Please enter a valid assign date.');
+      return;
+    }
+
+    if (expectedPrice > totalPrice) {
+      alert('Expected price cannot be greater than total price.');
+      return;
+    }
+
+    handleProcessOrder('receive', {
+      total_price: totalPrice,
+      expected_price: expectedPrice,
+      due_date: normalizedDate
+    });
   };
 
   const handleReceptionStatusUpdate = async (action) => {
@@ -249,6 +308,7 @@ const Orders = () => {
   const instoreCount = orders.filter(o => o.status === 'IN_STORE').length;
   const shippedCount = orders.filter(o => o.status === 'SHIPPED').length;
   const completedCount = orders.filter(o => o.status === 'COMPLETED').length;
+  const closedCount = orders.filter(o => o.status === 'CLOSED').length;
 
   const getStatusLabel = (status) => {
     const labels = {
@@ -293,6 +353,7 @@ const Orders = () => {
     if (statusFilter === 'completed') list = orders.filter(o => o.status === 'COMPLETED');
     if (statusFilter === 'shipped') list = orders.filter(o => o.status === 'SHIPPED');
     if (statusFilter === 'in_store') list = orders.filter(o => o.status === 'IN_STORE');
+    if (statusFilter === 'closed') list = orders.filter(o => o.status === 'CLOSED');
 
     // Show newest orders first using order creation timestamp.
     return [...list].sort((a, b) => {
@@ -310,7 +371,12 @@ const Orders = () => {
     { id: 'completed', label: 'Completed', count: completedCount },
     { id: 'shipped', label: 'Shipped', count: shippedCount },
     { id: 'in_store', label: 'In Store', count: instoreCount },
+    { id: 'closed', label: 'Closed', count: closedCount }
   ];
+
+  const totalPriceValue = parseFloat(receiveData.total_price) || 0;
+  const expectedPriceValue = parseFloat(receiveData.expected_price) || 0;
+  const isExpectedPriceInvalid = receiveData.expected_price !== '' && expectedPriceValue > totalPriceValue;
 
   // Fetch payments when selectedOrder changes
   useEffect(() => {
@@ -527,6 +593,9 @@ const Orders = () => {
                     </div>
                   ) : payments.length > 0 ? (
                     payments.map((payment, idx) => (
+                      (() => {
+                        const receiptUrl = getPaymentReceiptUrl(payment);
+                        return (
                       <div key={idx} className="bg-gradient-to-br from-emerald-50 to-zinc-50 dark:from-emerald-900/40 dark:to-zinc-900/60 rounded-xl p-4 border border-emerald-100 dark:border-emerald-900 flex flex-col md:flex-row md:items-center md:justify-between gap-4 shadow-sm">
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap gap-2 items-center mb-2">
@@ -545,10 +614,10 @@ const Orders = () => {
                             </div>
                           </div>
                         </div>
-                        {payment.receipt_screenshot && (
-                          <div className="flex flex-col items-center gap-1 cursor-pointer" onClick={() => setFullImage(getAbsoluteUrl(payment.receipt_screenshot))}>
+                        {receiptUrl && (
+                          <div className="flex flex-col items-center gap-1 cursor-pointer" onClick={() => setFullImage(receiptUrl)}>
                             <img
-                              src={getAbsoluteUrl(payment.receipt_screenshot)}
+                              src={receiptUrl}
                               alt="Receipt"
                               className="w-24 h-20 object-cover rounded-lg border border-emerald-200 dark:border-emerald-900 hover:scale-105 transition-transform duration-300 shadow-md"
                             />
@@ -556,6 +625,8 @@ const Orders = () => {
                           </div>
                         )}
                       </div>
+                        );
+                      })()
                     ))
                   ) : (
                     <div className="flex items-center gap-2 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-xl p-4">
@@ -773,6 +844,18 @@ const Orders = () => {
                   </div>
                 )}
 
+                {selectedOrder.status === 'CLOSED' && (
+                  <div className="flex gap-3 w-full">
+                    <button
+                      type="button"
+                      disabled
+                      className="flex-1 py-4 bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 rounded-2xl text-[10px] font-black uppercase tracking-widest cursor-not-allowed"
+                    >
+                      Order Closed
+                    </button>
+                  </div>
+                )}
+
                 {selectedOrder.status === 'IN_PROGRESS' && (
                   <div className="flex gap-3 w-full">
                     <button
@@ -818,6 +901,9 @@ const Orders = () => {
                   </div>
                 ) : payments.length > 0 ? (
                   payments.map((payment, idx) => (
+                    (() => {
+                      const receiptUrl = getPaymentReceiptUrl(payment);
+                      return (
                     <div key={idx} className="bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl p-4 border border-zinc-100 dark:border-white/5">
                       <div className="flex justify-between items-start mb-3">
                         <div>
@@ -836,10 +922,10 @@ const Orders = () => {
                         </span>
                         <span className="text-[9px] text-zinc-500">{new Date(payment.created_at).toLocaleString()}</span>
                       </div>
-                      {payment.receipt_screenshot && (
-                        <div className="mt-3 rounded-xl overflow-hidden border border-zinc-200 dark:border-white/10 cursor-pointer group" onClick={() => setFullImage(getAbsoluteUrl(payment.receipt_screenshot))}>
+                      {receiptUrl && (
+                        <div className="mt-3 rounded-xl overflow-hidden border border-zinc-200 dark:border-white/10 cursor-pointer group" onClick={() => setFullImage(receiptUrl)}>
                           <img
-                            src={getAbsoluteUrl(payment.receipt_screenshot)}
+                            src={receiptUrl}
                             alt="Receipt"
                             className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-500"
                           />
@@ -847,9 +933,11 @@ const Orders = () => {
                         </div>
                       )}
                       {payment.receipt_pdf_url && (
-                        <a href={payment.receipt_pdf_url} target="_blank" rel="noopener noreferrer" className="block mt-2 text-blue-600 underline text-xs">View PDF Receipt</a>
+                        <a href={getAbsoluteUrl(payment.receipt_pdf_url)} target="_blank" rel="noopener noreferrer" className="block mt-2 text-blue-600 underline text-xs">View PDF Receipt</a>
                       )}
                     </div>
+                      );
+                    })()
                   ))
                 ) : (
                   <div className="py-12 text-center">
@@ -1056,27 +1144,35 @@ const Orders = () => {
                     min="0"
                     value={receiveData.expected_price}
                     onChange={(e) => setReceiveData({ ...receiveData, expected_price: e.target.value })}
-                    className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 dark:text-white"
+                    className={`w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 mt-2 dark:text-white ${isExpectedPriceInvalid ? 'ring-red-500/60 border border-red-500/60' : 'ring-red-600/20'}`}
                     placeholder="Enter expected price"
                   />
+                  {isExpectedPriceInvalid && (
+                    <p className="mt-1 text-[10px] font-bold text-red-500">
+                      Expected price must be less than or equal to total price.
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Due Date *</label>
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Assign Date *</label>
                   <input
-                    type="date"
+                    type="text"
                     value={receiveData.due_date}
                     onChange={(e) => setReceiveData({ ...receiveData, due_date: e.target.value })}
                     className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 dark:text-white"
+                    placeholder="DD-MM-YYYY"
+                    title="Use date format DD-MM-YYYY"
+                    inputMode="numeric"
+                    maxLength={10}
                     required
                   />
+                  <p className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold">
+                    Format: DD-MM-YYYY
+                  </p>
                 </div>
                 <button
-                  onClick={() => handleProcessOrder('receive', {
-                    total_price: parseFloat(receiveData.total_price) || 0,
-                    expected_price: parseFloat(receiveData.expected_price) || 0,
-                    due_date: receiveData.due_date
-                  })}
-                  disabled={!receiveData.total_price || !receiveData.due_date}
+                  onClick={handleConfirmReceive}
+                  disabled={!receiveData.total_price || !receiveData.due_date || isExpectedPriceInvalid}
                   className="w-full py-4 bg-green-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.4em] hover:bg-green-700 transition-all mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Confirm Receive

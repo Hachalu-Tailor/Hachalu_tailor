@@ -297,20 +297,44 @@ def list_audit_logs(
     """
     filters = Q()
     if search_query:
-        filters &= Q(identifier_used__icontains=search_query) | Q(
-            payload__icontains=search_query
-        )
+        query = str(search_query).strip()
+        # Support multi-term search (e.g. "created admin") by requiring each token.
+        # Each token can match any searchable audit field.
+        for token in [part for part in query.split() if part]:
+            filters &= (
+                Q(identifier_used__icontains=token)
+                | Q(action__icontains=token)
+                | Q(target_id__icontains=token)
+                | Q(actor__full_name__icontains=token)
+                | Q(actor__email__icontains=token)
+            )
     if filter_by_actor:
         filters &= Q(actor__id=filter_by_actor)
     if filter_by_action:
-        filters &= Q(action=filter_by_action)
+        filters &= Q(action__icontains=filter_by_action)
+    else:
+        # ORDER_LISTED is noisy for admin browsing; hide it by default.
+        filters &= ~Q(action="ORDER_LISTED")
     if filter_by_date_range and len(filter_by_date_range) == 2:
-        filters &= Q(created_at__gte=filter_by_date_range[0]) & Q(
-            created_at__lte=filter_by_date_range[1]
+        filters &= Q(created_at__date__gte=filter_by_date_range[0]) & Q(
+            created_at__date__lte=filter_by_date_range[1]
         )
 
     return (
-        AuditLog.objects.filter(filters).select_related("actor").order_by("-created_at")
+        AuditLog.objects.filter(filters)
+        .select_related("actor")
+        .only(
+            "id",
+            "actor_id",
+            "action",
+            "target_id",
+            "identifier_used",
+            "ip_address",
+            "created_at",
+            "actor__full_name",
+            "actor__email",
+        )
+        .order_by("-created_at")
     )
 
 

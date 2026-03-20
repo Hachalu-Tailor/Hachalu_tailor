@@ -103,7 +103,7 @@ const DashboardLayout = () => {
     localStorage.setItem('theme', prefersDark ? 'dark' : 'light');
 
     // Fetch notifications only on mount
-    fetchNotifications();
+    // fetchNotifications();
 
     // Fetch completed orders for garment users
     if (storedRole?.toLowerCase() === 'garment') {
@@ -113,11 +113,11 @@ const DashboardLayout = () => {
   }, []); // Empty dependency array - only run once on mount
 
   // Fetch latest notifications only when user opens the notifications panel.
-  useEffect(() => {
-    if (showNotifications) {
-      fetchNotifications();
-    }
-  }, [showNotifications]); // Removed fetchNotifications from dependency to prevent re-fetching
+  // useEffect(() => {
+  //   if (showNotifications) {
+  //     fetchNotifications();
+  //   }
+  // }, [showNotifications]); // Removed fetchNotifications from dependency to prevent re-fetching
 
   // Mark notification as complete - hide locally (frontend only)
   const handleMarkAsRead = (notifId) => {
@@ -183,12 +183,12 @@ const DashboardLayout = () => {
             <div className="flex items-center gap-3 md:gap-6">
 
               {/* Language Switcher */}
-              <div className="flex items-center">
+              {/* <div className="flex items-center">
                 <LanguageSwitcher />
-              </div>
+              </div> */}
 
               {/* Desktop Search Bar (hidden on garment views to avoid duplicate search) */}
-              {!location.pathname.startsWith('/garment') && (
+              {/* {!location.pathname.startsWith('/garment') && (
                 <div className="hidden lg:flex items-center bg-gray-100 dark:bg-white/5 px-4 py-2.5 rounded-2xl border border-transparent focus-within:border-red-600/50 transition-all group">
                   <HiOutlineMagnifyingGlass className="text-gray-500 dark:text-gray-400 group-focus-within:text-red-600" size={18} />
                   <input
@@ -197,116 +197,7 @@ const DashboardLayout = () => {
                     className="bg-transparent border-none text-[9px] font-black px-3 outline-none text-gray-900 dark:text-white w-40 placeholder:text-gray-500 dark:placeholder:text-gray-400"
                   />
                 </div>
-              )}
-
-              {/* Notification Toggle */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowNotifications(!showNotifications)}
-                  className={`p-3 rounded-2xl transition-all ${showNotifications ? 'bg-red-600 text-white shadow-xl shadow-red-600/40' : 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-400 hover:text-red-600 hover:bg-gray-200 dark:hover:bg-white/10'}`}
-                >
-                  <HiOutlineBell size={20} />
-                  {pendingCount > 0 && (
-                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white text-[8px] font-black rounded-full flex items-center justify-center animate-pulse">
-                      {pendingCount > 9 ? '9+' : pendingCount}
-                    </span>
-                  )}
-                </button>
-
-                <AnimatePresence>
-                  {showNotifications && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 15, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 15, scale: 0.95 }}
-                      className="absolute top-16 right-0 w-80 bg-white dark:bg-[#0c0c0c] border border-gray-100 dark:border-white/10 rounded-[2.5rem] shadow-2xl p-6 z-50 overflow-hidden"
-                    >
-                      <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-900 dark:text-white">
-                          {t('messages')}
-                        </h3>
-                        <span className="bg-red-600/10 text-red-600 text-[8px] font-black px-2 py-1 rounded-lg uppercase">
-                          {pendingCount} {t('pending')}
-                        </span>
-                      </div>
-
-                      <div className="space-y-2">
-                        {notifications.length > 0 ? (
-                          notifications.slice(0, 5).map((notif, idx) => (
-                            <div
-                              key={notif.id || idx}
-                              className={`relative cursor-pointer rounded-xl transition-all ${!notif.is_read ? 'bg-red-50 dark:bg-red-900/10 border-l-4 border-red-500' : 'bg-gray-50 dark:bg-white/5'}`}
-                            >
-                              {/* Mark as Read Button */}
-                              {!notif.is_read && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleMarkAsRead(notif.id);
-                                  }}
-                                  className="absolute top-2 right-2 z-10 p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-                                  title="Mark as read"
-                                >
-                                  <HiOutlineCheckCircle size={14} />
-                                </button>
-                              )}
-                              
-                              <div
-                                onClick={() => {
-                                  // Mark as read when clicked
-                                  handleMarkAsRead(notif.id);
-                                  
-                                  // Navigate based on notification type + current role routing
-                                  const notifType = String(notif.notification_type || notif.type || '').toLowerCase().trim();
-                                  const basePath = getRoleBasePath(userRole);
-
-                                  if (notifType === 'order_created' || notifType === 'order_update' || notifType === 'order') {
-                                    navigate(userRole === 'garment' ? '/garment/orders' : '/reception/orders');
-                                  } else if (notifType === 'payment_submitted' || notifType === 'payment') {
-                                    navigate('/reception/payments');
-                                  } else if (notifType === 'inventory') {
-                                    navigate('/reception/inventory');
-                                  } else if (notifType === 'staff' || notifType === 'user' || notifType === 'staff_created') {
-                                    navigate('/admin/staff');
-                                  } else {
-                                    navigate(basePath);
-                                  }
-                                  setShowNotifications(false);
-                                }}
-                                className="p-3"
-                              >
-                                <NotificationItem
-                                  icon={getNotificationIcon(notif.notification_type || notif.type)}
-                                  text={notif.message || notif.title || t('messages')}
-                                  time={formatRelativeTime(notif.created_at)}
-                                  isRead={notif.is_read}
-                                />
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <NotificationItem icon={<HiOutlineBell />} text={t('noData')} time="" />
-                        )}
-                      </div>
-
-                      <button 
-                        onClick={() => {
-                          if (userRole === 'garment') {
-                            navigate('/garment/messages');
-                          } else {
-                            // Notifications page
-                            navigate('/reception/notifications');
-                          }
-                          setShowNotifications(false);
-                        }}
-                        className="w-full mt-6 py-3 bg-gray-50 dark:bg-white/5 rounded-2xl text-[8px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-400 hover:text-white hover:bg-red-600 transition-all"
-                      >
-                        {t('view')}
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+              )} */}
 
               {/* User Identity & Logout */}
               <div className="flex items-center gap-3 pl-3 border-l border-gray-100 dark:border-white/5">
@@ -317,14 +208,6 @@ const DashboardLayout = () => {
                   >
                     {t('profile')}
                   </button>
-                  {userRole !== 'garment' && (
-                    <button
-                      onClick={handleLogout}
-                      className="text-[7px] font-bold text-red-500 uppercase tracking-[0.2em] hover:tracking-[0.3em] transition-all flex items-center gap-1"
-                    >
-                      {t('logout')} <HiOutlineArrowRightOnRectangle />
-                    </button>
-                  )}
                 </div>
                 <button
                   onClick={() => navigate(userRole === 'admin' ? '/admin/profile' : userRole === 'garment' ? '/garment/profile' : '/reception/profile')}
@@ -344,7 +227,7 @@ const DashboardLayout = () => {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
-              className="p-6 md:p-10 max-w-[] mx-auto w-full pb-20"
+              className="p-4 md:p-10 max-w-[] mx-auto w-full pb-20"
             >
               <Outlet />
             </motion.div>

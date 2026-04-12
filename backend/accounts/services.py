@@ -1,0 +1,358 @@
+from django.db import transaction
+from django.utils.crypto import get_random_string
+from .models import User
+from .models import AuditLog
+from django.db.models import Q
+
+
+@transaction.atomic
+def create_user(email, full_name, phone_number, role, requester):
+    """
+    Create a new user and emit an audit log.
+
+    Args:
+        email (str): Email address for the new user.
+        full_name (str): Full name of the new user.
+        phone_number (str): Phone number for the new user.
+        role (str): Role identifier to assign to the user.
+        requester (User): Acting user creating the account (audit actor).
+
+    Returns:
+        tuple[User, str]: The created user instance and the generated temporary
+        password.
+    """
+
+    # Generate temporary password
+    temp_password = get_random_string(8)
+
+    # Create user in DB
+    user = User.objects.create_user(
+        email=email,
+        full_name=full_name,
+        phone_number=phone_number,
+        role=role,
+        password=temp_password,
+    )
+
+    # Audit logging
+    AuditLog.objects.create(
+        actor=requester,
+        action="USER_CREATED",
+        target_id=user.id,
+        identifier_used=email,
+        payload={
+            "user_id": str(user.id),
+            "full_name": full_name,
+            "phone_number": phone_number,
+            "role": role,
+        },
+    )
+
+    return user, temp_password
+
+
+@transaction.atomic
+def update_user(
+    user_id, requester, email=None, full_name=None, phone_number=None, role=None
+):
+    """
+    Update a user's details and emit an audit log.
+
+    Args:
+        user_id (int | str): Primary key of the user to update.
+        requester (User): Acting user performing the update (audit actor).
+        email (str | None): New email address if provided.
+        full_name (str | None): New full name if provided.
+        phone_number (str | None): New phone number if provided.
+        role (str | None): New role identifier if provided.
+
+    Returns:
+        User: The updated user instance.
+
+    Raises:
+        ValueError: If the user does not exist.
+    """
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        raise ValueError("User not found")
+
+    # Update user in DB
+    if email is not None:
+        user.email = email
+    if full_name is not None:
+        user.full_name = full_name
+    if phone_number is not None:
+        user.phone_number = phone_number
+    if role is not None:
+        user.role = role
+    user.save()
+
+    # Audit logging
+    AuditLog.objects.create(
+        actor=requester,
+        action="USER_UPDATED",
+        target_id=user.id,
+        identifier_used=email or user.email,
+        payload={
+            "user_id": str(user.id),
+            "full_name": full_name,
+            "phone_number": phone_number,
+            "role": role,
+        },
+    )
+
+    return user
+
+
+@transaction.atomic
+def delete_user(user_id, requester):
+    """
+    Delete a user and emit an audit log.
+
+    Args:
+        user_id (int | str): Primary key of the user to delete.
+        requester (User): Acting user performing the deletion (audit actor).
+
+    Returns:
+        None
+
+    Raises:
+        ValueError: If the user does not exist.
+    """
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        raise ValueError("User not found")
+
+    # Audit logging before deletion
+    AuditLog.objects.create(
+        actor=requester,
+        action="USER_DELETED",
+        target_id=user.id,
+        identifier_used=user.email,
+        payload={
+            "user_id": str(user.id),
+            "full_name": user.full_name,
+            "phone_number": user.phone_number,
+            "role": user.role,
+        },
+    )
+
+    # Delete user from DB
+    user.delete()
+
+
+@transaction.atomic
+def reset_password(user_id, requester):
+    """
+    Reset a user's password to a new temporary value and emit an audit log.
+
+    Args:
+        user_id (int | str): Primary key of the user whose password is reset.
+        requester (User): Acting user performing the reset (audit actor).
+
+    Returns:
+        str: The generated temporary password.
+
+    Raises:
+        ValueError: If the user does not exist.
+    """
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        raise ValueError("User not found")
+
+    # Generate temporary password
+    temp_password = get_random_string(8)
+
+    # Update user password in DB
+    user.set_password(temp_password)
+    user.save()
+
+    # Audit logging
+    AuditLog.objects.create(
+        actor=requester,
+        action="PASSWORD_RESET",
+        target_id=user.id,
+        identifier_used=user.email,
+        payload={
+            "user_id": str(user.id),
+            "full_name": user.full_name,
+            "phone_number": user.phone_number,
+            "role": user.role,
+        },
+    )
+
+    return temp_password
+
+
+@transaction.atomic
+def change_password(user_id, requester, old_password, new_password):
+    """
+    Change a user's password after validating the old password and emit an
+    audit log.
+
+    Args:
+        user_id (int | str): Primary key of the user changing password.
+        requester (User): Acting user performing the change (audit actor).
+        old_password (str): Current password to validate.
+        new_password (str): New password to set.
+
+    Returns:
+        None
+
+    Raises:
+        ValueError: If the user does not exist or the old password is invalid.
+    """
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        raise ValueError("User not found")
+
+    if not user.check_password(old_password):
+        raise ValueError("Old password is incorrect")
+
+    # Update user password in DB
+    user.set_password(new_password)
+    user.save()
+
+    # Audit logging
+    AuditLog.objects.create(
+        actor=requester,
+        action="PASSWORD_CHANGED",
+        target_id=user.id,
+        identifier_used=user.email,
+        payload={
+            "user_id": str(user.id),
+            "full_name": user.full_name,
+            "phone_number": user.phone_number,
+            "role": user.role,
+        },
+    )
+
+
+@transaction.atomic
+def get_user(user_id):
+    """
+    Retrieve a user by primary key.
+
+    Args:
+        user_id (int | str): Primary key of the user to fetch.
+
+    Returns:
+        User: The requested user instance.
+
+    Raises:
+        ValueError: If the user does not exist.
+    """
+    try:
+        user = User.objects.get(id=user_id)
+        return user
+    except User.DoesNotExist:
+        raise ValueError("User not found")
+
+
+@transaction.atomic
+def list_users(requester, active_only=True, search_query=None):
+    """
+    List users with optional activity and search filtering.
+
+    Args:
+        active_only (bool): When True, only include active users.
+        search_query (str | None): Optional search term matched against email,
+            full name, or phone number (case-insensitive).
+
+    Returns:
+        django.db.models.QuerySet[User]: QuerySet of users that match the
+        filters.
+    """
+
+    filtered_users = (
+        User.objects.filter(is_active=True).exclude(id=requester.id)
+        if active_only
+        else User.objects.all()
+    )
+    if search_query:
+        filtered_users = filtered_users.filter(
+            Q(email__icontains=search_query)
+            | Q(full_name__icontains=search_query)
+            | Q(phone_number__icontains=search_query)
+        )
+    return filtered_users
+
+
+def list_audit_logs(
+    search_query=None,
+    filter_by_actor=None,
+    filter_by_action=None,
+    filter_by_date_range=None,
+):
+    """
+    Retrieve all audit logs ordered by most recent.
+
+    Returns:
+        django.db.models.QuerySet[AuditLog]: QuerySet of all audit logs
+        ordered by timestamp descending.
+    """
+    filters = Q()
+    if search_query:
+        query = str(search_query).strip()
+        # Support multi-term search (e.g. "created admin") by requiring each token.
+        # Each token can match any searchable audit field.
+        for token in [part for part in query.split() if part]:
+            filters &= (
+                Q(identifier_used__icontains=token)
+                | Q(action__icontains=token)
+                | Q(target_id__icontains=token)
+                | Q(actor__full_name__icontains=token)
+                | Q(actor__email__icontains=token)
+            )
+    if filter_by_actor:
+        filters &= Q(actor__id=filter_by_actor)
+    if filter_by_action:
+        filters &= Q(action__icontains=filter_by_action)
+    else:
+        # ORDER_LISTED is noisy for admin browsing; hide it by default.
+        filters &= ~Q(action="ORDER_LISTED")
+    if filter_by_date_range and len(filter_by_date_range) == 2:
+        filters &= Q(created_at__date__gte=filter_by_date_range[0]) & Q(
+            created_at__date__lte=filter_by_date_range[1]
+        )
+
+    return (
+        AuditLog.objects.filter(filters)
+        .select_related("actor")
+        .only(
+            "id",
+            "actor_id",
+            "action",
+            "target_id",
+            "identifier_used",
+            "ip_address",
+            "created_at",
+            "actor__full_name",
+            "actor__email",
+        )
+        .order_by("-created_at")
+    )
+
+
+def get_audit_log(log_id):
+    """
+    Retrieve a single audit log by primary key.
+
+    Args:
+        log_id (int | str): Primary key of the audit log to fetch.
+
+    Returns:
+        AuditLog: The requested audit log instance.
+
+    Raises:
+        ValueError: If the audit log does not exist.
+    """
+    try:
+        log = AuditLog.objects.select_related("actor").get(id=log_id)
+        return log
+    except AuditLog.DoesNotExist:
+        raise ValueError("Audit log not found")

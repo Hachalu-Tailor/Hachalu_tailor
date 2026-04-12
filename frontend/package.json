@@ -4,24 +4,31 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host", 
+    "dev": "vite --host",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@emailjs/browser": "^4.4.1",
     "@heroicons/react": "^2.2.0",
     "@tailwindcss/vite": "^4.1.18",
+    "axios": "^1.13.5",
     "framer-motion": "^12.33.0",
+    "i18next": "^25.8.13",
+    "i18next-browser-languagedetector": "^8.2.1",
     "lucide-react": "^0.563.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-i18next": "^16.5.4",
     "react-icons": "^5.5.0",
     "react-router-dom": "^7.13.0",
+    "react-router-hash-link": "^2.4.3",
     "tailwindcss": "^4.1.18"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@lingo.dev/compiler": "^0.1.4",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",

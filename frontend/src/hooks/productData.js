@@ -1,0 +1,43 @@
+
+import { IMAGES } from "../constants/images";
+
+export const products = [
+  { 
+    id: 1, 
+    category: "Women", 
+    name: "Midnight Peak Lapel", 
+    price: "ETB 8,999", 
+    desc: "Super 120s Italian wool, hand-finished lapels.", 
+    img: "https://i.ebayimg.com/images/g/81kAAeSwmlZowMqW/s-l1600.webp",
+    suit_type_id: 1 
+  },
+  { 
+    id: 2, 
+    category: "Men", 
+    name: "Ivory Dinner Jacket", 
+    price: "ETB 9,500", 
+    desc: "Double-breasted excellence.", 
+    img: "https://image.kgstores.com/is/image/marketing/25-4666887-mens-suits-desktop.jpg",
+    suit_type_id: 4
+  },
+  { 
+    id: 3, 
+    category: "Children", 
+    name: "Junior Tuxedo", 
+    price: "ETB 4,500", 
+    desc: "Miniature classic fit for young gentlemen.", 
+    // img: "https://i.ebayimg.com/images/g/orsAAOSwMi1mpUjb/s-l1600.webp",
+    img: IMAGES.STATIC.STATIC2,
+    suit_type_id: 3
+  },
+  { 
+    id: 4, 
+    category: "Men", 
+    name: "Signature Power Suit", 
+    price: "ETB 11,000",
+    desc: "Sculpted shoulders for a commanding silhouette.", 
+    // img: "https://images.unsplash.com/photo-1617113930975-f9c7243ae527?q=80&w=1374",
+    img: IMAGES.STATIC.STATIC1,
+    suit_type_id: 2
+  },
+];

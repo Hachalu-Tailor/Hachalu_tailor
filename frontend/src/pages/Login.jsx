@@ -1,104 +1,171 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { HiOutlineLockClosed, HiOutlineUserCircle, HiOutlineShieldCheck, HiOutlineEye, HiOutlineEyeSlash } from 'react-icons/hi2';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import {
+  HiOutlineLockClosed,
+  HiOutlineUserCircle,
+  HiOutlineShieldCheck,
+  HiOutlineEye,
+  HiOutlineEyeSlash,
+  HiOutlineExclamationTriangle
+} from 'react-icons/hi2';
 
 const Login = () => {
-  const [role, setRole] = useState('admin');
+  const navigate = useNavigate();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+
+  // Form State
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (error) setError(''); // Clear error when user types
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const result = await login(formData);
+
+      if (!result.success) {
+        setError(result.error || "Invalid email or password. Please try again.");
+        return;
+      }
+
+      // Navigate based on role
+      const role = result.user?.role?.toUpperCase();
+      if (role === 'ADMIN') {
+        navigate('/admin');
+      } else if (role === 'RECEPTIONIST') {
+        navigate('/reception');
+      } else if (role === 'GARMENT') {
+        navigate('/garment');
+      } else {
+        navigate('/');
+      }
+
+    } catch (err) {
+      setError(err.response?.data?.detail || "Login failed. Please check your credentials and try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden font-sans">
-      
+
       {/* 1. CINEMATIC BACKGROUND IMAGE */}
       <div className="absolute inset-0 z-0">
-        <img 
-          src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop" 
-          className="w-full h-full object-cover grayscale brightness-[0.3]"
+        <img
+          src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop"
+          className="w-full h-full object-cover grayscale brightness-[0.2]"
           alt="Luxury Fashion Background"
         />
-        {/* Subtle red tint overlay for brand identity */}
         <div className="absolute inset-0 bg-red-900/10 mix-blend-overlay" />
       </div>
 
-      {/* 2. FLOATING LOGIN CARD (GLASSMORPHISM) */}
-      <motion.div 
+      {/* 2. FLOATING LOGIN CARD */}
+      <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
         className="relative z-10 w-full max-w-[450px] mx-4"
       >
         <div className="bg-white/10 dark:bg-black/40 backdrop-blur-xl border border-white/20 dark:border-white/10 p-10 md:p-12 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]">
-          
+
           {/* HEADER */}
           <div className="text-center mb-10">
             <h1 className="text-white text-3xl font-black uppercase tracking-tighter italic">
               Hachalu<span className="text-red-600"> Protocol</span>
             </h1>
-            <div className="h-[2px] w- bg-red-600 mx-auto mt-4" />
+            <div className="h-[2px] w-12 bg-red-600 mx-auto mt-4" />
             <p className="text-gray-400 text-[9px] font-black uppercase tracking-[0.4em] mt-6">
-              Authorized Personnel Terminal
+              Authorized Access
             </p>
           </div>
 
-          {/* ROLE SELECTOR */}
-          <div className="flex bg-white/5 p-1 mb-8 rounded-full border border-white/10">
-            <button 
-              onClick={() => setRole('admin')}
-              className={`flex-1 py-2 text-[9px] font-black uppercase tracking-widest transition-all rounded-full ${role === 'admin' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
-            >
-              Admin
-            </button>
-            <button 
-              onClick={() => setRole('receptionist')}
-              className={`flex-1 py-2 text-[9px] font-black uppercase tracking-widest transition-all rounded-full ${role === 'receptionist' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
-            >
-              Staff
-            </button>
-          </div>
+          {/* ERROR DISPLAY */}
+          <AnimatePresence>
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mb-6 flex items-center gap-2 text-red-500 bg-red-500/10 border border-red-500/20 p-3 rounded-lg"
+              >
+                <HiOutlineExclamationTriangle size={16} />
+                <span className="text-[10px] font-bold uppercase tracking-wider">{error}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* FORM */}
-          <form className="space-y-8" onSubmit={(e) => e.preventDefault()}>
-            git 
-            {/* UNIQUE ID */}
+          <form className="space-y-8" onSubmit={handleSubmit}>
+
+            {/* EMAIL (Personnel ID) */}
             <div className="relative group">
               <label className="absolute -top-6 left-0 text-[8px] font-black uppercase tracking-widest text-gray-500 group-focus-within:text-red-600 transition-colors">
-                Personnel Unique ID
+                Email / Personnel ID
               </label>
               <HiOutlineUserCircle className="absolute left-0 bottom-3 text-gray-500 group-focus-within:text-red-600 transition-colors" size={18} />
-              <input 
-                type="text" 
-                placeholder="H-PRO-XXXX"
-                className="w-full bg-transparent border-b border-white/20 py-3 pl-8 text-sm font-bold tracking-widest text-white outline-none focus:border-red-600 transition-all placeholder:text-gray-700"
+              <input
+                required
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                placeholder="Enter your email"
+                className="w-full bg-transparent border-b border-white/20 py-3 pl-8 text-sm font-bold tracking-widest text-white outline-none focus:border-red-600 transition-all placeholder:text-gray-400"
               />
             </div>
 
             {/* PASSWORD */}
             <div className="relative group">
               <label className="absolute -top-6 left-0 text-[8px] font-black uppercase tracking-widest text-gray-500 group-focus-within:text-red-600 transition-colors">
-                Access Key
+                Password
               </label>
               <HiOutlineLockClosed className="absolute left-0 bottom-3 text-gray-500 group-focus-within:text-red-600 transition-colors" size={18} />
-              <input 
-                type={showPassword ? "text" : "password"} 
+              <input
+                required
+                name="password"
+                type={showPassword ? "text" : "password"}
+                value={formData.password}
+                onChange={handleInputChange}
                 placeholder="••••••••"
-                className="w-full bg-transparent border-b border-white/20 py-3 pl-8 text-sm font-bold tracking-widest text-white outline-none focus:border-red-600 transition-all placeholder:text-gray-700"
+                className="w-full bg-transparent border-b border-white/20 py-3 pl-8 text-sm font-bold tracking-widest text-white outline-none focus:border-red-600 transition-all placeholder:text-gray-400"
               />
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-0 bottom-3 text-gray-500 hover:text-white transition-colors"
               >
-                {showPassword ? <HiOutlineEyeSlash size={16}/> : <HiOutlineEye size={16}/>}
+                {showPassword ? <HiOutlineEyeSlash size={16} /> : <HiOutlineEye size={16} />}
               </button>
             </div>
 
             {/* LOGIN BUTTON */}
-            <motion.button 
-              whileHover={{ scale: 1.02, boxShadow: "0 0 20px rgba(220, 38, 38, 0.4)" }}
-              whileTap={{ scale: 0.98 }}
-              className="w-full bg-red-600 text-white py-5 font-black uppercase tracking-[0.5em] text-[10px] flex items-center justify-center gap-3 transition-all mt-4"
+            <motion.button
+              disabled={loading}
+              whileHover={!loading ? { scale: 1.02, boxShadow: "0 0 20px rgba(220, 38, 38, 0.4)" } : {}}
+              whileTap={!loading ? { scale: 0.98 } : {}}
+              className={`w-full bg-red-600 text-white py-5 font-black uppercase tracking-[0.5em] text-[10px] flex items-center justify-center gap-3 transition-all mt-4 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              Verify Identity <HiOutlineShieldCheck size={18} />
+              {loading ? (
+                <span className="animate-pulse">AUTHENTICATING...</span>
+              ) : (
+                <><span>Login</span> <HiOutlineShieldCheck size={18} /></>
+              )}
             </motion.button>
           </form>
 
@@ -110,7 +177,7 @@ const Login = () => {
         </div>
       </motion.div>
 
-      {/* 3. SUBTLE MESH GRADIENTS (Mood Making) */}
+      {/* Mood Gradients */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-red-600/10 blur-[120px] rounded-full z-0" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-white/5 blur-[120px] rounded-full z-0" />
     </div>

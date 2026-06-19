@@ -1,15 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { motion as Motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   HiOutlineShoppingBag, HiOutlineCube, HiOutlineUserGroup,
-  HiOutlineClock, HiOutlinePlus, HiOutlineArrowTrendingUp,
-  HiOutlineCurrencyDollar, HiOutlineCheckCircle, HiOutlineXCircle,
-  HiOutlineExclamationTriangle, HiOutlineCalendar,
-  HiOutlineClipboardDocumentList, HiOutlineBell,
-  HiOutlineArrowPath, HiOutlineTruck, HiOutlineChatBubbleLeftRight,
+  HiOutlineClock, HiOutlinePlus,
+  HiOutlineCurrencyDollar, HiOutlineCheckCircle,
+  HiOutlineExclamationTriangle,
+  HiOutlineArrowPath, HiOutlineChatBubbleLeftRight,
   HiOutlineSwatch, HiOutlineMagnifyingGlass, HiOutlineMegaphone,
-  HiOutlineXMark
+  HiOutlineTruck
 } from 'react-icons/hi2';
 import { HiOutlineSquares2X2 } from 'react-icons/hi2';
 import { getOrders, getMaterials, getPayments } from '../api/api';
@@ -18,7 +17,6 @@ import { formatCurrency, formatRelativeTime } from '../utils/helpers';
 import { products } from '../hooks/productData';
 import {
   ORDER_STATUS_LABELS,
-  PAYMENT_STATUS_LABELS,
   CURRENCY
 } from '../utils/constants';
 import { getHexColor, extractColorsFromMaterials, isLightColor } from '../utils/colors';
@@ -33,15 +31,8 @@ const ReceptionDashboard = () => {
   const [timeRange, setTimeRange] = useState('2days'); // today, 2days, week, month
   const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    fetchData();
-    // Set up auto-refresh every 30 seconds
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
-  }, [timeRange]);
-
   // Filter orders by time range (today, 2days, week, month)
-  const filterOrdersByTimeRange = (orderList) => {
+  const filterOrdersByTimeRange = useCallback((orderList) => {
     if (!orderList || !orderList.length) return orderList || [];
     const now = new Date();
     let startDate;
@@ -58,20 +49,28 @@ const ReceptionDashboard = () => {
       startDate.setMonth(startDate.getMonth() - 1);
     }
     return orderList.filter(o => new Date(o.created_at) >= startDate);
-  };
+  }, [timeRange]);
 
-  const filteredOrdersByTime = useMemo(() => filterOrdersByTimeRange(orders), [orders, timeRange]);
+  const sortedOrders = useMemo(() => {
+    return [...orders].sort((a, b) => {
+      const bTime = Date.parse(b.created_at || '') || 0;
+      const aTime = Date.parse(a.created_at || '') || 0;
+      return bTime - aTime;
+    });
+  }, [orders]);
+
+  const filteredOrdersByTime = useMemo(() => filterOrdersByTimeRange(orders), [orders, filterOrdersByTimeRange]);
 
   // Filter recent orders by search
   const filteredRecentOrders = useMemo(() => {
-    if (!searchQuery.trim()) return orders.slice(0, 8);
+    if (!searchQuery.trim()) return sortedOrders.slice(0, 8);
     const q = searchQuery.toLowerCase().trim();
-    return orders.filter(o =>
+    return sortedOrders.filter(o =>
       (o.order_code || '').toLowerCase().includes(q) ||
       (o.customer_name || '').toLowerCase().includes(q) ||
       (o.customer_phone || '').includes(q)
     ).slice(0, 8);
-  }, [orders, searchQuery]);
+  }, [sortedOrders, searchQuery]);
 
   // Helper function to handle pagination
   const handlePaginatedResponse = (response) => {
@@ -82,7 +81,7 @@ const ReceptionDashboard = () => {
     return data || [];
   };
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [ordersRes, materialsRes, paymentsRes] = await Promise.all([
@@ -99,7 +98,14 @@ const ReceptionDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+    // Set up auto-refresh every 30 seconds
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
   // Calculate order statistics (uses time-filtered orders)
   const getOrderStats = (orderList = filteredOrdersByTime) => {
@@ -220,6 +226,27 @@ const ReceptionDashboard = () => {
   const inventoryStats = getInventoryStats();
   const clientStats = getClientStats();
   const colorStats = getColorStats();
+
+  const todayFocus = useMemo(() => {
+    const dueSoon = orders.filter((o) => {
+      if (!o.due_date) return false;
+      const status = o.status;
+      if (['CLOSED', 'COMPLETED', 'SHIPPED', 'EXPIRED', 'CANCELLED', 'REJECTED'].includes(status)) return false;
+      const due = new Date(o.due_date);
+      const now = new Date();
+      const in2Days = new Date();
+      in2Days.setDate(now.getDate() + 2);
+      return due >= now && due <= in2Days;
+    }).length;
+
+    const unverifiedPayments = payments.filter((p) => p?.is_verified === false).length;
+    const lowStock = materials.filter((m) => {
+      const qty = parseFloat(m.inventory?.quantity_meters || 0);
+      return qty < 5;
+    }).length;
+
+    return { dueSoon, unverifiedPayments, lowStock };
+  }, [orders, payments, materials]);
 
   // Main stats cards (includes overdue)
   const mainStats = [
@@ -370,13 +397,6 @@ const ReceptionDashboard = () => {
               </button>
             ))}
           </div>
-
-          <button
-            onClick={() => navigate('/reception/orders')}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-          >
-            <HiOutlinePlus size={16} /> New Order
-          </button>
           <button
             onClick={fetchData}
             className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-800 dark:text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
@@ -387,9 +407,41 @@ const ReceptionDashboard = () => {
       </div>
 
       {/* Main Stats Grid */}
+      <Motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="grid grid-cols-1 md:grid-cols-3 gap-3"
+      >
+        <button
+          onClick={() => navigate('/reception/orders')}
+          className="text-left p-4 rounded-2xl border border-amber-200 dark:border-amber-700/40 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/30 dark:to-orange-900/10"
+        >
+          <p className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300">Due In 48h</p>
+          <p className="text-2xl font-black text-amber-900 dark:text-amber-100 mt-1">{todayFocus.dueSoon}</p>
+          <p className="text-[10px] text-amber-700/80 dark:text-amber-300/80">Orders needing near-term attention</p>
+        </button>
+        <button
+          onClick={() => navigate('/reception/payments')}
+          className="text-left p-4 rounded-2xl border border-blue-200 dark:border-blue-700/40 bg-gradient-to-br from-blue-50 to-sky-50 dark:from-blue-900/25 dark:to-sky-900/10"
+        >
+          <p className="text-[10px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-300">Unverified Payments</p>
+          <p className="text-2xl font-black text-blue-900 dark:text-blue-100 mt-1">{todayFocus.unverifiedPayments}</p>
+          <p className="text-[10px] text-blue-700/80 dark:text-blue-300/80">Review bank receipts quickly</p>
+        </button>
+        <button
+          onClick={() => navigate('/reception/inventory')}
+          className="text-left p-4 rounded-2xl border border-rose-200 dark:border-rose-700/40 bg-gradient-to-br from-rose-50 to-red-50 dark:from-rose-900/25 dark:to-red-900/10"
+        >
+          <p className="text-[10px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-300">Low / Out Stock</p>
+          <p className="text-2xl font-black text-rose-900 dark:text-rose-100 mt-1">{todayFocus.lowStock}</p>
+          <p className="text-[10px] text-rose-700/80 dark:text-rose-300/80">Materials that need replenishment</p>
+        </button>
+      </Motion.div>
+
+      {/* Main Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {mainStats.map((stat, idx) => (
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.1 }}
@@ -410,14 +462,14 @@ const ReceptionDashboard = () => {
             <p className="text-[10px] font-black text-gray-600 dark:text-gray-400 uppercase tracking-[0.2em] mt-4">{stat.label}</p>
             <h3 className="text-3xl font-black text-gray-900 dark:text-white mt-1">{stat.value}</h3>
             <p className="text-[10px] text-gray-600 dark:text-gray-500 mt-1">{stat.description}</p>
-          </motion.div>
+          </Motion.div>
         ))}
       </div>
 
       {/* Revenue Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {revenueCards.map((card, idx) => (
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 + idx * 0.1 }}
@@ -437,12 +489,12 @@ const ReceptionDashboard = () => {
                 )}
               </div>
             </div>
-          </motion.div>
+          </Motion.div>
         ))}
       </div>
 
       {/* Color Palette Overview */}
-      <motion.div
+      <Motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6 }}
@@ -470,7 +522,7 @@ const ReceptionDashboard = () => {
         <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
           {colorStats.topColors.length > 0 ? (
             colorStats.topColors.map((color, idx) => (
-              <motion.div
+              <Motion.div
                 key={idx}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -492,7 +544,7 @@ const ReceptionDashboard = () => {
                 <p className="text-[8px] text-gray-400 text-center">
                   {color.count}
                 </p>
-              </motion.div>
+              </Motion.div>
             ))
           ) : (
             <div className="col-span-full text-center py-8">
@@ -508,29 +560,7 @@ const ReceptionDashboard = () => {
           )}
         </div>
 
-        {/* Quick Color Reference */}
-        <div className="mt-6 pt-4 border-t border-gray-100 dark:border-white/10">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Popular Colors</p>
-          <div className="flex flex-wrap gap-2">
-            {['Black', 'White', 'Navy Blue', 'Red', 'Green', 'Brown', 'Gray', 'Beige'].slice(0, 8).map((colorName) => {
-              const hex = getHexColor(colorName);
-              return (
-                <div
-                  key={colorName}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-white/5 rounded-full cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-                  onClick={() => navigate('/reception/inventory')}
-                >
-                  <div
-                    className="w-4 h-4 rounded-full border border-gray-200 dark:border-gray-700"
-                    style={{ backgroundColor: hex }}
-                  />
-                  <span className="text-[10px] font-bold text-gray-600 dark:text-gray-300">{colorName}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </motion.div>
+      </Motion.div>
 
       {/* Available Products */}
       <motion.div
@@ -584,7 +614,7 @@ const ReceptionDashboard = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {/* Recent Orders */}
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           className="lg:col-span-2 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-lg p-3"
@@ -601,7 +631,7 @@ const ReceptionDashboard = () => {
 
           <div className="space-y-3">
             {filteredRecentOrders.map((order) => (
-              <motion.div
+              <Motion.div
                 key={order.id}
                 whileHover={{ scale: 1.01 }}
                 className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-white/5 rounded-2xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
@@ -623,7 +653,7 @@ const ReceptionDashboard = () => {
                   <p className="text-sm font-bold dark:text-white">{formatCurrency(order.total_price, CURRENCY.CODE)}</p>
                   <p className="text-[9px] text-gray-400">{formatRelativeTime(order.created_at)}</p>
                 </div>
-              </motion.div>
+              </Motion.div>
             ))}
             {filteredRecentOrders.length === 0 && (
               <div className="text-center py-12">
@@ -638,12 +668,12 @@ const ReceptionDashboard = () => {
               </div>
             )}
           </div>
-        </motion.div>
+        </Motion.div>
 
         {/* Inventory Alerts & Quick Actions */}
         <div className="space-y-6">
           {/* Inventory Alerts */}
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             className="bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-3xl p-6"
@@ -703,10 +733,10 @@ const ReceptionDashboard = () => {
                 </div>
               )}
             </div>
-          </motion.div>
+          </Motion.div>
 
           {/* Quick Actions */}
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="grid grid-cols-2 gap-3"
@@ -753,38 +783,9 @@ const ReceptionDashboard = () => {
               <HiOutlineChatBubbleLeftRight className="mx-auto mb-2 text-red-600" size={22} />
               <p className="text-[10px] font-black uppercase tracking-widest dark:text-white">Messages</p>
             </button>
-          </motion.div>
+          </Motion.div>
         </div>
       </div>
-
-      {/* Order Status Overview - clickable */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-2xl p-4"
-      >
-        <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest mb-4">Order Status Overview</h3>
-        <p className="text-[10px] text-gray-600 dark:text-gray-400 mb-4">Showing: {timeRange} • Click to view orders</p>
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-          {[
-            { status: 'pending', count: orderStats.pending, label: 'Pending', color: 'bg-yellow-500/10', textColor: 'text-yellow-500' },
-            { status: 'in_progress', count: orderStats.inProgress, label: 'In Progress', color: 'bg-blue-500/10', textColor: 'text-blue-500' },
-            { status: 'ready', count: orderStats.readyForPickup, label: 'Ready', color: 'bg-green-500/10', textColor: 'text-green-500' },
-            { status: 'completed', count: orderStats.completed, label: 'Completed', color: 'bg-emerald-500/10', textColor: 'text-emerald-500' },
-            { status: 'overdue', count: orderStats.overdue, label: 'Overdue', color: 'bg-red-500/10', textColor: 'text-red-500' },
-            { status: 'expired', count: orderStats.expired, label: 'Expired', color: 'bg-gray-500/10', textColor: 'text-gray-500' }
-          ].map((item) => (
-            <button
-              key={item.status}
-              onClick={() => navigate('/reception/orders', { state: { filterStatus: item.status } })}
-              className={`text-center p-4 ${item.color} rounded-2xl hover:ring-2 hover:ring-red-600/30 transition-all cursor-pointer`}
-            >
-              <p className={`text-2xl font-black ${item.textColor}`}>{item.count}</p>
-              <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mt-1">{item.label}</p>
-            </button>
-          ))}
-        </div>
-      </motion.div>
 
       {/* Urgent popup intentionally disabled here (Garment only). */}
     </div>

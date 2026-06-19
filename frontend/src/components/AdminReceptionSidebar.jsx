@@ -15,6 +15,13 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
   const navigate = useNavigate();
   const location = useLocation();
   const [role, setRole] = useState('');
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('admin_reception_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   // 1. SYNC ROLE AND THEME WITH LOGGING
   useEffect(() => {
@@ -36,6 +43,14 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
     localStorage.setItem('theme', newTheme ? 'dark' : 'light');
   };
 
+  const toggleCollapse = () => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem('admin_reception_sidebar_collapsed', String(next));
+      return next;
+    });
+  };
+
   const menuItems = [
     // Admin Section
     { path: '/admin', label: t('dashboard'), icon: <HiOutlineSquares2X2 />, roles: ['admin'] },
@@ -48,17 +63,15 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
     { path: '/reception/orders', label: t('orders'), icon: <HiOutlineShoppingBag />, roles: ['receptionist'] },
     { path: '/reception/inventory', label: t('inventory'), icon: <HiOutlineCube />, roles: ['receptionist'] },
     { path: '/reception/clients', label: t('clients'), icon: <HiOutlineUserGroup />, roles: ['receptionist'] },
-    { path: '/reception/announcement', label: 'Bulletins', icon: <HiOutlineMegaphone />, roles: ['receptionist'] },
+    // { path: '/reception/announcement', label: 'Bulletins', icon: <HiOutlineMegaphone />, roles: ['receptionist'] },
 
     // Garment/Tailor Section
     { path: '/garment', label: 'Workshop', icon: <HiOutlineScissors />, roles: ['garment'] },
-    { path: '/garment/orders', label: t('orders'), icon: <HiOutlineClipboardDocumentList />, roles: ['garment'] },
-    { path: '/garment/messages', label: t('messages'), icon: <HiOutlineChatBubbleLeftRight />, roles: ['garment'] },
     { path: '/garment/profile', label: t('profile'), icon: <HiOutlineUser />, roles: ['garment'] },
 
     // Shared/Common Sections (Admin & Receptionist)
     { path: '/reception/payments', label: t('payments'), icon: <HiOutlineBanknotes />, roles: ['admin', 'receptionist'] },
-    { path: '/reception/messages', label: t('messages'), icon: <HiOutlineChatBubbleLeftRight />, roles: ['admin', 'receptionist'] },
+    // { path: '/reception/messages', label: t('messages'), icon: <HiOutlineChatBubbleLeftRight />, roles: ['admin', 'receptionist'] },
     { path: '/admin/profile', label: t('profile'), icon: <HiOutlineUser />, roles: ['admin'] },
     { path: '/reception/profile', label: t('profile'), icon: <HiOutlineUser />, roles: ['receptionist'] },
   ];
@@ -78,17 +91,33 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-20 lg:w-64 bg-white dark:bg-[#080808] border-r border-gray-100 dark:border-white/5 flex-col p-4 lg:p-6 h-screen sticky top-0 left-0 z-50 transition-colors duration-500">
+      <aside className={`hidden md:flex ${isCollapsed ? 'w-20' : 'w-64'} bg-white dark:bg-[#080808] border-r border-gray-100 dark:border-white/5 flex-col p-4 h-screen sticky top-0 left-0 z-50 transition-all duration-300`}>
 
-        <div className="mb-12 flex justify-center lg:justify-start items-center gap-4 px-2">
-          <div className="h-12 w-12 bg-red-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-red-600/30 shrink-0">
-            <span className="font-black text-2xl italic">H</span>
+        <div className="mb-8">
+          <div className="flex justify-end mb-3">
+            <button
+              type="button"
+              onClick={toggleCollapse}
+              className="h-8 w-8 rounded-xl bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors text-sm font-black"
+              title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+              aria-label={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+            >
+              {isCollapsed ? '>' : '<'}
+            </button>
           </div>
-          <div className="hidden lg:block truncate">
-            <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tighter uppercase italic leading-none">Protocol</h2>
-            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-1">
-              Active: <span className="text-red-600">{currentRole || 'NO ROLE DETECTED'}</span>
-            </p>
+
+          <div className={`flex ${isCollapsed ? 'justify-center' : 'justify-start'} items-center gap-3 px-1`}>
+            <div className="h-12 w-12 bg-red-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-red-600/30 shrink-0">
+              <span className="font-black text-2xl italic">H</span>
+            </div>
+            {!isCollapsed && (
+              <div className="truncate">
+                <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tighter uppercase italic leading-none">Protocol</h2>
+                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-1">
+                  Active: <span className="text-red-600">{currentRole || 'NO ROLE DETECTED'}</span>
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -101,14 +130,14 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
                 to={item.path}
                 end={item.path === '/admin' || item.path === '/reception'}
                 className={({ isActive }) => `
-                  w-full flex items-center justify-center lg:justify-start gap-4 p-4 rounded-2xl transition-all group
+                  w-full flex items-center ${isCollapsed ? 'justify-center' : 'justify-start'} gap-4 p-4 rounded-2xl transition-all group
                   ${isActive
                     ? 'bg-red-600 text-white shadow-xl shadow-red-600/40 ring-1 ring-red-400/20'
                     : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white'}
                 `}
               >
                 <span className="text-2xl group-hover:scale-110 transition-transform">{item.icon}</span>
-                <span className="hidden lg:block text-[10px] font-black uppercase tracking-[0.2em]">{item.label}</span>
+                {!isCollapsed && <span className="text-[10px] font-black uppercase tracking-[0.2em]">{item.label}</span>}
               </NavLink>
             ))
           ) : (
@@ -121,18 +150,28 @@ const AdminReceptionSidebar = ({ darkMode, setDarkMode, isOpen, setIsOpen }) => 
         </nav>
 
         <div className="pt-6 mt-6 border-t border-gray-100 dark:border-white/5 space-y-3">
-          <button onClick={toggleTheme} className="w-full flex items-center justify-between p-2 bg-gray-100 dark:bg-white/5 rounded-2xl transition-all">
-            <div className={`p-2 rounded-xl transition-all flex-1 flex justify-center ${!darkMode ? 'bg-white text-amber-500 shadow-md ring-1 ring-gray-200' : 'text-gray-500 dark:text-gray-400'}`}>
-              <HiOutlineSun size={18} />
-            </div>
-            <div className={`p-2 rounded-xl transition-all flex-1 flex justify-center ${darkMode ? 'bg-zinc-800 text-sky-400 shadow-md ring-1 ring-white/10' : 'text-gray-500 dark:text-gray-400'}`}>
-              <HiOutlineMoon size={18} />
-            </div>
-          </button>
+          {isCollapsed ? (
+            <button
+              onClick={toggleTheme}
+              className="w-full flex items-center justify-center p-3 bg-gray-100 dark:bg-white/5 rounded-2xl transition-all text-gray-700 dark:text-gray-300"
+              title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {darkMode ? <HiOutlineMoon size={18} /> : <HiOutlineSun size={18} />}
+            </button>
+          ) : (
+            <button onClick={toggleTheme} className="w-full flex items-center justify-between p-2 bg-gray-100 dark:bg-white/5 rounded-2xl transition-all">
+              <div className={`p-2 rounded-xl transition-all flex-1 flex justify-center ${!darkMode ? 'bg-white text-amber-500 shadow-md ring-1 ring-gray-200' : 'text-gray-500 dark:text-gray-400'}`}>
+                <HiOutlineSun size={18} />
+              </div>
+              <div className={`p-2 rounded-xl transition-all flex-1 flex justify-center ${darkMode ? 'bg-zinc-800 text-sky-400 shadow-md ring-1 ring-white/10' : 'text-gray-500 dark:text-gray-400'}`}>
+                <HiOutlineMoon size={18} />
+              </div>
+            </button>
+          )}
 
-          <button onClick={handleLogout} className="w-full flex items-center justify-center lg:justify-start gap-4 p-1 text-gray-600 dark:text-gray-400 hover:text-red-600 transition-all hover:translate-x-1">
+          <button onClick={handleLogout} className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'justify-start'} gap-4 p-1 text-gray-600 dark:text-gray-400 hover:text-red-600 transition-all ${isCollapsed ? '' : 'hover:translate-x-1'}`}>
             <HiOutlineArrowLeftOnRectangle size={24} />
-            <span className="hidden lg:block text-[10px] font-black uppercase tracking-widest">Logout</span>
+            {!isCollapsed && <span className="text-[10px] font-black uppercase tracking-widest">Logout</span>}
           </button>
         </div>
       </aside>

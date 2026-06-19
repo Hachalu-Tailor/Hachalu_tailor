@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   HiOutlineBanknotes,
@@ -10,23 +10,14 @@ import {
   HiOutlineExclamationTriangle,
   HiOutlineCube,
   HiOutlineArrowPath,
-  HiOutlineBell,
   HiOutlineClock,
   HiOutlinePlus,
   HiOutlineMegaphone,
-  HiOutlineXCircle,
   HiOutlineChartBar,
   HiOutlineUser,
   HiOutlineMagnifyingGlass,
-  HiOutlineArrowTrendingUp,
-  HiOutlineArrowTrendingDown,
-  HiOutlineXMark,
-  HiOutlineCalendar
+
 } from 'react-icons/hi2';
-import {
-  ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon
-} from '@heroicons/react/24/outline';
 import { getOrders, listStaff, getPayments, getMaterials } from '../api/api';
 import { formatRelativeTime } from '../utils/helpers';
 import { CURRENCY, ORDER_STATUS_LABELS } from '../utils/constants';
@@ -40,15 +31,14 @@ const AdminDashboard = () => {
   const [payments, setPayments] = useState([]);
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   // Urgent popup is intentionally Garment-only.
 
   useEffect(() => {
     fetchData();
-    // Auto-refresh every 60 seconds
-    const interval = setInterval(fetchData, 60000);
-    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -59,7 +49,7 @@ const AdminDashboard = () => {
 
       // Search orders
       orders.forEach(order => {
-        const searchText = `${order.order_code} ${order.customer_name}`.toLowerCase();
+        const searchText = `${order.order_code || ''} ${order.customer_name || ''} ${order.customer_phone || ''}`.toLowerCase();
         if (searchText.includes(searchQuery.toLowerCase())) {
           results.push({ type: 'order', data: order, label: `Order: ${order.order_code}` });
         }
@@ -67,9 +57,21 @@ const AdminDashboard = () => {
 
       // Search staff
       staff.forEach(s => {
-        const searchText = `${s.first_name} ${s.last_name} ${s.username}`.toLowerCase();
+        const searchText = `${s.first_name || ''} ${s.last_name || ''} ${s.username || ''} ${s.email || ''}`.toLowerCase();
         if (searchText.includes(searchQuery.toLowerCase())) {
           results.push({ type: 'staff', data: s, label: `Staff: ${s.first_name} ${s.last_name}` });
+        }
+      });
+
+      // Search payments
+      payments.forEach(payment => {
+        const searchText = `${payment.order_code || ''} ${payment.customer_name || ''}`.toLowerCase();
+        if (searchText.includes(searchQuery.toLowerCase())) {
+          results.push({
+            type: 'payment',
+            data: payment,
+            label: `Payment: ${payment.order_code || payment.id}`,
+          });
         }
       });
 
@@ -77,7 +79,7 @@ const AdminDashboard = () => {
     } else {
       setSearchResults([]);
     }
-  }, [searchQuery, orders, staff]);
+  }, [searchQuery, orders, staff, payments]);
 
   // Helper function to handle pagination
   const handlePaginatedResponse = (response) => {
@@ -88,9 +90,16 @@ const AdminDashboard = () => {
     return data || [];
   };
 
-  const fetchData = async () => {
+  const fetchData = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      setError('');
+
       const [ordersRes, staffRes, paymentsRes, inventoryRes] = await Promise.all([
         getOrders(),
         listStaff(),
@@ -104,9 +113,23 @@ const AdminDashboard = () => {
       setInventory(handlePaginatedResponse(inventoryRes));
     } catch (error) {
       console.error('Error fetching data:', error);
+      setError('Failed to load dashboard data. Please refresh and try again.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const openSearchResult = (result) => {
+    if (result.type === 'order') {
+      navigate('/reception/orders');
+    } else if (result.type === 'staff') {
+      navigate('/admin/staff');
+    } else if (result.type === 'payment') {
+      navigate('/reception/payments');
+    }
+    setSearchQuery('');
+    setSearchResults([]);
   };
 
   // Calculate real stats
@@ -221,7 +244,7 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="px-2 md:p-4 space-y-4 max-w-7xl mx-auto">
 
       {/* 1. HEADER & WELCOME */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -248,58 +271,54 @@ const AdminDashboard = () => {
             <HiOutlineMegaphone size={16} /> {t('analytics')}
           </button>
           <button
-            onClick={fetchData}
+            onClick={() => fetchData(true)}
             className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 text-gray-800 dark:text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-gray-200 dark:hover:bg-white/10"
           >
-            <HiOutlineArrowPath size={16} /> Refresh
+            <HiOutlineArrowPath size={16} className={refreshing ? 'animate-spin' : ''} />
+            {refreshing ? 'Refreshing' : 'Refresh'}
           </button>
         </div>
       </div>
 
-      {/* 1.5 QUICK SEARCH BAR */}
-      <div className="relative">
+      {error && (
+        <div className="flex items-start gap-3 p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-2xl">
+          <HiOutlineExclamationTriangle className="text-red-500 mt-0.5" size={18} />
+          <p className="text-xs font-bold text-red-700 dark:text-red-300">{error}</p>
+        </div>
+      )}
+
+      {/* Search Panel */}
+      <div className="bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-2xl p-4">
         <div className="relative">
-          <HiOutlineMagnifyingGlass className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400" size={20} />
+          <HiOutlineMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
           <input
-            type="text"
-            placeholder="Search orders, customers, staff..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-red-500/50 text-gray-900 dark:text-white placeholder:text-gray-500"
+            placeholder="Search orders, staff, or payments..."
+            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-black/40 border border-transparent focus:border-red-600 rounded-xl text-sm font-semibold outline-none dark:text-white"
           />
         </div>
+
         {searchResults.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-white/10 border border-gray-100 dark:border-white/10 rounded-2xl shadow-xl z-50 overflow-hidden"
-          >
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
             {searchResults.map((result, idx) => (
-              <div
-                key={idx}
-                onClick={() => {
-                  if (result.type === 'order') navigate('/reception/orders');
-                  if (result.type === 'staff') navigate('/admin/staff');
-                  setSearchQuery('');
-                }}
-                className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer flex items-center gap-3 border-b border-gray-100 dark:border-white/5 last:border-0"
+              <button
+                key={`${result.type}-${result.data?.id || idx}`}
+                onClick={() => openSearchResult(result)}
+                className="text-left p-3 rounded-xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
               >
-                {result.type === 'order' ? (
-                  <HiOutlineShoppingBag className="text-blue-500" size={18} />
-                ) : (
-                  <HiOutlineUser className="text-purple-500" size={18} />
-                )}
-                <span className="text-sm dark:text-white">{result.label}</span>
-              </div>
+                <p className="text-xs font-black dark:text-white uppercase tracking-wider">{result.type}</p>
+                <p className="text-xs text-gray-500 mt-1 truncate">{result.label}</p>
+              </button>
             ))}
-          </motion.div>
+          </div>
         )}
       </div>
 
       {/* 2. STATS GRID */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat, idx) => (
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.1 }}
@@ -313,13 +332,13 @@ const AdminDashboard = () => {
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{stat.label}</p>
             <h3 className="text-2xl font-black dark:text-white mt-1">{stat.value}</h3>
             <p className="text-[10px] text-gray-500 mt-1">{stat.subtext}</p>
-          </motion.div>
+          </Motion.div>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* 3. RECENT ORDERS */}
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           className="lg:col-span-2 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-2xl p-6"
@@ -356,12 +375,12 @@ const AdminDashboard = () => {
               </div>
             )}
           </div>
-        </motion.div>
+        </Motion.div>
 
         {/* 4. PAYMENTS & NOTIFICATIONS PANEL */}
         <div className="space-y-6">
           {/* Payment Stats */}
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             className="bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-3xl p-6"
@@ -399,14 +418,14 @@ const AdminDashboard = () => {
                 <span className="text-sm font-black text-blue-500">{CURRENCY.SYMBOL}{totalPaymentAmount.toLocaleString()}</span>
               </div>
             </div>
-          </motion.div>
+          </Motion.div>
         </div>
       </div>
 
       {/* 5. NEW: ORDER STATUS BREAKDOWN */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Order Status Chart */}
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-3xl p-6"
@@ -431,7 +450,7 @@ const AdminDashboard = () => {
                     <span className="text-xs font-bold dark:text-white">{item.count} ({percentage}%)</span>
                   </div>
                   <div className="h-2 bg-gray-100 dark:bg-white/10 rounded-full overflow-hidden">
-                    <motion.div
+                    <Motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${percentage}%` }}
                       transition={{ duration: 0.5, delay: idx * 0.1 }}
@@ -442,10 +461,10 @@ const AdminDashboard = () => {
               );
             })}
           </div>
-        </motion.div>
+        </Motion.div>
 
         {/* Top Customers */}
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-3xl p-6"
@@ -483,12 +502,12 @@ const AdminDashboard = () => {
               </div>
             )}
           </div>
-        </motion.div>
+        </Motion.div>
       </div>
 
       {/* 6. LOW INVENTORY ALERTS */}
       {lowInventoryItems.length > 0 && (
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 rounded-3xl p-6"
@@ -520,12 +539,12 @@ const AdminDashboard = () => {
               </div>
             ))}
           </div>
-        </motion.div>
+        </Motion.div>
       )}
 
       {/* 7. SYSTEM STATUS CARD */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           className="lg:col-span-2 bg-red-600 rounded-2xl p-6 text-white flex flex-col justify-between overflow-hidden relative shadow-2xl shadow-red-600/20"
@@ -547,10 +566,10 @@ const AdminDashboard = () => {
 
           {/* Abstract background shape */}
           <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
-        </motion.div>
+        </Motion.div>
 
         {/* Quick Actions */}
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           className="bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-3xl p-6"
@@ -590,7 +609,7 @@ const AdminDashboard = () => {
               <span className="text-xs font-bold uppercase tracking-wider">Analytics</span>
             </button>
           </div>
-        </motion.div>
+        </Motion.div>
       </div>
 
       {/* Urgent popup intentionally disabled here (Garment only). */}

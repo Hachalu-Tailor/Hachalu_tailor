@@ -6,7 +6,16 @@ from accounts.models import AuditLog
 from .models import Material, Stock, Color
 
 
-ALLOWED_MATERIAL_FIELDS = {"name", "brand", "texture", "image_url", "description", "category"}
+ALLOWED_MATERIAL_FIELDS = {
+    "name",
+    "brand",
+    "texture",
+    "image_url",
+    "description",
+    "category",
+    "material_image",
+    "suit_sample_image",
+}
 
 
 def _normalize_quantity(quantity_meters) -> Decimal:

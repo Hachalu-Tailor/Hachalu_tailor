@@ -808,36 +808,39 @@ const Inventory = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 mt-1">
-                  {/* Color display with visual swatches */}
-                  {(selectedItem.color || (selectedItem.colors && selectedItem.colors.length > 0)) && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setEditingColors(!editingColors)}
-                        className="flex items-center gap-2 group"
-                      >
-                        <div className="flex -space-x-2">
-                          {materialColors.map((c, idx) => (
-                            <div
-                              key={idx}
-                              className="w-5 h-5 rounded-full border-2 border-white dark:border-zinc-800 group-hover:ring-2 ring-red-600/40 transition-all cursor-pointer"
-                              style={{ backgroundColor: toColorCssValue(c), zIndex: materialColors.length - idx }}
-                              title={c}
-                            />
-                          ))}
-                        </div>
-                        <span className="text-[10px] text-zinc-400 uppercase font-bold">
-                          {materialColors.join(', ')}
-                        </span>
-                      </button>
-                      <button
-                        onClick={() => setEditingColors(!editingColors)}
-                        className="ml-2 p-2 bg-zinc-100 dark:bg-zinc-800 rounded-xl hover:bg-red-600 hover:text-white transition-all"
-                        title={editingColors ? 'Close color editor' : 'Edit colors'}
-                      >
-                        {editingColors ? <HiOutlineXMark size={14} /> : <HiOutlinePencil size={14} />}
-                      </button>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setEditingColors(!editingColors)}
+                      className="flex items-center gap-2 group"
+                    >
+                      {materialColors.length > 0 ? (
+                        <>
+                          <div className="flex -space-x-2">
+                            {materialColors.map((c, idx) => (
+                              <div
+                                key={idx}
+                                className="w-5 h-5 rounded-full border-2 border-white dark:border-zinc-800 group-hover:ring-2 ring-red-600/40 transition-all cursor-pointer"
+                                style={{ backgroundColor: toColorCssValue(c), zIndex: materialColors.length - idx }}
+                                title={c}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-[10px] text-zinc-400 uppercase font-bold">
+                            {materialColors.join(', ')}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-[10px] text-zinc-400 uppercase font-bold italic">No colors set</span>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setEditingColors(!editingColors)}
+                      className="ml-2 p-2 bg-zinc-100 dark:bg-zinc-800 rounded-xl hover:bg-red-600 hover:text-white transition-all"
+                      title={editingColors ? 'Close color editor' : 'Edit colors'}
+                    >
+                      {editingColors ? <HiOutlineXMark size={14} /> : <HiOutlinePencil size={14} />}
+                    </button>
+                  </div>
                 </div>
                 {editingField === 'texture' ? (
                   <div className="mt-2 space-y-2 w-full">

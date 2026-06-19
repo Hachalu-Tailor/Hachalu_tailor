@@ -17,7 +17,7 @@ import {
   HiOutlinePencil,
   HiOutlineSwatch
 } from "react-icons/hi2";
-import api, { getMaterials, createMaterial, adjustStock, updateMaterial, createColor, getColors } from "../../api/api";
+import api, { getMaterials, createMaterial, adjustStock, updateMaterial, createColor, getColors, deleteMaterial } from "../../api/api";
 import ColorCreateCollection from './ColorCreateCollection';
 // import { STORAGE_KEYS } from "../../utils/constants";
 
@@ -328,6 +328,11 @@ const Inventory = () => {
 
   const handleStockUpdate = async () => {
     if (!selectedItem) return;
+    const qty = stockUpdate.quantity_meters;
+    if (stockUpdate.action_type === "add" && (!qty || qty <= 0)) {
+      alert("Quantity must be greater than 0 when adding stock.");
+      return;
+    }
     try {
       await adjustStock(selectedItem.id, stockUpdate);
       setSelectedItem(null);
@@ -335,6 +340,20 @@ const Inventory = () => {
     } catch (error) {
       console.error("Error updating stock:", error);
       alert("Stock update failed. Please try again.");
+    }
+  };
+
+  const handleDeleteMaterial = async () => {
+    if (!selectedItem) return;
+    const confirmed = window.confirm(`Are you sure you want to delete "${selectedItem.name}"? This action cannot be undone.`);
+    if (!confirmed) return;
+    try {
+      await deleteMaterial(selectedItem.id);
+      setSelectedItem(null);
+      fetchInventory();
+    } catch (error) {
+      console.error("Error deleting material:", error);
+      alert("Failed to delete material. Please try again.");
     }
   };
 
@@ -792,12 +811,15 @@ const Inventory = () => {
                   {/* Color display with visual swatches */}
                   {(selectedItem.color || (selectedItem.colors && selectedItem.colors.length > 0)) && (
                     <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setEditingColors(!editingColors)}
+                        className="flex items-center gap-2 group"
+                      >
                         <div className="flex -space-x-2">
                           {materialColors.map((c, idx) => (
                             <div
                               key={idx}
-                              className="w-5 h-5 rounded-full border-2 border-white dark:border-zinc-800"
+                              className="w-5 h-5 rounded-full border-2 border-white dark:border-zinc-800 group-hover:ring-2 ring-red-600/40 transition-all cursor-pointer"
                               style={{ backgroundColor: toColorCssValue(c), zIndex: materialColors.length - idx }}
                               title={c}
                             />
@@ -806,12 +828,13 @@ const Inventory = () => {
                         <span className="text-[10px] text-zinc-400 uppercase font-bold">
                           {materialColors.join(', ')}
                         </span>
-                      </div>
+                      </button>
                       <button
                         onClick={() => setEditingColors(!editingColors)}
-                        className="ml-3 p-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-sm"
+                        className="ml-2 p-2 bg-zinc-100 dark:bg-zinc-800 rounded-xl hover:bg-red-600 hover:text-white transition-all"
+                        title={editingColors ? 'Close color editor' : 'Edit colors'}
                       >
-                        {editingColors ? 'Close' : 'Edit Colors'}
+                        {editingColors ? <HiOutlineXMark size={14} /> : <HiOutlinePencil size={14} />}
                       </button>
                     </div>
                   )}
@@ -949,9 +972,14 @@ const Inventory = () => {
                           <button
                             onClick={async () => {
                               try {
-                                // Send array of color names to backend
-                                await updateMaterial(selectedItem.id, { colors: materialColors });
-                                setSelectedItem({ ...selectedItem, colors: materialColors.map(c => ({ name: c })) });
+                                const resolvedColors = await Promise.all(
+                                  materialColors.map(async (c) => {
+                                    const resolved = await resolveOrCreateColor(c);
+                                    return resolved || c;
+                                  })
+                                );
+                                await updateMaterial(selectedItem.id, { colors: resolvedColors });
+                                setSelectedItem({ ...selectedItem, colors: resolvedColors.map(c => ({ name: c })) });
                                 setEditingColors(false);
                                 fetchInventory();
                               } catch (error) {
@@ -1124,6 +1152,13 @@ const Inventory = () => {
                   className="w-full py-5 bg-red-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.4em] shadow-xl shadow-red-600/20 hover:bg-black dark:hover:bg-white dark:hover:text-black transition-all"
                 >
                   Commit Update
+                </button>
+
+                <button
+                  onClick={handleDeleteMaterial}
+                  className="w-full py-4 mt-3 bg-red-600/10 text-red-600 rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] border border-red-600/20 hover:bg-red-600 hover:text-white transition-all flex items-center justify-center gap-2"
+                >
+                  <HiOutlineTrash size={16} /> Delete Material
                 </button>
               </div>
 

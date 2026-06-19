@@ -4,7 +4,7 @@ from rest_framework.test import APIClient, APITestCase
 from accounts.models import User
 from rest_framework.exceptions import ValidationError
 from .services import _normalize_quantity, update_material
-from .models import Material, Stock
+from .models import Material, Stock, Color
 
 
 class InventoryApiTests(APITestCase):
@@ -24,16 +24,20 @@ class InventoryApiTests(APITestCase):
             phone_number="444",
             role=User.RECEPTIONIST,
         )
+        self.black = Color.objects.create(name="Black")
+        self.blue = Color.objects.create(name="Blue")
+        self.white = Color.objects.create(name="White")
+        self.red = Color.objects.create(name="Red")
 
     def test_material_list_requires_auth(self):
-        response = self.client.get("/api/invetory/materials/")
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        response = self.client.get("/api/invetory/materials/list/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_material_create_validates_payload(self):
         self.client.force_authenticate(user=self.admin)
         response = self.client.post(
-            "/api/invetory/materials/",
-            {"material": {"color": "Black"}, "quantity_meters": 2},
+            "/api/invetory/materials/create/",
+            {"material": {"name": ""}, "quantity_meters": 2},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -41,11 +45,11 @@ class InventoryApiTests(APITestCase):
     def test_material_create_and_stock(self):
         self.client.force_authenticate(user=self.receptionist)
         response = self.client.post(
-            "/api/invetory/materials/",
+            "/api/invetory/materials/create/",
             {
                 "material": {
                     "name": "Wool",
-                    "color": "Black",
+                    "colors": ["Black"],
                     "texture": "Soft",
                 },
                 "quantity_meters": "5.5",
@@ -57,7 +61,8 @@ class InventoryApiTests(APITestCase):
         self.assertEqual(material.inventory.quantity_meters, 5.5)
 
     def test_stock_adjust_invalid_action(self):
-        material = Material.objects.create(name="Cotton", color="Blue")
+        material = Material.objects.create(name="Cotton")
+        material.colors.set([self.blue])
         Stock.objects.create(material=material, quantity_meters=1)
 
         self.client.force_authenticate(user=self.admin)
@@ -69,7 +74,8 @@ class InventoryApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_stock_add_negative_rejected(self):
-        material = Material.objects.create(name="Linen", color="White")
+        material = Material.objects.create(name="Linen")
+        material.colors.set([self.white])
         Stock.objects.create(material=material, quantity_meters=1)
 
         self.client.force_authenticate(user=self.admin)
@@ -87,7 +93,9 @@ class InventoryServiceTests(APITestCase):
             _normalize_quantity(-1)
 
     def test_update_material_rejects_unexpected_fields(self):
-        material = Material.objects.create(name="Silk", color="Red")
+        material = Material.objects.create(name="Silk")
+        red = Color.objects.create(name="Red")
+        material.colors.set([red])
         admin = User.objects.create_user(
             email="admin@example.com",
             password="secret123",

@@ -81,10 +81,26 @@ const ColorCreateCollection = ({ isOpen, onClose, onCreated }) => {
 
           <div className="space-y-3">
             <div>
+              <label className="text-xs font-bold text-zinc-500 uppercase">Color Name</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Midnight Blue"
+                className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2"
+              />
+            </div>
+            <div>
               <label className="text-xs font-bold text-zinc-500 uppercase">Pick Color</label>
               <div className="flex items-center gap-2 mt-2">
                 <input type="color" value={hex} onChange={(e) => setHex(e.target.value)} className="w-12 h-12 rounded" />
-                <input type="text" value={hex} onChange={(e) => setHex(e.target.value)} className="flex-1 bg-zinc-100 dark:bg-zinc-900 rounded-xl px-3 py-2" />
+                <input type="text" value={hex} onChange={(e) => {
+                  setHex(e.target.value);
+                  const parsed = normalizeHexValue(e.target.value);
+                  if (/^#[0-9A-F]{6}$/i.test(parsed) && !name.trim()) {
+                    setName('');
+                  }
+                }} className="flex-1 bg-zinc-100 dark:bg-zinc-900 rounded-xl px-3 py-2" />
               </div>
             </div>
 

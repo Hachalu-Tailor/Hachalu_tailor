@@ -11,6 +11,7 @@ from .services import (
     list_materials,
     create_material_with_stock,
     update_material,
+    delete_material,
     add_stock,
     set_stock_quantity,
 )
@@ -162,6 +163,16 @@ class MaterialDetailView(APIView):
         )
         serializer = MaterialSerializer(updated_material, context={"request": request})
         return Response(serializer.data)
+
+    @extend_schema(
+        tags=["Inventory"],
+        responses={204: None, 404: dict},
+        description="Delete a material.",
+    )
+    def delete(self, request, pk):
+        material = get_object_or_404(Material, pk=pk)
+        delete_material(material=material, requester=request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class StockAdjustmentView(APIView):

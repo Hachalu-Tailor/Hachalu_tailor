@@ -21,9 +21,17 @@ class OrderSerializer(serializers.ModelSerializer):
     )
     suit_type_name = serializers.CharField(source="suit_type.name", read_only=True)
     material_name = serializers.CharField(source="material.name", read_only=True)
-    image_url = serializers.CharField(source="material.image_url", read_only=True)
+    image_url = serializers.SerializerMethodField()
     measurements = MeasurementSerializer(source="measurement", read_only=True)
     selected_color = serializers.CharField(source="selected_color.name", read_only=True)
+
+    def get_image_url(self, obj):
+        if obj.material and obj.material.image_url:
+            url = obj.material.image_url
+            if isinstance(url, str) and url.startswith("data:"):
+                return None
+            return url
+        return None
 
     class Meta:
         model = Order

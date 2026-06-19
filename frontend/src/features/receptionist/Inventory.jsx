@@ -14,7 +14,8 @@ import {
   HiOutlineCheckBadge,
   HiOutlineCloudArrowUp,
   HiOutlineTrash,
-  HiOutlinePencil
+  HiOutlinePencil,
+  HiOutlineSwatch
 } from "react-icons/hi2";
 import api, { getMaterials, createMaterial, adjustStock, updateMaterial, createColor, getColors } from "../../api/api";
 import ColorCreateCollection from './ColorCreateCollection';
@@ -389,6 +390,12 @@ const Inventory = () => {
             <KPICard label="Active Units" value={inventory.length} />
             <KPICard label="Depleted" value={depletedCount} highlight />
             <button
+              onClick={() => setShowCreateColorModal(true)}
+              className="px-6 py-4 bg-zinc-800 dark:bg-white/10 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-700 dark:hover:bg-white/20 transition-all flex items-center gap-2"
+            >
+              <HiOutlineSwatch /> Add Color
+            </button>
+            <button
               onClick={() => setShowAddModal(true)}
               className="px-6 py-4 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all flex items-center gap-2"
             >
@@ -526,7 +533,16 @@ const Inventory = () => {
                         </td>
 
                         <td className="p-6 text-right">
-                          <StatusBadge qty={qty} />
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setSelectedItem(item); setTimeout(() => setEditingColors(true), 100); }}
+                              className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-xl text-zinc-500 hover:text-red-600 hover:bg-red-600/10 transition-all"
+                              title="Edit Colors"
+                            >
+                              <HiOutlineSwatch size={16} />
+                            </button>
+                            <StatusBadge qty={qty} />
+                          </div>
                         </td>
                       </tr>
                     );
@@ -869,8 +885,8 @@ const Inventory = () => {
                                         : "bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700"
                                     }`}
                                   >
-                                    <span className="w-8 h-6 border border-zinc-300" style={{ backgroundColor: toColorCssValue(color.name) }} />
-                                    {/* {color.name} */}
+                                    <span className="w-8 h-6 border border-zinc-300 rounded-l" style={{ backgroundColor: toColorCssValue(color.name) }} />
+                                    <span className="px-2">{color.name}</span>
                                   </button>
                                 );
                               })}
@@ -1215,8 +1231,8 @@ const Inventory = () => {
                                     : "bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700"
                                 }`}
                               >
-                                <span className="w-10 h-6 border border-zinc-300" style={{ backgroundColor: toColorCssValue(color.name) }} />
-                                {/* {color.name} */}
+                                <span className="w-8 h-6 border border-zinc-300 rounded-l" style={{ backgroundColor: toColorCssValue(color.name) }} />
+                                <span className="px-2">{color.name}</span>
                               </button>
                             );
                           })}

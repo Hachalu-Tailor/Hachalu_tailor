@@ -23,6 +23,16 @@ import { createOrder, getMaterials, getSuitTypes } from '../api/api';
 import { getHexColor, isLightColor } from '../utils/colors';
 import { useParams, useNavigate } from 'react-router-dom';
 
+const BACKEND_BASE = import.meta.env.PROD
+  ? 'https://hachalu-tailor.onrender.com'
+  : 'http://127.0.0.1:8000';
+
+const resolveImageUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `${BACKEND_BASE}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
 const Items = () => {
   const { category: urlCategory } = useParams();
   const navigate = useNavigate();
@@ -89,7 +99,7 @@ const Items = () => {
         const mappedData = materialsData.map(m => ({
           ...m,
           category: normalizeCategory(m.category),
-          img: m.image_url || 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?q=80&w=1480',
+          img: resolveImageUrl(m.suit_sample_image) || resolveImageUrl(m.material_image) || m.image_url || 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?q=80&w=1480',
           desc: m.description || `A premium ${m.texture} fabric in a sophisticated ${m.color || m.colors?.[0]?.name || 'varied'} finish.`,
           price: m.inventory ? `${m.inventory.quantity_meters}m Available` : "Check Stock",
           colors: m.colors && m.colors.length > 0 ? m.colors : m.color ? [{ name: m.color }] : []

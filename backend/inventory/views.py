@@ -151,10 +151,16 @@ class MaterialDetailView(APIView):
     )
     def patch(self, request, pk):
         material = get_object_or_404(Material, pk=pk)
+        updates = request.data.copy()
+        if request.FILES.get("material_image"):
+            updates["material_image"] = request.FILES.get("material_image")
+        if request.FILES.get("suit_sample_image"):
+            updates["suit_sample_image"] = request.FILES.get("suit_sample_image")
+
         updated_material = update_material(
-            material=material, updates=request.data, requester=request.user
+            material=material, updates=updates, requester=request.user
         )
-        serializer = MaterialSerializer(updated_material)
+        serializer = MaterialSerializer(updated_material, context={"request": request})
         return Response(serializer.data)
 
 

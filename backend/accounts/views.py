@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework import generics
 from rest_framework.exceptions import NotFound
+from rest_framework.pagination import PageNumberPagination
 
 from rest_framework.decorators import action
 from .permissions import IsAdmin
@@ -12,6 +13,7 @@ from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schem
 from .serializers import (
     UserSerializer,
     AuditLogSerializer,
+    AuditLogListSerializer,
     ChangePasswordSerializer,
     UpdateUserSerializer,
     NotificationSerializer,
@@ -255,7 +257,14 @@ class UserUpdateProfileView(views.APIView):
 
 class AuditLogListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated, IsAdmin]
-    serializer_class = AuditLogSerializer
+    serializer_class = AuditLogListSerializer
+
+    class AuditLogPagination(PageNumberPagination):
+        page_size = 25
+        page_size_query_param = "page_size"
+        max_page_size = 100
+
+    pagination_class = AuditLogPagination
 
     @extend_schema(
         tags=["Audit"],
@@ -311,10 +320,8 @@ class AuditLogListView(generics.ListAPIView):
         ],
         description="List audit logs with optional filters.",
     )
-    def get(self, request):
-        """
-        GET /admin/audit-logs: List all audit logs
-        """
+    def get_queryset(self):
+        request = self.request
         search_query = request.query_params.get("search")
         filter_by_actor = request.query_params.get("actor")
         filter_by_action = request.query_params.get("action")
@@ -322,13 +329,12 @@ class AuditLogListView(generics.ListAPIView):
         end_date = request.query_params.get("end_date")
         date_range = [start_date, end_date] if start_date and end_date else None
 
-        logs = list_audit_logs(
+        return list_audit_logs(
             search_query=search_query,
             filter_by_actor=filter_by_actor,
             filter_by_action=filter_by_action,
             filter_by_date_range=date_range,
         )
-        return Response(self.serializer_class(logs, many=True).data)
 
 
 class AuditLogDetailView(generics.RetrieveAPIView):

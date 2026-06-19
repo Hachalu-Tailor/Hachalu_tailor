@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    HiOutlineCurrencyDollar, HiOutlineCheckCircle, HiOutlineXCircle,
-    HiOutlineClock, HiOutlineExclamationTriangle, HiOutlineDocumentText,
-    HiOutlinePrinter, HiOutlineXMark, HiOutlineArrowPath
+    HiOutlineCurrencyDollar, HiOutlineCheckCircle, HiOutlineXCircle, HiOutlineExclamationTriangle,
+    HiOutlinePrinter, HiOutlineXMark
 } from 'react-icons/hi2';
 import api, { getMaterialDetail } from '../../api/api';
-import { formatCurrency, formatDate, formatDateTime } from '../../utils/helpers';
+import { formatCurrency, formatDateTime } from '../../utils/helpers';
 import { PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS, CURRENCY } from '../../utils/constants';
 import { getHexColor } from '../../utils/colors';
 
@@ -341,3 +340,4 @@ const PaymentReview = ({ isOpen, onClose, payment, onApprove, onReject }) => {
 };
 
 export default PaymentReview;
+

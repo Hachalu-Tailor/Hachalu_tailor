@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
   HiOutlineUserPlus, HiOutlineTrash, HiOutlineEnvelope,
   HiOutlinePhone, HiOutlineShieldCheck, HiOutlineXMark,
@@ -7,11 +8,12 @@ import {
   HiOutlineIdentification, HiOutlineEllipsisVertical,
   HiOutlineEnvelopeOpen, HiOutlineChatBubbleBottomCenterText,
   HiOutlineBriefcase, HiOutlineFingerPrint, HiOutlineCalendarDays, HiOutlineChevronDown,
-  HiOutlineSignal, HiOutlineClipboard
+  HiOutlineSignal, HiOutlineClipboard, HiOutlineArrowLeft
 } from 'react-icons/hi2';
 import { listStaff, addStaff, deleteStaff } from '../../api/api';
 
 const StaffManagement = () => {
+  const navigate = useNavigate();
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -123,6 +125,9 @@ const StaffManagement = () => {
       <div className="max-w-7xl mx-auto mb-10">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-white dark:bg-[#0a0a0a] p-8 rounded-[3rem] border border-gray-100 dark:border-white/5 shadow-2xl shadow-black/5">
           <div>
+            <button onClick={() => navigate('/admin')} className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-red-600 transition-colors mb-3">
+              <HiOutlineArrowLeft size={14} /> Back to Dashboard
+            </button>
             <h1 className="text-3xl font-black dark:text-white tracking-tighter uppercase italic flex items-center gap-3">
               Personnel <span className="text-red-600">Terminal</span>
             </h1>
@@ -276,6 +281,9 @@ const StaffManagement = () => {
               initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
               className="relative w-full max-w-xl bg-white dark:bg-[#080808] rounded-[4rem] p-10 md:p-14 border dark:border-white/10"
             >
+              <button onClick={() => { if (!loading) { setShowAddModal(false); setCreatedUser(null); } }} className="absolute top-8 right-8 p-3 bg-gray-100 dark:bg-white/5 rounded-full text-gray-400 hover:text-red-600 transition-all z-10">
+                <HiOutlineXMark size={24} />
+              </button>
               {!createdUser ? (
                 <form onSubmit={handleCreate} className="space-y-8">
                   <div className="text-center md:text-left">

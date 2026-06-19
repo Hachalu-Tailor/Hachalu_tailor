@@ -6,6 +6,16 @@ import { getMaterials, getSuitTypes } from '../api/api';
 import Contact from './Contact';
 import { IMAGES } from '../constants/images';
 
+const BACKEND_BASE = import.meta.env.PROD
+  ? 'https://hachalu-tailor.onrender.com'
+  : 'http://127.0.0.1:8000';
+
+const resolveImageUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `${BACKEND_BASE}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
 const suits = [
   {
     id: 1,
@@ -73,7 +83,7 @@ const Home = () => {
         id: material.id,
         title: material.name || 'Custom Suit',
         collection: material.category || 'Premium Collection',
-        image: material.image_url || Object.values(IMAGES.UI)[idx % 5 + 1],
+        image: resolveImageUrl(material.suit_sample_image) || resolveImageUrl(material.material_image) || material.image_url || Object.values(IMAGES.UI)[idx % 5 + 1],
         desc: material.description || `Premium ${material.texture || ''} fabric tailored to perfection.`
       }));
 

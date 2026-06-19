@@ -7,7 +7,7 @@ import {
   HiOutlineIdentification, HiOutlineEllipsisVertical,
   HiOutlineEnvelopeOpen, HiOutlineChatBubbleBottomCenterText,
   HiOutlineBriefcase, HiOutlineFingerPrint, HiOutlineCalendarDays, HiOutlineChevronDown,
-  HiOutlineSignal
+  HiOutlineSignal, HiOutlineClipboard
 } from 'react-icons/hi2';
 import { listStaff, addStaff, deleteStaff } from '../../api/api';
 
@@ -18,6 +18,8 @@ const StaffManagement = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [createdUser, setCreatedUser] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const [copyText, setCopyText] = useState('COPY');
 
   const [formData, setFormData] = useState({
     email: '',
@@ -75,6 +77,8 @@ const StaffManagement = () => {
     try {
       const res = await addStaff(formData);
       setCreatedUser({ ...res.data, email: formData.email });
+      setCopied(false);
+      setCopyText('COPY');
       setFormData({ email: '', full_name: '', phone_number: '', role: 'RECEPTIONIST' });
       loadStaff();
     } catch (err) {
@@ -285,12 +289,12 @@ const StaffManagement = () => {
                     {/* Select button from admin or receptionist */}
                     {/* --- ROLE DROP SELECT --- */}
                     <div className="space-y-2">
-                      <label className="text-[9px] font-black uppercase tracking-widest opacity-40 ml-1">Access Level</label>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1">Access Level</label>
                       <div className="relative">
                         <select
                           value={formData.role}
                           onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                          className="w-full bg-gray-100 dark:bg-white/5 border-none p-5 rounded-none text-xs font-bold tracking-widest outline-none appearance-none cursor-pointer focus:ring-1 focus:ring-[#BA181B] uppercase"
+                          className="w-full bg-gray-50 dark:bg-[#111] border border-transparent focus:border-red-600 p-5 rounded-2xl text-xs font-bold tracking-widest outline-none appearance-none cursor-pointer dark:text-white transition-all uppercase"
                         >
                           <option value="RECEPTIONIST">Receptionist (Standard)</option>
                           <option value="GARMENT">Garment (Tailor)</option>
@@ -310,7 +314,20 @@ const StaffManagement = () => {
                   <h3 className="text-2xl font-black dark:text-white uppercase tracking-tighter italic mb-8">{createdUser.message}</h3>
                   <div className="bg-gray-50 dark:bg-white/5 border-2 border-dashed border-red-600/30 p-10 rounded-[2.5rem] mb-10">
                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">One-Time Security Token</p>
-                    <span className="text-4xl font-mono font-black text-red-600 tracking-widest select-all">{createdUser.temporary_password}</span>
+                    <div className="flex items-center justify-center gap-4">
+                      <span className="text-4xl font-mono font-black text-red-600 tracking-widest select-all break-all">{createdUser.temporary_password}</span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(createdUser.temporary_password);
+                          setCopied(true);
+                          setCopyText('COPIED!');
+                          setTimeout(() => { setCopied(false); setCopyText('COPY'); }, 3000);
+                        }}
+                        className={`p-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${copied ? 'bg-green-500 text-white' : 'bg-white dark:bg-black text-red-600 border border-red-600/30 hover:bg-red-600 hover:text-white'}`}
+                      >
+                        <HiOutlineClipboard size={18} /> {copyText}
+                      </button>
+                    </div>
                   </div>
                   <button onClick={() => { setShowAddModal(false); setCreatedUser(null); }} className="w-full py-5 bg-black dark:bg-white text-white dark:text-black rounded-3xl text-[11px] font-black uppercase tracking-widest">CLOSE TERMINAL</button>
                 </div>
@@ -343,7 +360,7 @@ const Input = ({ label, type, placeholder, value, onChange }) => (
     <input
       required type={type} placeholder={placeholder} value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-gray-50 dark:bg-black border border-transparent focus:border-red-600 p-5 rounded-2xl text-[11px] font-bold tracking-widest outline-none dark:text-white transition-all"
+      className="w-full bg-gray-50 dark:bg-[#111] border border-transparent focus:border-red-600 p-5 rounded-2xl text-[11px] font-bold tracking-widest outline-none dark:text-white dark:placeholder-gray-500 transition-all"
     />
   </div>
 );

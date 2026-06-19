@@ -6,7 +6,7 @@ import {
   HiOutlineShoppingBag, HiOutlineClock, HiOutlineXMark, HiOutlineArrowPath,
   HiOutlineClipboardDocumentCheck, HiOutlineBanknotes
 } from 'react-icons/hi2';
-import { getOrders, getSuitTypes, createOrder, processOrder, getMaterials, getMaterialDetail, getColorsFromMaterials, getPaymentByOrderId, updateReceptionOrderStatusByCode, updateOrder } from '../../api/api';
+import { getOrders, getSuitTypes, createOrder, processOrder, getMaterials, getMaterialDetail, getColors, getPaymentByOrderId, updateReceptionOrderStatusByCode, updateOrder } from '../../api/api';
 import { getHexColor } from '../../utils/colors';
 
 const Orders = () => {
@@ -26,6 +26,7 @@ const Orders = () => {
   const [suitTypes, setSuitTypes] = useState([]);
   const [materials, setMaterials] = useState([]);
   const [selectedMaterialColors, setSelectedMaterialColors] = useState([]);
+  const [backendColorNames, setBackendColorNames] = useState([]);
   const [newOrder, setNewOrder] = useState({
     customer_name: '',
     customer_phone: '',
@@ -50,6 +51,7 @@ const Orders = () => {
     fetchOrders();
     fetchSuitTypes();
     fetchMaterials();
+    fetchColors();
   }, []);
 
   // Open order from dashboard deep link
@@ -104,6 +106,20 @@ const Orders = () => {
     }
   };
 
+  const fetchColors = async () => {
+    try {
+      const response = await getColors();
+      let colorsData = response.data;
+      if (colorsData && typeof colorsData === 'object' && !Array.isArray(colorsData)) {
+        colorsData = colorsData.results || colorsData.data || colorsData.items || [];
+      }
+      const names = (colorsData || []).map(c => c.name).filter(Boolean);
+      setBackendColorNames(names);
+    } catch (error) {
+      console.error('Error fetching colors:', error);
+    }
+  };
+
   // Update colors when material is selected
   const handleMaterialChange = (materialId) => {
     const material = materials.find(m => m.id === parseInt(materialId));
@@ -113,6 +129,10 @@ const Orders = () => {
       colors = material.colors.map(c => typeof c === 'object' ? c.name : c);
     } else if (material?.color) {
       colors = [material.color];
+    }
+    // Only keep colors that exist in the backend Color model
+    if (backendColorNames.length > 0) {
+      colors = colors.filter(c => backendColorNames.includes(c));
     }
     setSelectedMaterialColors(colors);
     setNewOrder({
@@ -139,19 +159,29 @@ const Orders = () => {
       numericMeasurements[field] = value;
     }
 
-    // Build order data - color is optional in frontend
+    const suitTypeId = parseInt(newOrder.suit_type);
+    if (Number.isNaN(suitTypeId)) {
+      alert('Please select a valid suit type.');
+      return;
+    }
+
+    const materialId = parseInt(newOrder.material);
+    if (Number.isNaN(materialId)) {
+      alert('Please select a valid material.');
+      return;
+    }
+
     const orderData = {
       customer_name: newOrder.customer_name,
       customer_phone: newOrder.customer_phone,
-      suit_type: parseInt(newOrder.suit_type),
-      material: parseInt(newOrder.material),
+      suit_type: suitTypeId,
+      material: materialId,
       quantity: newOrder.quantity || 1,
       measurements: numericMeasurements
     };
 
-    // Add selected_color only if it has a value
     if (newOrder.selected_color && newOrder.selected_color.trim()) {
-      orderData.selected_color = newOrder.selected_color;
+      orderData.selected_color = newOrder.selected_color.trim();
     }
 
     try {
@@ -164,15 +194,22 @@ const Orders = () => {
       fetchOrders();
     } catch (error) {
       console.error('Error creating order:', error);
-      // Show detailed error message
       const errorData = error.response?.data;
+      const status = error.response?.status;
       let errorMsg = 'Something went wrong. Please try again.';
 
       if (errorData) {
         if (typeof errorData === 'string') {
-          errorMsg = errorData;
+          const match = errorData.match(/<pre[^>]*>([^<]+)<\/pre>/);
+          errorMsg = match ? match[1].trim() : (errorData.startsWith('<') ? 'Validation error occurred. Please check your inputs.' : errorData);
         } else if (typeof errorData === 'object') {
-          errorMsg = Object.entries(errorData).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`).join('\n');
+          if (errorData.error) {
+            errorMsg = errorData.error;
+          } else if (errorData.detail) {
+            errorMsg = errorData.detail;
+          } else {
+            errorMsg = Object.entries(errorData).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`).join('\n');
+          }
         }
       }
       alert(errorMsg);
@@ -845,12 +882,20 @@ const Orders = () => {
                       value={newOrder.material}
                       onChange={(e) => {
                         const material = materials.find(m => m.id === parseInt(e.target.value));
-                        const colors = material?.colors || [];
+                        let colors = [];
+                        if (material?.colors && Array.isArray(material.colors)) {
+                          colors = material.colors.map(c => typeof c === 'object' ? c.name : c);
+                        } else if (material?.color) {
+                          colors = [material.color];
+                        }
+                        if (backendColorNames.length > 0) {
+                          colors = colors.filter(c => backendColorNames.includes(c));
+                        }
                         setSelectedMaterialColors(colors);
                         setNewOrder({
                           ...newOrder,
                           material: e.target.value,
-                          selected_color: colors.length > 0 ? colors[0].name : ''
+                          selected_color: colors.length > 0 ? colors[0] : ''
                         });
                       }}
                       className="w-full bg-zinc-100 dark:bg-zinc-900 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 ring-red-600/20 mt-2 dark:text-white cursor-pointer"
@@ -870,7 +915,7 @@ const Orders = () => {
                         required
                       >
                         <option value="">Select Color</option>
-                        {selectedMaterialColors.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                        {selectedMaterialColors.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
                   )}

@@ -11,9 +11,11 @@ import {
   HiOutlineSwatch, HiOutlineMagnifyingGlass, HiOutlineMegaphone,
   HiOutlineXMark
 } from 'react-icons/hi2';
+import { HiOutlineSquares2X2 } from 'react-icons/hi2';
 import { getOrders, getMaterials, getPayments } from '../api/api';
 import { useAuth } from '../hooks/useAuth';
 import { formatCurrency, formatRelativeTime } from '../utils/helpers';
+import { products } from '../hooks/productData';
 import {
   ORDER_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
@@ -527,6 +529,56 @@ const ReceptionDashboard = () => {
               );
             })}
           </div>
+        </div>
+      </motion.div>
+
+      {/* Available Products */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-3xl p-6"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-red-600/10 rounded-xl flex items-center justify-center">
+              <HiOutlineSquares2X2 className="text-red-600" size={20} />
+            </div>
+            <div>
+              <h3 className="text-sm font-black dark:text-white uppercase tracking-widest">Available Products</h3>
+              <p className="text-[10px] text-gray-500">{products.length} suit collections</p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/items')}
+            className="text-[10px] font-black text-red-600 uppercase tracking-widest hover:underline"
+          >
+            View All
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {products.map((product) => (
+            <motion.div
+              key={product.id}
+              whileHover={{ scale: 1.02 }}
+              className="group bg-gray-50 dark:bg-white/5 rounded-2xl overflow-hidden border border-gray-100 dark:border-white/5 hover:border-red-600/30 transition-all cursor-pointer"
+              onClick={() => navigate('/items')}
+            >
+              <div className="h-28 sm:h-36 bg-gray-200 dark:bg-white/10 overflow-hidden">
+                <img
+                  src={product.img}
+                  alt={product.name}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              </div>
+              <div className="p-3">
+                <p className="text-[9px] font-bold text-red-600 uppercase tracking-widest">{product.category}</p>
+                <p className="text-xs font-black dark:text-white truncate mt-1">{product.name}</p>
+                <p className="text-[10px] text-gray-500 mt-1">{product.price}</p>
+              </div>
+            </motion.div>
+          ))}
         </div>
       </motion.div>
 

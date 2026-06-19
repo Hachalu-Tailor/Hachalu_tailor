@@ -23,6 +23,16 @@ import { createOrder, getMaterials, getSuitTypes } from '../api/api';
 import { getHexColor, isLightColor } from '../utils/colors';
 import { useParams, useNavigate } from 'react-router-dom';
 
+const BACKEND_BASE = import.meta.env.PROD
+  ? 'https://hachalu-tailor.onrender.com'
+  : 'http://127.0.0.1:8000';
+
+const resolveImageUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `${BACKEND_BASE}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
 const Items = () => {
   const { category: urlCategory } = useParams();
   const navigate = useNavigate();
@@ -89,17 +99,10 @@ const Items = () => {
         const mappedData = materialsData.map(m => ({
           ...m,
           category: normalizeCategory(m.category),
-          img: m.image_url || 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?q=80&w=1480',
+          img: resolveImageUrl(m.suit_sample_image) || resolveImageUrl(m.material_image) || m.image_url || 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?q=80&w=1480',
           desc: m.description || `A premium ${m.texture} fabric in a sophisticated ${m.color || m.colors?.[0]?.name || 'varied'} finish.`,
           price: m.inventory ? `${m.inventory.quantity_meters}m Available` : "Check Stock",
-          colors: m.colors && m.colors.length > 0 ? m.colors : m.color ? [{ name: m.color }] : [
-            { name: 'Black' },
-            { name: 'White' },
-            { name: 'Navy' },
-            { name: 'Brown' },
-            { name: 'Gray' },
-            { name: 'Blue' }
-          ]
+          colors: m.colors && m.colors.length > 0 ? m.colors : m.color ? [{ name: m.color }] : []
         }));
 
         setMaterials(mappedData);
@@ -203,12 +206,6 @@ const Items = () => {
   };
 
   const handleSubmit = async () => {
-       // REQUIRE COLOR SELECTION
-    if (!formData.selected_color) {
-      alert('Order color required. Please select a color before proceeding.');
-      setActiveTab('bespoke'); // Move to tailoring tab where colors are
-      return;
-    }
     if (!formData.customer_name || !formData.customer_phone) {
       alert('Please complete contact information');
       return;
@@ -229,44 +226,44 @@ const Items = () => {
     }
 
     // Build payload with validated measurements
+    const suitTypeId = parseInt(formData.suit_type);
+    if (Number.isNaN(suitTypeId)) {
+      alert('Please select a valid suit type.');
+      return;
+    }
+
+    const materialId = parseInt(selectedItem?.id);
+    if (Number.isNaN(materialId)) {
+      alert('Invalid material selected. Please try again.');
+      return;
+    }
+
     const payload = {
       customer_name: formData.customer_name,
       customer_phone: formData.customer_phone,
-      suit_type: parseInt(formData.suit_type) || formData.suit_type,
-      material: parseInt(selectedItem?.id) || selectedItem?.id,
+      suit_type: suitTypeId,
+      material: materialId,
       quantity: parseInt(formData.quantity) || 1,
       measurements: numericMeasurements
     };
 
-    // Make selected_color required - get first color from material if available
-    let defaultColor = formData.selected_color;
+    // Handle color - only required if material has colors
+    const availableColors = selectedItem?.colors?.map(c => typeof c === 'object' ? c.name : c) || [];
 
-    // Ensure the color exists in the material's colors
-    const availableColors = activeItem?.colors?.map(c => typeof c === 'object' ? c.name : c) || [];
-
-    if (!defaultColor && availableColors.length > 0) {
-      defaultColor = availableColors[0];
-    }
-
-    // Validate that the selected color is in the available colors
-    if (defaultColor && availableColors.length > 0) {
+    if (availableColors.length > 0) {
+      let defaultColor = formData.selected_color;
+      if (!defaultColor) {
+        defaultColor = availableColors[0];
+      }
       const colorMatch = availableColors.find(c =>
         c.toLowerCase() === defaultColor.toLowerCase()
       );
-      if (!colorMatch) {
-        // Use first available color if selected color is not valid
-        defaultColor = availableColors[0];
+      if (colorMatch) {
+        payload.selected_color = colorMatch;
       } else {
-        defaultColor = colorMatch; // Use the exact case from available colors
+        payload.selected_color = availableColors[0];
       }
     }
-
-    if (!defaultColor) {
-      alert('Please select a color for your order.');
-      return;
-    }
-
-    payload.selected_color = defaultColor;
 
     try {
       const response = await createOrder(payload);
@@ -276,18 +273,26 @@ const Items = () => {
       }
     } catch (error) {
       const errorData = error.response?.data;
+      const status = error.response?.status;
       let errorMsg = 'Failed to place order. Please try again.';
+
       if (errorData) {
         if (typeof errorData === 'string') {
-          errorMsg = errorData;
+          const match = errorData.match(/<pre[^>]*>([^<]+)<\/pre>/);
+          errorMsg = match ? match[1].trim() : (errorData.startsWith('<') ? 'Please check your inputs and try again.' : errorData);
         } else if (typeof errorData === 'object') {
-          // Format validation errors nicely
-          const errors = Object.entries(errorData).map(([k, v]) => {
-            const keyName = k.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-            const value = Array.isArray(v) ? v.join(', ') : v;
-            return `${keyName}: ${value}`;
-          }).join('\n');
-          errorMsg = errors || 'Validation error occurred';
+          if (errorData.error) {
+            errorMsg = errorData.error;
+          } else if (errorData.detail) {
+            errorMsg = errorData.detail;
+          } else {
+            const errors = Object.entries(errorData).map(([k, v]) => {
+              const keyName = k.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+              const value = Array.isArray(v) ? v.join(', ') : v;
+              return `${keyName}: ${value}`;
+            }).join('\n');
+            errorMsg = errors || 'Validation error occurred';
+          }
         }
       } else if (error.message) {
         errorMsg = error.message;
@@ -494,12 +499,11 @@ const Items = () => {
                     </div>
 
                     {/* Color Selection */}
-                    {/* {activeItem?.colors && activeItem.colors.length > 0 && (
+                    {selectedItem?.colors && selectedItem.colors.length > 0 && (
                       <div className="space-y-4">
                         <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Select Color</p>
                         <div className="grid grid-cols-4 gap-3">
-                          {activeItem.colors.map((color) => {
-                            // Get hex color from utility
+                          {selectedItem.colors.map((color) => {
                             const hexColor = color.hex_color || getHexColor(color.name);
                             const isSelected = formData.selected_color === color.name;
                             const isLight = isLightColor(hexColor);
@@ -523,7 +527,7 @@ const Items = () => {
                           })}
                         </div>
                       </div>
-                    )} */}
+                    )}
 
                     <div className="flex items-center justify-between bg-zinc-100 dark:bg-white/5 p-6 rounded-sm border dark:border-white/5">
                       <div>

@@ -15,10 +15,6 @@ class ColorCreateSerializer(serializers.ModelSerializer):
 
 
 class StockSerializer(serializers.ModelSerializer):
-    """
-    Serializer for the Stock model. 
-    Note: is_available is read_only because the model's save() method handles it.
-    """
     class Meta:
         model = Stock
         fields = ['id', 'quantity_meters', 'is_available']
@@ -26,13 +22,9 @@ class StockSerializer(serializers.ModelSerializer):
 
 
 class MaterialSerializer(serializers.ModelSerializer):
-    """
-    Serializer for the Material model.
-    Nests the Stock information via the 'inventory' related_name.
-    """
-    # This allows us to see stock data when querying the material
     inventory = StockSerializer(read_only=True)
     colors = ColorSerializer(many=True, read_only=True)
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Material
@@ -49,3 +41,8 @@ class MaterialSerializer(serializers.ModelSerializer):
             'suit_sample_image',
             'inventory',
         ]
+
+    def get_image_url(self, obj):
+        if obj.image_url and obj.image_url.startswith('data:'):
+            return None
+        return obj.image_url

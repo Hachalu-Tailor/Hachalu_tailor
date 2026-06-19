@@ -88,7 +88,7 @@ def list_materials():
     Returns:
         QuerySet[Material]: All materials with related stock.
     """
-    return Material.objects.select_related("inventory").all()
+    return Material.objects.select_related("inventory").prefetch_related("colors").all()
 
 
 def get_material(material_id: int) -> Material:

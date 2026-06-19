@@ -38,13 +38,15 @@ const Orders = () => {
   });
   const [createdOrder, setCreatedOrder] = useState(null);
 
-  // Helper to get absolute URL for images
+  const BACKEND_BASE = import.meta.env.PROD
+    ? 'https://hachalu-tailor.onrender.com'
+    : 'http://127.0.0.1:8000';
+
   const getAbsoluteUrl = (url) => {
     if (!url) return '';
     if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    // Remove leading slash if present
     const path = url.startsWith('/') ? url.substring(1) : url;
-    return `http://127.0.0.1:8000/${path}`;
+    return `${BACKEND_BASE}/${path}`;
   };
 
   useEffect(() => {

@@ -206,11 +206,15 @@ const Inventory = () => {
     return cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
   };
 
+  const BACKEND_BASE = import.meta.env.PROD
+    ? 'https://hachalu-tailor.onrender.com'
+    : 'http://127.0.0.1:8000';
+
   const getAbsoluteUrl = (url) => {
     if (!url) return "";
     if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) return url;
     const path = url.startsWith("/") ? url.substring(1) : url;
-    return `http://127.0.0.1:8000/${path}`;
+    return `${BACKEND_BASE}/${path}`;
   };
 
   useEffect(() => {

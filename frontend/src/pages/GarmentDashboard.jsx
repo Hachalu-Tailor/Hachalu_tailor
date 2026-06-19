@@ -111,16 +111,17 @@ const GarmentDashboard = () => {
             try {
                 return new URL(API_BASE_URL).origin;
             } catch {
-                return 'http://127.0.0.1:8000';
+                return 'https://hachalu-tailor.onrender.com';
             }
         }
 
         if (typeof window !== 'undefined' && window.location?.origin) {
-            // In development, use frontend origin and Vite /media proxy for LAN compatibility.
             return window.location.origin;
         }
 
-        return 'http://127.0.0.1:5173';
+        return import.meta.env.PROD
+            ? 'https://hachalu-tailor.onrender.com'
+            : 'http://127.0.0.1:5173';
     }, []);
 
     const getAbsoluteUrl = (url) => {

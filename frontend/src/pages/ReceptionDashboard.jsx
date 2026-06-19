@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { motion as Motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   HiOutlineShoppingBag, HiOutlineCube, HiOutlineUserGroup,
@@ -407,7 +407,7 @@ const ReceptionDashboard = () => {
       </div>
 
       {/* Main Stats Grid */}
-      <Motion.div
+      <motion.div
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         className="grid grid-cols-1 md:grid-cols-3 gap-3"
@@ -436,12 +436,12 @@ const ReceptionDashboard = () => {
           <p className="text-2xl font-black text-rose-900 dark:text-rose-100 mt-1">{todayFocus.lowStock}</p>
           <p className="text-[10px] text-rose-700/80 dark:text-rose-300/80">Materials that need replenishment</p>
         </button>
-      </Motion.div>
+      </motion.div>
 
       {/* Main Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {mainStats.map((stat, idx) => (
-          <Motion.div
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.1 }}
@@ -462,14 +462,14 @@ const ReceptionDashboard = () => {
             <p className="text-[10px] font-black text-gray-600 dark:text-gray-400 uppercase tracking-[0.2em] mt-4">{stat.label}</p>
             <h3 className="text-3xl font-black text-gray-900 dark:text-white mt-1">{stat.value}</h3>
             <p className="text-[10px] text-gray-600 dark:text-gray-500 mt-1">{stat.description}</p>
-          </Motion.div>
+          </motion.div>
         ))}
       </div>
 
       {/* Revenue Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {revenueCards.map((card, idx) => (
-          <Motion.div
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 + idx * 0.1 }}
@@ -489,12 +489,12 @@ const ReceptionDashboard = () => {
                 )}
               </div>
             </div>
-          </Motion.div>
+          </motion.div>
         ))}
       </div>
 
       {/* Color Palette Overview */}
-      <Motion.div
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6 }}
@@ -522,7 +522,7 @@ const ReceptionDashboard = () => {
         <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
           {colorStats.topColors.length > 0 ? (
             colorStats.topColors.map((color, idx) => (
-              <Motion.div
+              <motion.div
                 key={idx}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -544,7 +544,7 @@ const ReceptionDashboard = () => {
                 <p className="text-[8px] text-gray-400 text-center">
                   {color.count}
                 </p>
-              </Motion.div>
+              </motion.div>
             ))
           ) : (
             <div className="col-span-full text-center py-8">
@@ -560,7 +560,7 @@ const ReceptionDashboard = () => {
           )}
         </div>
 
-      </Motion.div>
+      </motion.div>
 
       {/* Available Products */}
       <motion.div
@@ -614,7 +614,7 @@ const ReceptionDashboard = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {/* Recent Orders */}
-        <Motion.div
+        <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           className="lg:col-span-2 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-lg p-3"
@@ -631,7 +631,7 @@ const ReceptionDashboard = () => {
 
           <div className="space-y-3">
             {filteredRecentOrders.map((order) => (
-              <Motion.div
+              <motion.div
                 key={order.id}
                 whileHover={{ scale: 1.01 }}
                 className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-white/5 rounded-2xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
@@ -653,7 +653,7 @@ const ReceptionDashboard = () => {
                   <p className="text-sm font-bold dark:text-white">{formatCurrency(order.total_price, CURRENCY.CODE)}</p>
                   <p className="text-[9px] text-gray-400">{formatRelativeTime(order.created_at)}</p>
                 </div>
-              </Motion.div>
+              </motion.div>
             ))}
             {filteredRecentOrders.length === 0 && (
               <div className="text-center py-12">
@@ -668,12 +668,12 @@ const ReceptionDashboard = () => {
               </div>
             )}
           </div>
-        </Motion.div>
+        </motion.div>
 
         {/* Inventory Alerts & Quick Actions */}
         <div className="space-y-6">
           {/* Inventory Alerts */}
-          <Motion.div
+          <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             className="bg-white dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-3xl p-6"
@@ -733,10 +733,10 @@ const ReceptionDashboard = () => {
                 </div>
               )}
             </div>
-          </Motion.div>
+          </motion.div>
 
           {/* Quick Actions */}
-          <Motion.div
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="grid grid-cols-2 gap-3"
@@ -783,7 +783,7 @@ const ReceptionDashboard = () => {
               <HiOutlineChatBubbleLeftRight className="mx-auto mb-2 text-red-600" size={22} />
               <p className="text-[10px] font-black uppercase tracking-widest dark:text-white">Messages</p>
             </button>
-          </Motion.div>
+          </motion.div>
         </div>
       </div>
 
